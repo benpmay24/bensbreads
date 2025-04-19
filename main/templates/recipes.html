@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block title %}Recipes | Bread & Bytes{% endblock %}
+
+{% block content %}
+<section class="py-5">
+  <div class="container">
+    <h1 class="mb-4 text-center">Bread Recipes</h1>
+    <div class="row">
+      <div class="col-md-6">
+        <div class="card mb-4 shadow-sm">
+          <img src="https://via.placeholder.com/600x300" class="card-img-top" alt="Recipe image">
+          <div class="card-body">
+            <h5 class="card-title">Basic Sourdough</h5>
+            <p class="card-text">Learn how to make the perfect tangy sourdough loaf from scratch with this step-by-step recipe.</p>
+            <a href="#" class="btn btn-outline-primary">View Recipe</a>
+          </div>
+        </div>
+      </div>
+      <!-- More recipe cards here -->
+    </div>
+  </div>
+</section>
+{% endblock %}

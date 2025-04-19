@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block title %}Home | Bread & Bytes{% endblock %}
+
+{% block content %}
+<section class="hero bg-light py-5">
+  <div class="container text-center">
+    <h1 class="display-4 mb-4">Welcome to Bread & Bytes!</h1>
+    <p class="lead">A place where bread meets code. Explore my blog, try some recipes, and enjoy a few games I’ve baked up!</p>
+    <div class="d-flex justify-content-center">
+      <a href="{% url 'blog' %}" class="btn btn-outline-primary me-3">Read the Blog</a>
+      <a href="{% url 'recipes' %}" class="btn btn-outline-primary">Browse Recipes</a>
+    </div>
+  </div>
+</section>
+
+<section class="py-5 text-center">
+  <div class="container">
+    <h2 class="mb-4">Featured Recipe</h2>
+    <div class="row">
+      <div class="col-md-6">
+        <div class="card shadow-sm">
+          <img src="https://via.placeholder.com/600x300" class="card-img-top" alt="Featured Recipe">
+          <div class="card-body">
+            <h5 class="card-title">Sourdough Starter</h5>
+            <p class="card-text">Master the basics of bread-making with this classic sourdough starter recipe.</p>
+            <a href="{% url 'recipes' %}" class="btn btn-outline-primary">View Recipe</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
