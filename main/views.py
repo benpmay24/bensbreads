@@ -94,3 +94,30 @@ def delete_blog_post(request, post_id):
     if request.method == 'POST':
         post.delete()
     return redirect('blog')
+
+# Recipe view
+def recipes(request):
+    recipes = Recipe.objects.all()
+    return render(request, 'recipes.html', {'recipes': recipes})
+
+# Add Recipe view (only for staff or higher)
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+def add_recipe(request):
+    if request.method == 'POST':
+        form = RecipeForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            return redirect('recipes')
+    else:
+        form = RecipeForm()
+
+    return render(request, 'add_recipe.html', {'form': form})
+
+# Delete Recipe view (only for staff or higher)
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+def delete_recipe(request, pk):
+    recipe = Recipe.objects.get(pk=pk)
+    recipe.delete()
+    return redirect('recipes')
