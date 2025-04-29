@@ -1,11 +1,41 @@
 {% extends 'base.html' %}
+{% load widget_tweaks %}
+{% block title %}Add Blog Post{% endblock %}
+
 {% block content %}
 <div class="container mt-5">
-  <h2>Add Blog Post</h2>
-  <form method="POST">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit" class="btn btn-outline-primary">Submit</button>
-  </form>
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h2 class="card-title mb-4">Add Blog Post</h2>
+      <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label for="id_title" class="form-label">Title</label>
+          {{ form.title|add_class:"form-control" }}
+        </div>
+        <div class="mb-3">
+          <label for="id_content" class="form-label">Content</label>
+          {{ form.content|add_class:"form-control"|attr:"rows:5" }}
+        </div>
+        <div class="d-flex justify-content-end">
+          <button type="submit" class="btn btn-primary me-2">Post</button>
+          <a href="{% url 'blog' %}" class="btn btn-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const textarea = document.querySelector('textarea');
+    if (textarea) {
+      textarea.setAttribute('style', 'height:' + (textarea.scrollHeight) + 'px;overflow-y:hidden;');
+      textarea.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight) + 'px';
+      });
+    }
+  });
+</script>
 {% endblock %}
