@@ -19,6 +19,9 @@ urlpatterns = [
     path('recipes/', views.recipes, name='recipes'),
     path('recipes/add/', views.add_recipe, name='add_recipe'),
     path('recipes/delete/<int:pk>/', views.delete_recipe, name='delete_recipe'),
+    path('secrets/', views.secrets, name='secrets'),
+    path('ramsey/', views.ramsey_page, name='ramsey'),
+    path('ramsey/upload/', views.upload_ramsey_photo, name='upload_ramsey_photo'),
 ]
 
 

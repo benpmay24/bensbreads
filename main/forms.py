@@ -1,12 +1,19 @@
 from django import forms
-from .models import BlogPost, Recipe
+from .models import BlogPost, Recipe, RamseyPhoto
 
 class BlogPostForm(forms.ModelForm):
     class Meta:
         model = BlogPost
-        fields = ['title', 'content']
+        fields = ['title', 'content', 'private']
+
+    private = forms.BooleanField(required=False, label="Mark as Private", initial=False)
 
 class RecipeForm(forms.ModelForm):
     class Meta:
         model = Recipe
-        fields = ['title', 'ingredients', 'instructions',"image"]
+        fields = ['title', 'description', 'time_required', 'image']
+
+class RamseyPhotoForm(forms.ModelForm):
+    class Meta:
+        model = RamseyPhoto
+        fields = ['image']

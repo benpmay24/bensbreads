@@ -1,38 +1,61 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.forms import UserCreationForm
-from . import models
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
+from .models import BlogPost, Recipe, Ingredient, Instruction, RamseyPhoto
+from .forms import BlogPostForm, RecipeForm, RamseyPhotoForm
+from django.db import transaction
 
-# Create your views here.
-
-# Home view
-def home(request):
-    return render(request, 'index.html')
-
-# Games view
-def games(request):
-    return render(request, 'games.html')
-
-# About view
-def about(request):
-    return render(request, 'about.html')
-
-from .models import BlogPost, Recipe
-
-def blog(request):
-    posts = BlogPost.objects.all().order_by('-created_at')
-    return render(request, 'blog.html', {'posts': posts})
-
-def recipes(request):
-    recipes = Recipe.objects.all().order_by('-created_at')
-    return render(request, 'recipes.html', {'recipes': recipes})
-
-from django.contrib.auth.decorators import login_required,user_passes_test
-from django.shortcuts import redirect
-from .forms import BlogPostForm, RecipeForm
+# Home, Games, About, Blog, Signup, Manage Users views — same as you wrote
 
 def staff_or_superuser(user):
     return user.is_authenticated and (user.is_staff or user.is_superuser)
+
+def home(request):
+    return render(request, 'index.html')
+
+def games(request):
+    return render(request, 'games.html')
+
+def about(request):
+    return render(request, 'about.html')
+
+# Home view (showing public posts)
+def blog(request):
+    posts = BlogPost.objects.filter(private=False).order_by('-created_at')  # Only non-private posts
+    return render(request, 'blog.html', {'posts': posts})
+
+# views.py
+from django.http import HttpResponseForbidden
+
+# Secrets page (only superusers)
+def secrets(request):
+    if not request.user.is_superuser:
+        return HttpResponseForbidden('Admin privileges required.')
+    posts = BlogPost.objects.filter(private=True).order_by('-created_at')
+    return render(request, 'blog.html', {'posts': posts, 'is_secrets': True})
+
+def signup(request):
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('login')
+    else:
+        form = UserCreationForm()
+    return render(request, 'signup.html', {'form': form})
+
+@user_passes_test(lambda u: u.is_superuser)
+def manage_users(request):
+    users = User.objects.exclude(username=request.user.username)
+    if request.method == "POST":
+        for user in users:
+            user_id_str = str(user.id)
+            user.is_staff = request.POST.get(f'staff_{user_id_str}') == 'on'
+            user.is_superuser = request.POST.get(f'superuser_{user_id_str}') == 'on'
+            user.save()
+        return redirect('manage_users')
+    return render(request, "manage_users.html", {'users': users})
 
 @user_passes_test(staff_or_superuser)
 def add_blog_post(request):
@@ -47,47 +70,6 @@ def add_blog_post(request):
         form = BlogPostForm()
     return render(request, 'add_blog_post.html', {'form': form})
 
-# @login_required
-def add_recipe(request):
-    if request.method == 'POST':
-        form = RecipeForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return redirect('recipes')
-    else:
-        form = RecipeForm()
-    return render(request, 'add_recipe.html', {'form': form})
-
-def signup(request):
-    if request.method == 'POST':
-        form = UserCreationForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return redirect('login')
-    else:
-        form = UserCreationForm()
-    return render(request, 'signup.html', {'form': form})
-
-
-
-
-@user_passes_test(lambda u: u.is_superuser)
-def manage_users(request):
-    users = User.objects.exclude(username=request.user.username)  # Don't list self
-
-    if request.method == "POST":
-        for user in users:
-            user_id_str = str(user.id)
-            user.is_staff = request.POST.get(f'staff_{user_id_str}') == 'on'
-            user.is_superuser = request.POST.get(f'superuser_{user_id_str}') == 'on'
-            user.save()
-        return redirect('manage_users')
-
-    return render(request, "manage_users.html", {'users': users})
-
-from django.shortcuts import get_object_or_404, redirect
-from .models import BlogPost
-
 @user_passes_test(lambda u: u.is_superuser)
 def delete_blog_post(request, post_id):
     post = get_object_or_404(BlogPost, id=post_id)
@@ -95,29 +77,78 @@ def delete_blog_post(request, post_id):
         post.delete()
     return redirect('blog')
 
-# Recipe view
 def recipes(request):
-    recipes = Recipe.objects.all()
+    recipes = Recipe.objects.all().order_by('-created_at')
     return render(request, 'recipes.html', {'recipes': recipes})
 
-# Add Recipe view (only for staff or higher)
+from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.db import transaction
+from .forms import RecipeForm
+from .models import Recipe, Ingredient, Instruction
+
+from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.db import transaction
+from .forms import RecipeForm
+from .models import Recipe, Ingredient, Instruction
+
+
 @login_required
 @user_passes_test(lambda u: u.is_staff)
 def add_recipe(request):
     if request.method == 'POST':
         form = RecipeForm(request.POST, request.FILES)
         if form.is_valid():
-            form.save()
+            with transaction.atomic():
+                recipe = form.save()
+
+                # Save ingredients
+                ingredients_data = request.POST.get('ingredients', '')
+                for item in ingredients_data.split(','):
+                    if item.strip():
+                        parts = item.strip().split(' ', 1)
+                        if len(parts) == 2:
+                            quantity, name = parts
+                        else:
+                            quantity = ''
+                            name = parts[0]
+                        Ingredient.objects.create(recipe=recipe, quantity=quantity.strip(), name=name.strip())
+
+                # Save instructions
+                instructions_data = request.POST.get('instructions', '')
+                for idx, instruction_text in enumerate(instructions_data.split(',')):
+                    if instruction_text.strip():
+                        Instruction.objects.create(recipe=recipe, step_number=idx+1, step_text=instruction_text.strip())
+
             return redirect('recipes')
     else:
         form = RecipeForm()
-
     return render(request, 'add_recipe.html', {'form': form})
 
-# Delete Recipe view (only for staff or higher)
 @login_required
 @user_passes_test(lambda u: u.is_staff)
 def delete_recipe(request, pk):
-    recipe = Recipe.objects.get(pk=pk)
-    recipe.delete()
+    recipe = get_object_or_404(Recipe, pk=pk)
+    if request.method == 'POST':
+        if recipe.image:
+            recipe.image.delete(save=False)
+        recipe.delete()
     return redirect('recipes')
+
+
+def ramsey_page(request):
+    photos = RamseyPhoto.objects.all().order_by('-uploaded_at')
+    return render(request, 'ramsey.html', {'photos': photos})
+
+@login_required
+@user_passes_test(lambda u: u.is_staff or u.is_superuser)
+def upload_ramsey_photo(request):
+    if request.method == 'POST':
+        form = RamseyPhotoForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            return redirect('ramsey')
+    else:
+        form = RamseyPhotoForm()
+    return render(request, 'upload_ramsey_photo.html', {'form': form})

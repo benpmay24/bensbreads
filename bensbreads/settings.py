@@ -12,21 +12,30 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+import dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+#LOAD .env file if exists for local dev
+dotenv_file = os.path.join(BASE_DIR, ".env")
+if os.path.isfile(dotenv_file):
+    dotenv.load_dotenv(dotenv_file)
+
+debug=bool(os.environ["debug"])
+django_secret=os.environ["django_secret"]
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-!h#c@u1c0^2qesrj2s4lbsaql0hwyc4a0ryp1kwz#h-w68n01v'
+SECRET_KEY = django_secret
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = debug
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["bens-breads.onrender.com"]
 
 
 # Application definition

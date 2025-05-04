@@ -9,14 +9,24 @@
       <h2 class="card-title mb-4">Add Blog Post</h2>
       <form method="post">
         {% csrf_token %}
+        
         <div class="mb-3">
           <label for="id_title" class="form-label">Title</label>
           {{ form.title|add_class:"form-control" }}
         </div>
+        
         <div class="mb-3">
           <label for="id_content" class="form-label">Content</label>
           {{ form.content|add_class:"form-control"|attr:"rows:5" }}
         </div>
+
+        {% if user.is_superuser %}
+          <div class="mb-3 form-check">
+            <input type="checkbox" name="private" id="id_private" class="form-check-input" {% if form.private.value %}checked{% endif %}>
+            <label for="id_private" class="form-check-label">Mark as Private</label>
+          </div>
+        {% endif %}
+
         <div class="d-flex justify-content-end">
           <button type="submit" class="btn btn-primary me-2">Post</button>
           <a href="{% url 'blog' %}" class="btn btn-secondary">Cancel</a>
@@ -38,4 +48,5 @@
     }
   });
 </script>
+
 {% endblock %}
