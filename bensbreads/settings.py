@@ -35,7 +35,7 @@ SECRET_KEY = django_secret
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = debug
 
-ALLOWED_HOSTS = ["bens-breads.onrender.com"]
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -59,6 +59,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
 ]
 
 ROOT_URLCONF = 'bensbreads.urls'
@@ -145,3 +146,4 @@ LOGOUT_REDIRECT_URL = '/'
 # Media files configuration
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
