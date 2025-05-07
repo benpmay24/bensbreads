@@ -26,6 +26,7 @@ if os.path.isfile(dotenv_file):
 debug=bool(os.environ["debug"])
 django_secret=os.environ["django_secret"]
 db_url=os.environ["db_url"]
+media_root=os.environ["media_root"]
 
 
 # Quick-start development settings - unsuitable for production
@@ -146,6 +147,6 @@ LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 
 # Media files configuration
-MEDIA_ROOT = '/var/data'
+MEDIA_ROOT = media_root
 MEDIA_URL = '/media/'
 
