@@ -90,7 +90,10 @@ WSGI_APPLICATION = 'bensbreads.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default': dj_database_url.config(default=os.environ.get('DATABASE_URL'))
+    'default': 
+    dj_database_url.config(
+        default=db_url,
+    )
 }
 
 
