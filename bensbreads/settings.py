@@ -148,6 +148,7 @@ STATICFILES_DIRS = [
     BASE_DIR / "main"/"static",
 ]
 
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
@@ -156,10 +157,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 
-# Media files configuration
-if debug_bool:
-    media_root=os.path.join(BASE_DIR,media_root)
 
-MEDIA_ROOT = media_root
+MEDIA_ROOT = os.path.join(BASE_DIR, media_root) if debug_bool else media_root
 MEDIA_URL = '/media/'
 
