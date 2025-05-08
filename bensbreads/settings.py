@@ -23,7 +23,7 @@ dotenv_file = os.path.join(BASE_DIR, ".env")
 if os.path.isfile(dotenv_file):
     dotenv.load_dotenv(dotenv_file)
 
-debug_bool=bool(os.environ["debug_bool"])
+debug_bool = os.environ["debug_bool"].lower() == "true"
 print(debug_bool)
 print(type(debug_bool))
 django_secret=os.environ["django_secret"]
