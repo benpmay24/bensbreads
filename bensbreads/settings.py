@@ -24,8 +24,6 @@ if os.path.isfile(dotenv_file):
     dotenv.load_dotenv(dotenv_file)
 
 debug_bool = os.environ["debug_bool"].lower() == "true"
-print(debug_bool)
-print(type(debug_bool))
 django_secret=os.environ["django_secret"]
 db_url=os.environ["db_url"]
 media_root=os.environ["media_root"]
