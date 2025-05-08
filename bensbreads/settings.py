@@ -89,12 +89,18 @@ WSGI_APPLICATION = 'bensbreads.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+if debug:
+    db_config={
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+    }
+else:
+    db_config=dj_database_url.config(
+        default=db_url
+    )
 
 DATABASES = {
-    'default': 
-    dj_database_url.config(
-        default=db_url,
-    )
+    'default': db_config
 }
 
 
@@ -147,6 +153,9 @@ LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 
 # Media files configuration
+if debug:
+    media_root=os.path.join(BASE_DIR,media_root)
+
 MEDIA_ROOT = media_root
 MEDIA_URL = '/media/'
 
