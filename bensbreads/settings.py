@@ -23,10 +23,14 @@ dotenv_file = os.path.join(BASE_DIR, ".env")
 if os.path.isfile(dotenv_file):
     dotenv.load_dotenv(dotenv_file)
 
-debug=bool(os.environ["debug"])
+debug_bool=bool(os.environ["debug"])
+print(debug_bool)
+print(type(debug_bool))
 django_secret=os.environ["django_secret"]
 db_url=os.environ["db_url"]
 media_root=os.environ["media_root"]
+
+
 
 
 # Quick-start development settings - unsuitable for production
@@ -36,7 +40,7 @@ media_root=os.environ["media_root"]
 SECRET_KEY = django_secret
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = debug
+DEBUG = debug_bool
 
 ALLOWED_HOSTS = ["*"]
 
@@ -89,7 +93,7 @@ WSGI_APPLICATION = 'bensbreads.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-if debug:
+if debug_bool:
     db_config={
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
@@ -153,7 +157,7 @@ LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 
 # Media files configuration
-if debug:
+if debug_bool:
     media_root=os.path.join(BASE_DIR,media_root)
 
 MEDIA_ROOT = media_root
