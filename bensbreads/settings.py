@@ -156,6 +156,6 @@ LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 
 
-MEDIA_ROOT = "/media"
+MEDIA_ROOT = BASE_DIR / 'media'
 MEDIA_URL = '/media/'
 
