@@ -61,7 +61,7 @@
             <a class="nav-link dropdown-toggle bg-light border rounded px-3 py-1" href="#" id="accountDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="box-shadow: 0 0 5px rgba(0,0,0,0.1);">
               Account
             </a>
-            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="accountDropdown">
+            <ul class="dropdown-menu dropdown-menu-end position-absolute w-auto" aria-labelledby="accountDropdown" style="right: 0; max-width: 100%;">
               {% if user.is_authenticated %}
                 <li class="dropdown-item-text">Welcome, <strong>{{ user.username }}</strong></li>
                 <li><hr class="dropdown-divider"></li>
@@ -75,6 +75,7 @@
               {% endif %}
             </ul>
           </li>
+          
         </ul>
       </div>
     </div>
