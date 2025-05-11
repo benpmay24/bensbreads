@@ -1,3 +1,4 @@
+import json
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -5,6 +6,11 @@ from django.contrib.auth.models import User
 from .models import BlogPost, Recipe, Ingredient, Instruction, RamseyPhoto
 from .forms import BlogPostForm, RecipeForm, RamseyPhotoForm
 from django.db import transaction
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from .connect4.board import board
+from .connect4.eval_cpu_moves import evalMoves
+from .connect4.generate_default import generateDefault
 
 # Home, Games, About, Blog, Signup, Manage Users views — same as you wrote
 
@@ -12,13 +18,12 @@ def staff_or_superuser(user):
     return user.is_authenticated and (user.is_staff or user.is_superuser)
 
 def home(request):
-    return render(request, 'index.html')
+    # Get all recipes that are marked as featured
+    featured_recipes = Recipe.objects.filter(featured=True)
+    return render(request, 'index.html', {'featured_recipes': featured_recipes})
 
 def games(request):
     return render(request, 'games.html')
-
-def about(request):
-    return render(request, 'about.html')
 
 # Home view (showing public posts)
 def blog(request):
@@ -94,6 +99,7 @@ from .forms import RecipeForm
 from .models import Recipe, Ingredient, Instruction
 
 
+
 @login_required
 @user_passes_test(lambda u: u.is_staff)
 def add_recipe(request):
@@ -101,7 +107,12 @@ def add_recipe(request):
         form = RecipeForm(request.POST, request.FILES)
         if form.is_valid():
             with transaction.atomic():
-                recipe = form.save()
+                # Create the recipe and save it
+                recipe = form.save(commit=False)
+
+                # Mark the recipe as featured if the checkbox is checked
+                recipe.featured = 'featured' in request.POST
+                recipe.save()
 
                 # Save ingredients
                 ingredients_data = request.POST.get('ingredients', '')
@@ -124,6 +135,7 @@ def add_recipe(request):
             return redirect('recipes')
     else:
         form = RecipeForm()
+
     return render(request, 'add_recipe.html', {'form': form})
 
 @login_required
@@ -136,10 +148,12 @@ def delete_recipe(request, pk):
         recipe.delete()
     return redirect('recipes')
 
+def ramsey_bio(request):
+    return render(request, 'ramsey_bio.html')
 
-def ramsey_page(request):
-    photos = RamseyPhoto.objects.all().order_by('-uploaded_at')
-    return render(request, 'ramsey.html', {'photos': photos})
+def ramsey_gallery(request):
+    photos = RamseyPhoto.objects.all().order_by('-uploaded_at')  # adjust as needed
+    return render(request, 'ramsey_gallery.html', {'photos': photos})
 
 @login_required
 @user_passes_test(lambda u: u.is_staff or u.is_superuser)
@@ -152,3 +166,32 @@ def upload_ramsey_photo(request):
     else:
         form = RamseyPhotoForm()
     return render(request, 'upload_ramsey_photo.html', {'form': form})
+
+@login_required
+@user_passes_test(lambda u: u.is_staff or u.is_superuser)
+def toggle_featured_recipe(request, pk):
+    recipe = get_object_or_404(Recipe, pk=pk)
+    recipe.featured = not recipe.featured  # Toggle the featured status
+    recipe.save()
+    return redirect('recipes')  # Redirect back to the recipes page after toggling
+
+def connect4 (request):
+    return render(request,"connect4.html")
+
+# Replace with your logic to determine CPU's move
+def get_cpu_move(cur_board):
+    # Example: Just pick the first empty column for simplicity
+    current_board=board(blankChar=None,P1="red",P2="yellow",numRows=6,numCols=7,content=cur_board)
+    [points,scores]=generateDefault()
+    move=evalMoves(current_board,"yellow",points)
+    return move  # No valid moves left
+
+@csrf_exempt
+def cpu_move(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        board = data.get('board')
+        move = get_cpu_move(board)
+        return JsonResponse({'move': move})
+
+    return JsonResponse({'error': 'Invalid request'}, status=400)

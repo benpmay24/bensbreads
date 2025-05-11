@@ -9,7 +9,6 @@ urlpatterns = [
     path('', views.home, name='home'),
     path('blog/', views.blog, name='blog'),
     path('games/', views.games, name='games'),
-    path('about/', views.about, name='about'),
     path('blog/add/', views.add_blog_post, name='add_blog_post'),
     path('manage-users/', views.manage_users, name='manage_users'),
     path('login/', auth_views.LoginView.as_view(), name='login'),
@@ -19,12 +18,11 @@ urlpatterns = [
     path('recipes/', views.recipes, name='recipes'),
     path('recipes/add/', views.add_recipe, name='add_recipe'),
     path('recipes/delete/<int:pk>/', views.delete_recipe, name='delete_recipe'),
+    path('recipes/<int:pk>/toggle_featured/', views.toggle_featured_recipe, name='toggle_featured_recipe'),
     path('secrets/', views.secrets, name='secrets'),
-    path('ramsey/', views.ramsey_page, name='ramsey'),
+    path('ramsey/story/', views.ramsey_bio, name='ramsey'),
+    path('ramsey/gallery/', views.ramsey_gallery, name='ramsey_gallery'),
     path('ramsey/upload/', views.upload_ramsey_photo, name='upload_ramsey_photo'),
+    path('games/connect4/', views.connect4, name='connect4'),
+    path('api/cpu-move/', views.cpu_move, name='cpu_move'),
 ]
-
-
-# # Serve media files during development
-# if settings.DEBUG:
-#     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

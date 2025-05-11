@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Ramsey's Life Story{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <h2 class="mb-4 text-center">The Story of Ramsey</h2>
+      <p class="lead">Ramsey was born in a small town with a big heart. From day one, she showed unmatched curiosity and charm...</p>
+
+      <img src="{% static 'main/ramsey_puppy.jpg' %}" class="img-fluid rounded shadow-sm my-4" alt="Ramsey as a Puppy">
+
+      <p>She loved digging, chasing butterflies, and always kept her family on their toes with her antics and boundless energy.</p>
+
+      <img src="{% static 'main/ramsey_adult.jpg' %}" class="img-fluid rounded shadow-sm my-4" alt="Ramsey Grown Up">
+
+      <p>Now grown, Ramsey is a symbol of loyalty and joy — a true family legend who brings warmth and laughter to all who meet her.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

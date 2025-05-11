@@ -1,34 +1,82 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Home | Bread & Bytes{% endblock %}
+{% block title %}Home | Ben's Breads{% endblock %}
 
 {% block content %}
-<section class="hero bg-light py-5">
-  <div class="container text-center">
-    <h1 class="display-4 mb-4">Welcome to Bread & Bytes!</h1>
-    <p class="lead">A place where bread meets code. Explore my blog, try some recipes, and enjoy a few games I’ve baked up!</p>
-    <div class="d-flex justify-content-center">
-      <a href="{% url 'blog' %}" class="btn btn-outline-primary me-3">Read the Blog</a>
-      <a href="{% url 'recipes' %}" class="btn btn-outline-primary">Browse Recipes</a>
+<section class="hero text-white d-flex align-items-center" style="background: url('{% static 'main/home-background-3.jpeg' %}') center center / cover no-repeat; min-height: 60vh; position: relative;">
+  <div class="position-absolute top-0 start-0 w-100 h-100" style="background-color: rgba(0, 0, 0, 0.5); z-index: 0;"></div>
+
+  <div class="container position-relative z-1 text-center">
+    <h1 class="hero-title mb-3 text-light" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.6); font-size: 3rem;">
+      Welcome to <span style="color: #FFD580;">Ben's Breads!</span>
+    </h1>
+    <p class="hero-subtitle text-light mb-4" style="max-width: 700px; margin: 0 auto; text-shadow: 1px 1px 3px rgba(0,0,0,0.5); font-size: 1.2rem;">
+      A place where bread meets code. Explore my blog, try some recipes, and enjoy a few games I’ve baked up!
+    </p>
+    <div>
+      <a href="{% url 'blog' %}" class="btn btn-lg btn-outline-light me-3">Read the Blog</a>
+      <a href="{% url 'recipes' %}" class="btn btn-lg btn-outline-light">Browse Recipes</a>
     </div>
   </div>
 </section>
 
 <section class="py-5 text-center">
   <div class="container">
-    <h2 class="mb-4">Featured Recipe</h2>
+    <h2 class="section-title mb-4" style="font-size: 2rem; font-weight: 600;">Featured Recipes</h2>
     <div class="row">
-      <div class="col-md-6">
-        <div class="card shadow-sm">
-          <img src="https://via.placeholder.com/600x300" class="card-img-top" alt="Featured Recipe">
+      {% for recipe in featured_recipes %}
+        <div class="col-md-6 col-lg-4 mb-4">
+          <a href="{% url 'recipes' %}" class="card h-100 text-decoration-none">
+            {% if recipe.image %}
+              <img src="{{ recipe.image.url }}" class="card-img-top" alt="{{ recipe.title }}" style="object-fit: cover; height: 200px;">
+            {% endif %}
+            <div class="card-body">
+              <h5 class="card-title" style="font-size: 1.2rem; font-weight: 600;">{{ recipe.title }}</h5>
+              <p class="card-text" style="font-size: 1rem;">{{ recipe.description|truncatewords:15 }}</p>
+            </div>
+          </a>
+        </div>
+      {% empty %}
+        <p>No featured recipes yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="py-5 bg-light text-center">
+  <div class="container">
+    <h2 class="section-title mb-4" style="font-size: 2rem; font-weight: 600;">Explore</h2>
+    <div class="row text-center">
+      <div class="col-md-4 mb-4">
+        <div class="card h-100">
           <div class="card-body">
-            <h5 class="card-title">Sourdough Starter</h5>
-            <p class="card-text">Master the basics of bread-making with this classic sourdough starter recipe.</p>
-            <a href="{% url 'recipes' %}" class="btn btn-outline-primary">View Recipe</a>
+            <h5 class="card-title" style="font-size: 1.25rem; font-weight: 600;">Blog</h5>
+            <p class="card-text" style="font-size: 1rem;">Catch up on the latest posts where I talk about everything from baking science to web development lessons.</p>
+            <a href="{% url 'blog' %}" class="btn btn-outline-primary">Visit Blog</a>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4 mb-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <h5 class="card-title" style="font-size: 1.25rem; font-weight: 600;">Ramsey</h5>
+            <p class="card-text" style="font-size: 1rem;">A special section dedicated to Ramsey, featuring custom content, stories, or projects worth highlighting.</p>
+            <a href="{% url 'ramsey' %}" class="btn btn-outline-primary">Explore Ramsey</a>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4 mb-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <h5 class="card-title" style="font-size: 1.25rem; font-weight: 600;">Games</h5>
+            <p class="card-text" style="font-size: 1rem;">Enjoy a handful of simple games I've built – a little fun between the recipes and blog reading.</p>
+            <a href="{% url 'games' %}" class="btn btn-outline-primary">Play Games</a>
           </div>
         </div>
       </div>
     </div>
   </div>
 </section>
+
 {% endblock %}

@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Ramsey Photo Gallery{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+  {% if user.is_staff or user.is_superuser %}
+  <div class="d-flex justify-content-end mb-4">
+    <a href="{% url 'upload_ramsey_photo' %}" class="btn btn-outline-primary">Upload Ramsey Photo</a>
+  </div>
+  {% endif %}
+
+  <div class="container d-flex justify-content-center">
+    <div id="ramseyCarousel" class="carousel slide shadow-sm mb-5 w-100" data-bs-ride="carousel" data-bs-interval="4000" style="max-width: 800px;">
+      <div class="carousel-inner text-center" style="max-height: 400px; overflow: hidden; background-color: #f8f9fa;">
+        {% for photo in photos %}
+          <div class="carousel-item {% if forloop.first %}active{% endif %}">
+            <img src="{{ photo.image.url }}" class="d-inline-block" alt="Ramsey Photo" style="max-height: 400px; max-width: 100%; object-fit: contain;">
+          </div>
+        {% empty %}
+          <div class="carousel-item active">
+            <img src="{% static 'main/default_ramsey.jpg' %}" class="d-inline-block" alt="Ramsey" style="max-height: 400px; max-width: 100%; object-fit: contain;">
+          </div>
+        {% endfor %}
+      </div>
+      <button class="carousel-control-prev" type="button" data-bs-target="#ramseyCarousel" data-bs-slide="prev">
+        <span class="carousel-control-prev-icon bg-dark rounded-circle p-2" aria-hidden="true"></span>
+        <span class="visually-hidden">Previous</span>
+      </button>
+      <button class="carousel-control-next" type="button" data-bs-target="#ramseyCarousel" data-bs-slide="next">
+        <span class="carousel-control-next-icon bg-dark rounded-circle p-2" aria-hidden="true"></span>
+        <span class="visually-hidden">Next</span>
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}

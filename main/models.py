@@ -16,6 +16,7 @@ class Recipe(models.Model):
     time_required = models.CharField(max_length=100)
     created_at = models.DateTimeField(auto_now_add=True)
     image = models.ImageField(upload_to='recipes/', blank=True, null=True)
+    featured = models.BooleanField(default=False)  # New field to mark a recipe as featured
 
     def delete(self, *args, **kwargs):
         # Delete image if exists
