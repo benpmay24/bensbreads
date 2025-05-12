@@ -68,38 +68,40 @@
 </div>
 
 <script>
-  // Handle adding ingredients dynamically
-  document.getElementById('add_ingredient_btn').addEventListener('click', function() {
+  const ingredients = [];
+  const instructions = [];
+
+  document.getElementById('add_ingredient_btn').addEventListener('click', function () {
     const ingredientName = document.getElementById('ingredient_name').value;
     const ingredientQuantity = document.getElementById('ingredient_quantity').value;
-    
+
     if (ingredientName && ingredientQuantity) {
       const li = document.createElement('li');
       li.innerHTML = `<strong>${ingredientQuantity}</strong> ${ingredientName}`;
       document.getElementById('ingredients_list').appendChild(li);
 
-      const hiddenIngredients = document.getElementById('ingredients_input');
-      hiddenIngredients.value += `${ingredientQuantity} ${ingredientName},`;
+      ingredients.push({ quantity: ingredientQuantity, name: ingredientName });
+      document.getElementById('ingredients_input').value = JSON.stringify(ingredients);
 
       document.getElementById('ingredient_name').value = '';
       document.getElementById('ingredient_quantity').value = '';
     }
   });
 
-  // Handle adding instructions dynamically
-  document.getElementById('add_instruction_btn').addEventListener('click', function() {
+  document.getElementById('add_instruction_btn').addEventListener('click', function () {
     const instructionText = document.getElementById('instruction_text').value;
-    
+
     if (instructionText) {
       const li = document.createElement('li');
       li.innerText = instructionText;
       document.getElementById('instructions_list').appendChild(li);
 
-      const hiddenInstructions = document.getElementById('instructions_input');
-      hiddenInstructions.value += `${instructionText},`;
+      instructions.push(instructionText);
+      document.getElementById('instructions_input').value = JSON.stringify(instructions);
 
       document.getElementById('instruction_text').value = '';
     }
   });
 </script>
+
 {% endblock %}

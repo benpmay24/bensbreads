@@ -109,28 +109,38 @@ def add_recipe(request):
             with transaction.atomic():
                 # Create the recipe and save it
                 recipe = form.save(commit=False)
-
-                # Mark the recipe as featured if the checkbox is checked
                 recipe.featured = 'featured' in request.POST
                 recipe.save()
 
                 # Save ingredients
-                ingredients_data = request.POST.get('ingredients', '')
-                for item in ingredients_data.split(','):
-                    if item.strip():
-                        parts = item.strip().split(' ', 1)
-                        if len(parts) == 2:
-                            quantity, name = parts
-                        else:
-                            quantity = ''
-                            name = parts[0]
-                        Ingredient.objects.create(recipe=recipe, quantity=quantity.strip(), name=name.strip())
+                ingredients_data = request.POST.get('ingredients', '[]')
+                try:
+                    ingredients = json.loads(ingredients_data)
+                    for item in ingredients:
+                        quantity = item.get('quantity', '')
+                        name = item.get('name', '')
+                        if name:
+                            Ingredient.objects.create(
+                                recipe=recipe,
+                                quantity=quantity.strip(),
+                                name=name.strip()
+                            )
+                except json.JSONDecodeError:
+                    pass  # Optional: log or raise
 
                 # Save instructions
-                instructions_data = request.POST.get('instructions', '')
-                for idx, instruction_text in enumerate(instructions_data.split(',')):
-                    if instruction_text.strip():
-                        Instruction.objects.create(recipe=recipe, step_number=idx+1, step_text=instruction_text.strip())
+                instructions_data = request.POST.get('instructions', '[]')
+                try:
+                    instructions = json.loads(instructions_data)
+                    for idx, instruction_text in enumerate(instructions):
+                        if instruction_text.strip():
+                            Instruction.objects.create(
+                                recipe=recipe,
+                                step_number=idx + 1,
+                                step_text=instruction_text.strip()
+                            )
+                except json.JSONDecodeError:
+                    pass  # Optional: log or raise
 
             return redirect('recipes')
     else:
