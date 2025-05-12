@@ -1,5 +1,6 @@
 from django.db import models
 import os
+from django.contrib.auth.models import User
 
 class BlogPost(models.Model):
     title = models.CharField(max_length=200)
@@ -52,3 +53,17 @@ class RamseyPhoto(models.Model):
 
     def __str__(self):
         return f"Ramsey Photo {self.id}"
+    
+class Connect4Result(models.Model):
+    RESULT_CHOICES = [
+        ('win', 'Win'),
+        ('loss', 'Loss'),
+        ('tie', 'Tie'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    result = models.CharField(max_length=4, choices=RESULT_CHOICES)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.result} - {self.timestamp.strftime('%Y-%m-%d %H:%M')}"

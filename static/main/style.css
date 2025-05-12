@@ -157,13 +157,17 @@ footer {
   justify-content: center;
   align-items: center;
   margin: 40px 0;
+  overflow-x: auto; /* Allow horizontal scroll if needed */
+  padding: 0 1rem;
 }
 
-/* Style the board itself */
+/* Responsive wrapper to ensure max width on smaller screens */
 #connect4-board {
   display: flex;
   flex-direction: column-reverse;
   gap: 10px;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* Each row in the board */
@@ -174,8 +178,10 @@ footer {
 
 /* Each cell in the board */
 .connect4-cell {
-  width: 50px;
-  height: 50px;
+  width: 10vw; /* Responsive width */
+  height: 10vw; /* Maintain square aspect ratio */
+  max-width: 50px; /* Cap the max size for larger screens */
+  max-height: 50px;
   background-color: #e8e8e8;
   border-radius: 50%;
   cursor: pointer;
@@ -191,6 +197,7 @@ footer {
 .connect4-cell.yellow {
   background-color: yellow;
 }
+
 
 /* .connect4-cell:hover {
   background-color: #f1f1f1;

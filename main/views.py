@@ -3,8 +3,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
-from .models import BlogPost, Recipe, Ingredient, Instruction, RamseyPhoto
-from .forms import BlogPostForm, RecipeForm, RamseyPhotoForm
+from .models import BlogPost, Recipe, Ingredient, Instruction, RamseyPhoto, Connect4Result
+from .forms import BlogPostForm, RecipeForm, RamseyPhotoForm, CustomUserCreationForm
 from django.db import transaction
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -42,12 +42,16 @@ def secrets(request):
 
 def signup(request):
     if request.method == 'POST':
-        form = UserCreationForm(request.POST)
+        form = CustomUserCreationForm(request.POST)
         if form.is_valid():
-            form.save()
+            user = form.save(commit=False)
+            user.first_name = form.cleaned_data['first_name']
+            user.last_name = form.cleaned_data['last_name']
+            user.email = form.cleaned_data['email']
+            user.save()
             return redirect('login')
     else:
-        form = UserCreationForm()
+        form = CustomUserCreationForm()
     return render(request, 'signup.html', {'form': form})
 
 @user_passes_test(lambda u: u.is_superuser)
@@ -97,6 +101,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db import transaction
 from .forms import RecipeForm
 from .models import Recipe, Ingredient, Instruction
+from django.db.models import Count, Q
 
 
 
@@ -205,3 +210,24 @@ def cpu_move(request):
         return JsonResponse({'move': move})
 
     return JsonResponse({'error': 'Invalid request'}, status=400)
+
+@csrf_exempt
+@login_required
+def save_connect4_result(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        result = data.get('result')
+        if result in ['win', 'loss', 'tie']:
+            Connect4Result.objects.create(user=request.user, result=result)
+            return JsonResponse({'status': 'success'})
+        return JsonResponse({'status': 'invalid result'}, status=400)
+    
+@login_required
+def connect4_leaderboard(request):
+    leaderboard = User.objects.annotate(
+        wins=Count('connect4result', filter=Q(connect4result__result='win')),
+        losses=Count('connect4result', filter=Q(connect4result__result='loss')),
+        ties=Count('connect4result', filter=Q(connect4result__result='tie'))
+    ).values('username', 'wins', 'losses', 'ties')
+
+    return JsonResponse(list(leaderboard), safe=False)

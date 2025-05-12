@@ -3,174 +3,205 @@
 {% block title %}Connect 4{% endblock %}
 
 {% block content %}
-  <div class="container py-4">
-    <h1 class="text-center">Connect 4</h1>
-    <div id="status" class="text-center mb-4"></div>
-    
-    <div id="connect4-container">
-        <div id="connect4-board"></div>
-    </div>
+<div class="container py-4">
+  <h1 class="text-center">Connect 4</h1>
+  <div id="status" class="text-center mb-4"></div>
 
-    <div class="text-center">
-      <button class="btn btn-primary" onclick="resetGame()">Reset Game</button>
-    </div>
+  <div id="connect4-container">
+    <div id="connect4-board"></div>
   </div>
 
+  <div class="text-center mt-3">
+    <button class="btn btn-primary me-2" onclick="resetGame()">Reset Game</button>
+    <button class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#leaderboardModal">Leaderboards</button>
+  </div>
+</div>
+
+<!-- Bootstrap Modal -->
+<div class="modal fade" id="leaderboardModal" tabindex="-1" aria-labelledby="leaderboardModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="leaderboardModalLabel">Leaderboards</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="leaderboardContent" class="table-responsive">
+          <table class="table table-striped">
+            <thead>
+              <tr><th>User</th><th>Wins</th><th>Losses</th><th>Ties</th></tr>
+            </thead>
+            <tbody id="leaderboardTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
-// Constants for game setup
-const numRows = 6;
-const numCols = 7;
-const playerDisc = 'red'; // Player is Red
-const cpuDisc = 'yellow'; // CPU is Yellow
-let board = Array.from({ length: numRows }, () => Array(numCols).fill(null)); // Game board array
-let currentPlayer = playerDisc; // Start with the player
-let gameOver = false;
+// Game config
+const numRows = 6, numCols = 7;
+const playerDisc = 'red', cpuDisc = 'yellow';
+let board = Array.from({ length: numRows }, () => Array(numCols).fill(null));
+let currentPlayer = playerDisc, gameOver = false;
 
-// Function to create the game board
 function createBoard() {
-    const boardContainer = document.getElementById('connect4-board');
-    boardContainer.innerHTML = ''; // Clear existing board
-
-    // Loop through rows from top (row = 0) to bottom (row = numRows-1)
-    for (let row = 0; row < numRows; row++) {
-        const rowDiv = document.createElement('div');
-        rowDiv.classList.add('connect4-row');
-        for (let col = 0; col < numCols; col++) {
-            const cellDiv = document.createElement('div');
-            cellDiv.classList.add('connect4-cell');
-            cellDiv.dataset.row = row;
-            cellDiv.dataset.col = col;
-            if (board[row][col]) {
-                cellDiv.classList.add(board[row][col]); // Add color class (red or yellow)
-            }
-            rowDiv.appendChild(cellDiv);
-        }
-        boardContainer.appendChild(rowDiv);
+  const boardContainer = document.getElementById('connect4-board');
+  boardContainer.innerHTML = '';
+  for (let row = 0; row < numRows; row++) {
+    const rowDiv = document.createElement('div');
+    rowDiv.classList.add('connect4-row');
+    for (let col = 0; col < numCols; col++) {
+      const cellDiv = document.createElement('div');
+      cellDiv.classList.add('connect4-cell');
+      cellDiv.dataset.row = row;
+      cellDiv.dataset.col = col;
+      if (board[row][col]) {
+        cellDiv.classList.add(board[row][col]);
+      }
+      rowDiv.appendChild(cellDiv);
     }
-
-    addCellClickHandlers();
+    boardContainer.appendChild(rowDiv);
+  }
+  addCellClickHandlers();
 }
 
-
-// Function to add click handlers for each cell in the game
 function addCellClickHandlers() {
-    const cells = document.querySelectorAll('.connect4-cell');
-    cells.forEach(cell => {
-        cell.addEventListener('click', handlePlayerMove);
-    });
+  document.querySelectorAll('.connect4-cell').forEach(cell =>
+    cell.addEventListener('click', handlePlayerMove)
+  );
 }
 
-// Handle player's move
 function handlePlayerMove(event) {
-    if (gameOver || currentPlayer !== playerDisc) return;
-
-    const col = parseInt(event.target.dataset.col);
-    for (let row = 0; row < numRows; row++) {
-        if (!board[row][col]) {
-            board[row][col] = playerDisc;
-            createBoard();
-            checkGameOver();
-            if (!gameOver) {
-                currentPlayer = cpuDisc;
-                makeCpuMove();
-            }
-            return;
-        }
+  if (gameOver || currentPlayer !== playerDisc) return;
+  const col = parseInt(event.target.dataset.col);
+  for (let row = 0; row < numRows; row++) {
+    if (!board[row][col]) {
+      board[row][col] = playerDisc;
+      createBoard();
+      checkGameOver();
+      if (!gameOver) {
+        currentPlayer = cpuDisc;
+        makeCpuMove();
+      }
+      return;
     }
+  }
 }
 
-// Function to make CPU move by calling the backend
 async function makeCpuMove() {
-    if (gameOver) return;
-
-    try {
-        const response = await fetch('/api/cpu-move/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ board })
-        });
-
-        const data = await response.json();
-
-        if (data.move && Array.isArray(data.move) && data.move.length === 2) {
-            const [col, row] = data.move;
-
-            // Now directly place the CPU piece at the given row and column
-            board[row][col] = cpuDisc;  // Update the board state with the CPU move
-
-            createBoard();  // Re-render the board after updating the move
-            checkGameOver();
-            currentPlayer = playerDisc;  // Switch to the player
-        } else {
-            console.log('No valid move received from CPU.');
-        }
-    } catch (error) {
-        console.error('Error while getting CPU move:', error);
+  if (gameOver) return;
+  try {
+    const res = await fetch('/api/cpu-move/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ board })
+    });
+    const data = await res.json();
+    if (Array.isArray(data.move) && data.move.length === 2) {
+      const [col, row] = data.move;
+      board[row][col] = cpuDisc;
+      createBoard();
+      checkGameOver();
+      currentPlayer = playerDisc;
     }
+  } catch (err) {
+    console.error('CPU move error:', err);
+  }
 }
 
-
-// Check if the game is over
 function checkGameOver() {
-    if (checkWinner(playerDisc)) {
-        document.getElementById('status').innerHTML = `<p>You win!</p>`;
-        gameOver = true;
-        return;
-    }
-    if (checkWinner(cpuDisc)) {
-        document.getElementById('status').innerHTML = `<p>CPU wins!</p>`;
-        gameOver = true;
-        return;
-    }
-    if (board.every(row => row.every(cell => cell))) {
-        document.getElementById('status').innerHTML = `<p>It's a draw!</p>`;
-        gameOver = true;
-    }
+  if (checkWinner(playerDisc)) {
+    document.getElementById('status').innerHTML = `<p>You win!</p>`;
+    gameOver = true;
+    saveResult('win');
+    return;
+  }
+  if (checkWinner(cpuDisc)) {
+    document.getElementById('status').innerHTML = `<p>CPU wins!</p>`;
+    gameOver = true;
+    saveResult('loss');
+    return;
+  }
+  if (board.every(row => row.every(cell => cell))) {
+    document.getElementById('status').innerHTML = `<p>It's a draw!</p>`;
+    gameOver = true;
+    saveResult('tie');
+  }
 }
 
-// Function to check for a winner
+function saveResult(result) {
+  fetch('/api/save-result/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': '{{ csrf_token }}'
+    },
+    body: JSON.stringify({ result })
+  }).then(res => res.json()).then(data => {
+    if (data.status !== 'success') {
+      console.error('Result not saved:', data);
+    }
+  });
+}
+
 function checkWinner(disc) {
-    for (let row = 0; row < numRows; row++) {
-        for (let col = 0; col < numCols; col++) {
-            if (board[row][col] === disc) {
-                if (checkDirection(row, col, 1, 0, disc) ||  // Horizontal
-                    checkDirection(row, col, 0, 1, disc) ||  // Vertical
-                    checkDirection(row, col, 1, 1, disc) ||  // Diagonal (down-right)
-                    checkDirection(row, col, 1, -1, disc)) { // Diagonal (up-right)
-                    console.log(`${disc} wins!`);
-                    return true;
-                }
-            }
+  for (let row = 0; row < numRows; row++) {
+    for (let col = 0; col < numCols; col++) {
+      if (board[row][col] === disc) {
+        if (checkDirection(row, col, 1, 0, disc) ||
+            checkDirection(row, col, 0, 1, disc) ||
+            checkDirection(row, col, 1, 1, disc) ||
+            checkDirection(row, col, 1, -1, disc)) {
+          return true;
         }
+      }
     }
-    return false;
+  }
+  return false;
 }
 
-// Check direction for a valid Connect 4
 function checkDirection(row, col, rowDir, colDir, disc) {
-    let count = 0;
-    for (let i = 0; i < 4; i++) {
-        const r = row + i * rowDir;
-        const c = col + i * colDir;
-        if (r >= 0 && r < numRows && c >= 0 && c < numCols && board[r][c] === disc) {
-            count++;
-        }
-        if (count === 4) return true;
+  let count = 0;
+  for (let i = 0; i < 4; i++) {
+    const r = row + i * rowDir;
+    const c = col + i * colDir;
+    if (r >= 0 && r < numRows && c >= 0 && c < numCols && board[r][c] === disc) {
+      count++;
     }
-    return false;
+    if (count === 4) return true;
+  }
+  return false;
 }
 
-// Reset the game
 function resetGame() {
-    board = Array.from({ length: numRows }, () => Array(numCols).fill(null));
-    gameOver = false;
-    createBoard();
-    document.getElementById('status').innerHTML = '';
-    currentPlayer = playerDisc;
+  board = Array.from({ length: numRows }, () => Array(numCols).fill(null));
+  gameOver = false;
+  createBoard();
+  document.getElementById('status').innerHTML = '';
+  currentPlayer = playerDisc;
 }
 
-// Initialize the board
+document.getElementById('leaderboardModal').addEventListener('show.bs.modal', () => {
+  fetch('/api/leaderboard/')
+    .then(res => res.json())
+    .then(data => {
+      const tbody = document.getElementById('leaderboardTableBody');
+      tbody.innerHTML = '';
+      data.forEach(user => {
+        tbody.innerHTML += `
+          <tr>
+            <td>${user.username}</td>
+            <td>${user.wins}</td>
+            <td>${user.losses}</td>
+            <td>${user.ties}</td>
+          </tr>`;
+      });
+    });
+});
+
 createBoard();
 </script>
-
 {% endblock %}
+

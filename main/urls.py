@@ -25,4 +25,6 @@ urlpatterns = [
     path('ramsey/upload/', views.upload_ramsey_photo, name='upload_ramsey_photo'),
     path('games/connect4/', views.connect4, name='connect4'),
     path('api/cpu-move/', views.cpu_move, name='cpu_move'),
+    path('api/save-result/', views.save_connect4_result, name='save_connect4_result'),
+    path('api/leaderboard/', views.connect4_leaderboard, name='connect4_leaderboard'),
 ]
