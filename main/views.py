@@ -11,6 +11,7 @@ from django.views.decorators.csrf import csrf_exempt
 from .connect4.board import board
 from .connect4.eval_cpu_moves import evalMoves
 from .connect4.generate_default import generateDefault
+from django.http import HttpResponse
 
 # Home, Games, About, Blog, Signup, Manage Users views — same as you wrote
 
@@ -231,3 +232,10 @@ def connect4_leaderboard(request):
     ).values('username', 'wins', 'losses', 'ties')
 
     return JsonResponse(list(leaderboard), safe=False)
+
+def health(request):
+    """
+    Simple health check that just returns OK
+    Faster response for basic keep-alive pings
+    """
+    return HttpResponse("OK", status=200)

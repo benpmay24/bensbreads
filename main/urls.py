@@ -27,4 +27,5 @@ urlpatterns = [
     path('api/cpu-move/', views.cpu_move, name='cpu_move'),
     path('api/save-result/', views.save_connect4_result, name='save_connect4_result'),
     path('api/leaderboard/', views.connect4_leaderboard, name='connect4_leaderboard'),
+    path('health/', views.health, name='health_check'),
 ]
