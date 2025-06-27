@@ -12,22 +12,18 @@
 <body>
   <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm sticky-top">
     <div class="container-fluid px-4">
-      <!-- Logo aligned left -->
       <a class="navbar-brand" href="{% url 'home' %}">
         <img src="{% static 'main/logo.png' %}" alt="Bread & Bytes Logo" style="height: 70px;">
       </a>
 
-      <!-- Mobile Toggle -->
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
 
-      <!-- Main Nav -->
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav ms-3 me-auto">
           <li class="nav-item"><a class="nav-link" href="{% url 'home' %}">Home</a></li>
           
-          <!-- Ramsey Dropdown -->
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle no-caret" href="#" id="ramseyDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               Ramsey
@@ -38,7 +34,6 @@
             </ul>
           </li>
 
-          <!-- Games Dropdown -->
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle no-caret" href="#" id="gamesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               Games
@@ -52,7 +47,6 @@
           <li class="nav-item"><a class="nav-link" href="{% url 'recipes' %}">Recipes</a></li>
         </ul>
 
-        <!-- Right-Aligned Extras -->
         <ul class="navbar-nav align-items-center">
           {% if user.is_superuser %}
             <li class="nav-item"><a class="nav-link" href="{% url 'manage_users' %}">Manage Users</a></li>
@@ -61,7 +55,7 @@
             <a class="nav-link dropdown-toggle bg-light border rounded px-3 py-1" href="#" id="accountDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="box-shadow: 0 0 5px rgba(0,0,0,0.1);">
               Account
             </a>
-            <ul class="dropdown-menu dropdown-menu-end position-absolute w-auto" aria-labelledby="accountDropdown" style="right: 0; max-width: 100%;">
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="accountDropdown">
               {% if user.is_authenticated %}
                 <li class="dropdown-item-text">Welcome, <strong>{{ user.username }}</strong></li>
                 <li><hr class="dropdown-divider"></li>
@@ -75,13 +69,14 @@
               {% endif %}
             </ul>
           </li>
-          
         </ul>
       </div>
     </div>
   </nav>
 
-  {% block content %}{% endblock %}
+  <main>
+    {% block content %}{% endblock %}
+  </main>
 
   <footer class="bg-white text-center text-muted py-4">
     <small>&copy; 2025 Ben's Breads</small>

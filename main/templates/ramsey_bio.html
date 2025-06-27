@@ -3,31 +3,29 @@
 {% block title %}Biography | Ben's Breads{% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-5" style="padding-bottom: 20px">
+<div class="container-fluid mt-5 pb-4">
   <div class="row justify-content-center">
     <div class="col-12 col-xl-10">
       
-<!-- Header -->
-<div class="hero-header text-center mb-5">
-  <div class="hero-content">
-    <h1 class="hero-title">Biography</h1>
-    <!-- <p class="hero-subtitle">The Life and Adventures of Ramsey</p> -->
-    <div class="hero-divider"></div>
-  </div>
-</div>
+      <!-- Header -->
+      <div class="hero-header text-center mb-5">
+        <div class="hero-content">
+          <h1 class="hero-title">Biography</h1>
+          <div class="hero-divider"></div>
+        </div>
+      </div>
 
       <div class="row">
         <!-- Side Timeline -->
         <div class="col-lg-2 col-md-3">
-          <div class="side-timeline sticky-top" style="top: 2rem;">
+          <div class="side-timeline sticky-top">
             <div class="timeline-progress-line">
               <div class="timeline-progress-fill"></div>
             </div>
             
+            <!-- Timeline nodes with consolidated structure -->
             <div class="timeline-node active" data-target="birth">
-              <div class="timeline-dot">
-                <div class="timeline-dot-inner"></div>
-              </div>
+              <div class="timeline-dot"><div class="timeline-dot-inner"></div></div>
               <div class="timeline-content-preview">
                 <div class="timeline-date">April 5, 2021</div>
                 <div class="timeline-title">The Beginning</div>
@@ -35,10 +33,9 @@
               </div>
             </div>
             
+            <!-- ...existing timeline nodes... -->
             <div class="timeline-node" data-target="adoption">
-              <div class="timeline-dot">
-                <div class="timeline-dot-inner"></div>
-              </div>
+              <div class="timeline-dot"><div class="timeline-dot-inner"></div></div>
               <div class="timeline-content-preview">
                 <div class="timeline-date">June 2021</div>
                 <div class="timeline-title">Meeting the Family</div>
@@ -47,29 +44,25 @@
             </div>
             
             <div class="timeline-node" data-target="boston">
-              <div class="timeline-dot">
-                <div class="timeline-dot-inner"></div>
-              </div>
+              <div class="timeline-dot"><div class="timeline-dot-inner"></div></div>
               <div class="timeline-content-preview">
                 <div class="timeline-date">July 2021</div>
                 <div class="timeline-title">City Pup</div>
                 <div class="timeline-subtitle">Boston, MA</div>
               </div>
             </div>
+            
             <div class="timeline-node" data-target="auburn">
-              <div class="timeline-dot">
-                <div class="timeline-dot-inner"></div>
-              </div>
+              <div class="timeline-dot"><div class="timeline-dot-inner"></div></div>
               <div class="timeline-content-preview">
                 <div class="timeline-date">Fall 2021</div>
                 <div class="timeline-title">University</div>
                 <div class="timeline-subtitle">Auburn, AL</div>
               </div>
             </div>
+            
             <div class="timeline-node" data-target="incident">
-              <div class="timeline-dot">
-                <div class="timeline-dot-inner"></div>
-              </div>
+              <div class="timeline-dot"><div class="timeline-dot-inner"></div></div>
               <div class="timeline-content-preview">
                 <div class="timeline-date">April 2023</div>
                 <div class="timeline-title">The Incident</div>
@@ -78,9 +71,7 @@
             </div>
             
             <div class="timeline-node" data-target="california">
-              <div class="timeline-dot">
-                <div class="timeline-dot-inner"></div>
-              </div>
+              <div class="timeline-dot"><div class="timeline-dot-inner"></div></div>
               <div class="timeline-content-preview">
                 <div class="timeline-date">June 2022</div>
                 <div class="timeline-title">California Bound</div>
@@ -89,19 +80,16 @@
             </div>
             
             <div class="timeline-node" data-target="beach">
-              <div class="timeline-dot">
-                <div class="timeline-dot-inner"></div>
-              </div>
+              <div class="timeline-dot"><div class="timeline-dot-inner"></div></div>
               <div class="timeline-content-preview">
                 <div class="timeline-date">May 2025</div>
                 <div class="timeline-title">Beach Vacation</div>
                 <div class="timeline-subtitle">Montara, CA</div>
               </div>
             </div>
+            
             <div class="timeline-node" data-target="city2">
-              <div class="timeline-dot">
-                <div class="timeline-dot-inner"></div>
-              </div>
+              <div class="timeline-dot"><div class="timeline-dot-inner"></div></div>
               <div class="timeline-content-preview">
                 <div class="timeline-date">June 2025</div>
                 <div class="timeline-title">City Pup Pt. 2</div>
@@ -114,182 +102,148 @@
         <!-- Content Area -->
         <div class="col-lg-10 col-md-9">
           <div class="content-container">
-            <!-- Content sections remain the same -->
             
-        <!-- Birth Content -->
-        <div class="content-section active" id="birth">
-          <div class="content-header">
-            <h3 class="content-title">The Beginning</h3>
-            <span class="content-date">April 5, 2021</span>
-          </div>
-          <div class="row align-items-center">
-            <div class="col-md-6">
-              <p>On April 5th 2021, Ramsey (originally named "Dragonfly" :/) was born on a farm near Shiloh, TN. She had many other australian brothers and sisters
-                that she were probably frolicking around with in her first days. She also got her tail chopped off at the age of 1 day old, but im pretty sure she didn't even notice.
-                Above is the first know picture of her existence.
-              </p>
-            </div>
-            <div class="col-md-6">
-              <div class="content-image">
-                <img src="{% static 'main/ramsey_newborn.jpeg' %}" class="img-fluid rounded" alt="Ramsey as a Puppy">
+            <!-- All content sections remain the same structure -->
+            <div class="content-section active" id="birth">
+              <div class="content-header">
+                <h3 class="content-title">The Beginning</h3>
+                <span class="content-date">April 5, 2021</span>
+              </div>
+              <div class="row align-items-center">
+                <div class="col-md-6">
+                  <p>On April 5th 2021, Ramsey (originally named "Dragonfly" :/) was born on a farm near Shiloh, TN. She had many other australian brothers and sisters that she were probably frolicking around with in her first days. She also got her tail chopped off at the age of 1 day old, but im pretty sure she didn't even notice. Above is the first know picture of her existence.</p>
+                </div>
+                <div class="col-md-6">
+                  <div class="content-image">
+                    <img src="{% static 'main/ramsey_newborn.jpeg' %}" class="img-fluid rounded" alt="Ramsey as a Puppy">
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        <!-- Adoption Content -->
-        <div class="content-section" id="adoption">
-          <div class="content-header">
-            <h3 class="content-title">Meeting the Family</h3>
-            <span class="content-date">June 2021</span>
-          </div>
-          <div class="row align-items-center">
-            <div class="col-md-6">
-              <p>Ramsey was adopted at the age of 8 weeks, where she spent her first few weeks in Collierville,TN. She was met there by two other dogs,
-                Cici (golden doodle) and Bear (nobody knows). As shown, Ramsey and Cici almost immediately bonded, while Bear mostly just tried to ignore whatever
-                was happening.
-              </p>
-            </div>
-            <div class="col-md-6">
-              <div class="content-image">
-                <img src="{% static 'main/ramsey_cici.JPEG' %}" class="img-fluid rounded" alt="Ramsey with Cici">
+            <!-- ...existing content sections... -->
+            <div class="content-section" id="adoption">
+              <div class="content-header">
+                <h3 class="content-title">Meeting the Family</h3>
+                <span class="content-date">June 2021</span>
+              </div>
+              <div class="row align-items-center">
+                <div class="col-md-6">
+                  <p>Ramsey was adopted at the age of 8 weeks, where she spent her first few weeks in Collierville,TN. She was met there by two other dogs, Cici (golden doodle) and Bear (nobody knows). As shown, Ramsey and Cici almost immediately bonded, while Bear mostly just tried to ignore whatever was happening.</p>
+                </div>
+                <div class="col-md-6">
+                  <div class="content-image">
+                    <img src="{% static 'main/ramsey_cici.JPEG' %}" class="img-fluid rounded" alt="Ramsey with Cici">
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        <!-- Boston Content -->
-        <div class="content-section" id="boston">
-          <div class="content-header">
-            <h3 class="content-title">Boston Adventures</h3>
-            <span class="content-date">July 2021</span>
-          </div>
-          <div class="row align-items-center">
-            <div class="col-md-6">
-              <p>From Tennessee, Ramsey set out for Boston, MA where she would have to take her first plane ride at the age of less than 3 months old.
-                Once she arrived, she settled in quickly and would spend her afternoons exploring the Boston Commons. She became such a spectacle in the
-                neighborhood, that it was a common for her to draw larger crowds of tourists than the nearby historical landmarks.
-              </p>
-            </div>
-            <div class="col-md-6">
-              <div class="content-image">
-                <img src="{% static 'main/ramsey_boston.jpg' %}" class="img-fluid rounded" alt="Ramsey in Boston">
+            <div class="content-section" id="boston">
+              <div class="content-header">
+                <h3 class="content-title">Boston Adventures</h3>
+                <span class="content-date">July 2021</span>
+              </div>
+              <div class="row align-items-center">
+                <div class="col-md-6">
+                  <p>From Tennessee, Ramsey set out for Boston, MA where she would have to take her first plane ride at the age of less than 3 months old. Once she arrived, she settled in quickly and would spend her afternoons exploring the Boston Commons. She became such a spectacle in the neighborhood, that it was a common for her to draw larger crowds of tourists than the nearby historical landmarks.</p>
+                </div>
+                <div class="col-md-6">
+                  <div class="content-image">
+                    <img src="{% static 'main/ramsey_boston.jpg' %}" class="img-fluid rounded" alt="Ramsey in Boston">
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        <!-- Auburn Content -->
-        <div class="content-section" id="auburn">
-          <div class="content-header">
-            <h3 class="content-title">University</h3>
-            <span class="content-date">August 2021 - June 2022</span>
-          </div>
-          <div class="row align-items-center">
-            <div class="col-md-6">
-              <p>Soon enough, Ramsey was college-bound and went to study at Auburn University in Alabama. She enjoyed the cool fall weather, mainly because she could jump around in (and eat) the fallen leaves.
-                Even though she was new on campus, she had no problems making friends, with many traveling out to her remote compound just for her. She faced her first big challenge as a pup, in the form of a 
-                (mostly) friendly rivalry with her roommate, Nala, a 60 lb German Shepherd. She was intimidated by Nala's intense play style, teaching her not to trust every dog she comes across, but this 
-                didn't kill her loving and playful spirit.
-              </p>
-            </div>
-            <div class="col-md-6">
-              <div class="content-image">
-                <img src="{% static 'main/ramsey_auburn.jpg' %}" class="img-fluid rounded" alt="Ramsey in Auburn">
+            <div class="content-section" id="auburn">
+              <div class="content-header">
+                <h3 class="content-title">University</h3>
+                <span class="content-date">August 2021 - June 2022</span>
+              </div>
+              <div class="row align-items-center">
+                <div class="col-md-6">
+                  <p>Soon enough, Ramsey was college-bound and went to study at Auburn University in Alabama. She enjoyed the cool fall weather, mainly because she could jump around in (and eat) the fallen leaves. Even though she was new on campus, she had no problems making friends, with many traveling out to her remote compound just for her. She faced her first big challenge as a pup, in the form of a (mostly) friendly rivalry with her roommate, Nala, a 60 lb German Shepherd. She was intimidated by Nala's intense play style, teaching her not to trust every dog she comes across, but this didn't kill her loving and playful spirit.</p>
+                </div>
+                <div class="col-md-6">
+                  <div class="content-image">
+                    <img src="{% static 'main/ramsey_auburn.jpg' %}" class="img-fluid rounded" alt="Ramsey in Auburn">
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-        <!-- The Incident Content -->
-        <div class="content-section" id="incident">
-          <div class="content-header">
-            <h3 class="content-title">The Incident</h3>
-            <span class="content-date">April 2023</span>
-          </div>
-          <div class="row align-items-center">
-            <div class="col-md-6">
-              <p>One April morning, Ramsey was going out for a coffee, when she spotted something on the side of the road that she simply couldn't resist.
-                Overwhelmed with excitement, she leaped out of the car window, not realizing how hard of a fall it would be. She was rushed to the vet hospital and was found to have
-                broken her hind left femur. Even while in great pain and fear, Ramsey was incredibly brave, never whining or crying. The surgery to repair her leg went incredibly smoothly and she was 
-                lauded for being a perfect patient. Immediately upon returning home, she was already acting like the energetic and silly girl that she always was, and she even had to be held back
-                from running around too much. One perk of the situation is that she got a new outfit, a bright blue onesie that would make sure she doesn't lick her wounds. Within a month, Ramsey 
-                had made a full recovery and was back to frolicking around Auburn's plains.
-              </p>
-            </div>
-            <div class="col-md-6">
-              <div class="content-image">
-                <img src="{% static 'main/ramsey_incident.jpg' %}" class="img-fluid rounded" alt="Ramsey during the incident">
-              </div>
-            </div>
-          </div>
-        </div>
 
-        <!-- California Bound Content -->
-        <div class="content-section" id="california">
-          <div class="content-header">
-            <h3 class="content-title">California Bound</h3>
-            <span class="content-date">June 2022 - April 2025</span>
-          </div>
-          <div class="row align-items-center">
-            <div class="col-md-6">
-              <p>After a brief stint back in Collierville, Ramsey flew out once again to California to move in to a packed house in Menlo Park, with 4 humans and 1 other dog.
-                She soon encountered some great joys and some great challenges during this period of her life.  She enjoyed neighboring a large grassy field with a dog park where she enjoyed the lovely weather year-round and the company of
-                the local dogs. Also, having many roommates meant a constant supply of belly rubs from her human friends Will, Spencer, and Bobby. However, she was not the only one in the house competing for attention. She spent nearly all of this
-                3 year period sharing a space with Freyja, a 40lb husky/boxer mix, and their relationship was very fragile. Also, with her owner working a full-time job, she began to feel a bit lonely during the days. Through it all, she
-                maintained her joy, affection, and loyalty that makes her such a wonderful dog.
-              </p>
-            </div>
-            <div class="col-md-6">
-              <div class="content-image">
-                <img src="{% static 'main/ramsey_california.jpg' %}" class="img-fluid rounded" alt="Ramsey in California">
+            <div class="content-section" id="incident">
+              <div class="content-header">
+                <h3 class="content-title">The Incident</h3>
+                <span class="content-date">April 2023</span>
+              </div>
+              <div class="row align-items-center">
+                <div class="col-md-6">
+                  <p>One April morning, Ramsey was going out for a coffee, when she spotted something on the side of the road that she simply couldn't resist. Overwhelmed with excitement, she leaped out of the car window, not realizing how hard of a fall it would be. She was rushed to the vet hospital and was found to have broken her hind left femur. Even while in great pain and fear, Ramsey was incredibly brave, never whining or crying. The surgery to repair her leg went incredibly smoothly and she was lauded for being a perfect patient. Immediately upon returning home, she was already acting like the energetic and silly girl that she always was, and she even had to be held back from running around too much. One perk of the situation is that she got a new outfit, a bright blue onesie that would make sure she doesn't lick her wounds. Within a month, Ramsey had made a full recovery and was back to frolicking around Auburn's plains.</p>
+                </div>
+                <div class="col-md-6">
+                  <div class="content-image">
+                    <img src="{% static 'main/ramsey_incident.jpg' %}" class="img-fluid rounded" alt="Ramsey during the incident">
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-        <!-- Beach Vacation Content -->
-        <div class="content-section" id="beach">
-          <div class="content-header">
-            <h3 class="content-title">Beach Vacation</h3>
-            <span class="content-date">May 2025</span>
-          </div>
-          <div class="row align-items-center">
-            <div class="col-md-6">
-              <p>May 2025 would become known as "Ramsey Month" beacuse she spent it in her paradise. For 4 weeks, she lived in Montara, California, a small beach town on the pacific coast. She was surrounded by everything that
-                she loved- open plains, beaches, squirrels, gophers, etc. She would take evening strolls jumping around the grassy hills, (unsuccessfully) hunting moles and squirrels and on the weekends, exploring the nearby towns.
-                The beach may be her favorite place of all, but she can't resist trying to eat so many washed-up clams that she becomes sick. While she was sad to leave, she had logged yet another great adventure in her catalog and will
-                undoubtedly return to take on the coast once again.
-              </p>
-            </div>
-            <div class="col-md-6">
-              <div class="content-video">
-                <video controls class="video-fluid rounded" alt="Ramsey at the beach">
-                  <source src="{% static 'main/ramsey_beach.mp4' %}" type="video/mp4">
-                  <source src="{% static 'main/ramsey_beach.webm' %}" type="video/webm">
-                  Your browser does not support the video tag.
-                </video>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        <!-- City Pup Pt. 2 Content -->
-        <div class="content-section" id="city2">
-          <div class="content-header">
-            <h3 class="content-title">City Pup Pt. 2</h3>
-            <span class="content-date">June 2025 - Present</span>
-          </div>
-          <div class="row align-items-center">
-            <div class="col-md-6">
-              <p>Coming Soon...
-              </p>
-            </div>
-            <div class="col-md-6">
-              <div class="content-image">
-                <img src="{% static 'main/ramsey_sf.jpg' %}" class="img-fluid rounded" alt="Ramsey in San Francisco">
+            <div class="content-section" id="california">
+              <div class="content-header">
+                <h3 class="content-title">California Bound</h3>
+                <span class="content-date">June 2022 - April 2025</span>
+              </div>
+              <div class="row align-items-center">
+                <div class="col-md-6">
+                  <p>After a brief stint back in Collierville, Ramsey flew out once again to California to move in to a packed house in Menlo Park, with 4 humans and 1 other dog. She soon encountered some great joys and some great challenges during this period of her life. She enjoyed neighboring a large grassy field with a dog park where she enjoyed the lovely weather year-round and the company of the local dogs. Also, having many roommates meant a constant supply of belly rubs from her human friends Will, Spencer, and Bobby. However, she was not the only one in the house competing for attention. She spent nearly all of this 3 year period sharing a space with Freyja, a 40lb husky/boxer mix, and their relationship was very fragile. Also, with her owner working a full-time job, she began to feel a bit lonely during the days. Through it all, she maintained her joy, affection, and loyalty that makes her such a wonderful dog.</p>
+                </div>
+                <div class="col-md-6">
+                  <div class="content-image">
+                    <img src="{% static 'main/ramsey_california.jpg' %}" class="img-fluid rounded" alt="Ramsey in California">
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
+
+            <div class="content-section" id="beach">
+              <div class="content-header">
+                <h3 class="content-title">Beach Vacation</h3>
+                <span class="content-date">May 2025</span>
+              </div>
+              <div class="row align-items-center">
+                <div class="col-md-6">
+                  <p>May 2025 would become known as "Ramsey Month" beacuse she spent it in her paradise. For 4 weeks, she lived in Montara, California, a small beach town on the pacific coast. She was surrounded by everything that she loved- open plains, beaches, squirrels, gophers, etc. She would take evening strolls jumping around the grassy hills, (unsuccessfully) hunting moles and squirrels and on the weekends, exploring the nearby towns. The beach may be her favorite place of all, but she can't resist trying to eat so many washed-up clams that she becomes sick. While she was sad to leave, she had logged yet another great adventure in her catalog and will undoubtedly return to take on the coast once again.</p>
+                </div>
+                <div class="col-md-6">
+                  <div class="content-video">
+                    <video controls class="video-fluid rounded" alt="Ramsey at the beach">
+                      <source src="{% static 'main/ramsey_beach.mp4' %}" type="video/mp4">
+                      <source src="{% static 'main/ramsey_beach.webm' %}" type="video/webm">
+                      Your browser does not support the video tag.
+                    </video>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="content-section" id="city2">
+              <div class="content-header">
+                <h3 class="content-title">City Pup Pt. 2</h3>
+                <span class="content-date">June 2025 - Present</span>
+              </div>
+              <div class="row align-items-center">
+                <div class="col-md-6">
+                  <p>Coming Soon...</p>
+                </div>
+                <div class="col-md-6">
+                  <div class="content-image">
+                    <img src="{% static 'main/ramsey_sf.jpg' %}" class="img-fluid rounded" alt="Ramsey in San Francisco">
+                  </div>
+                </div>
+              </div>
+            </div>
 
           </div>
         </div>
@@ -297,407 +251,6 @@
     </div>
   </div>
 </div>
-
-<style>
-  /* Side Timeline Styles */
-  .side-timeline {
-    position: relative;
-    padding: 1.5rem 2rem 1.5rem 1rem; /* Add LEFT padding for glow effect */
-    max-height: 70vh;
-    overflow-y: auto;
-  }
-  
-  .timeline-progress-line {
-    position: absolute;
-    left: 38px; /* Move line further right - 0.5rem margin (8px) + 16px dot center + 8px additional = 32px */
-    top: 1.5rem;
-    bottom: 1.5rem;
-    width: 3px;
-    background: #e9ecef;
-    border-radius: 2px;
-    overflow: hidden;
-  }
-  
-  .timeline-progress-fill {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 0%;
-    background: linear-gradient(180deg, #8B4513 0%, #D2691E 50%, #DEB887 100%); /* Brown to tan gradient */
-    transition: height 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-    border-radius: 2px;
-  }
-  
-  .timeline-node {
-    position: relative;
-    margin-bottom: 2.5rem;
-    cursor: pointer;
-    display: flex;
-    align-items: flex-start;
-    opacity: 0.5;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    margin-left: 0.5rem; /* Keep this for glow space */
-  }
-  
-  .timeline-node.active {
-    opacity: 1;
-  }
-  
-  .timeline-node:hover {
-    opacity: 0.8;
-    transform: translateX(6px);
-  }
-  
-  .timeline-node.active:hover {
-    opacity: 1;
-  }
-  
-  .timeline-dot {
-    position: relative;
-    flex-shrink: 0;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: white;
-    border: 3px solid #dee2e6;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 10;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-  }
-  
-  .timeline-dot-inner {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #dee2e6;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  
-  .timeline-node.active .timeline-dot {
-    border-color: #8B4513; /* Saddle brown */
-    box-shadow: 0 0 0 6px rgba(139, 69, 19, 0.1), 0 3px 12px rgba(0,0,0,0.12);
-    transform: scale(1.05);
-  }
-  
-  .timeline-node.active .timeline-dot-inner {
-    background: #8B4513; /* Saddle brown */
-    transform: scale(1.2);
-  }
-  
-  .timeline-content-preview {
-    margin-left: 0.75rem;
-    min-width: 0;
-    flex: 1;
-    overflow: hidden;
-  }
-  
-  .timeline-date {
-    font-size: 0.7rem;
-    font-weight: 600;
-    color: #6c757d;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-    margin-bottom: 0.2rem;
-    line-height: 1.2;
-  }
-  
-  .timeline-node.active .timeline-date {
-    color: #8B4513; /* Saddle brown */
-  }
-  
-  .timeline-title {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #212529;
-    margin-bottom: 0.1rem;
-    line-height: 1.2;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  
-  .timeline-subtitle {
-    font-size: 0.7rem;
-    color: #6c757d;
-    line-height: 1.2;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  
-  /* Content Area Styles */
-  .content-container {
-    position: relative;
-    min-height: 500px;
-  }
-  
-  .content-section {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    opacity: 0;
-    visibility: hidden;
-    transform: translateX(20px);
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    background: white;
-    border-radius: 16px;
-    padding: 2.5rem;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-    border: 1px solid #f1f3f4;
-  }
-  
-  .content-section.active {
-    opacity: 1;
-    visibility: visible;
-    transform: translateX(0);
-    position: relative;
-  }
-  
-  .content-section:hover {
-    box-shadow: 0 6px 25px rgba(0,0,0,0.12);
-  }
-  
-  .content-header {
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 2px solid #f8f9fa;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-  
-.content-date {
-  display: inline-block;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #8B4513; /* Saddle brown */
-  background: rgba(139, 69, 19, 0.1); /* Light brown background */
-  padding: 0.4rem 0.8rem;
-  border-radius: 16px;
-  margin: 0;
-  flex-shrink: 0;
-}
-  
-  .content-title {
-  color: #212529;
-  margin: 0;
-  font-weight: 700;
-  font-size: 1.8rem;
-  flex: 0 0 auto;
-}
-  
-  .content-image {
-    position: relative;
-    overflow: hidden;
-    border-radius: 12px;
-  }
-  
-  .content-section img {
-    transition: transform 0.3s ease;
-  }
-  
-  .content-section img:hover {
-    transform: scale(1.02);
-  }
-  
-  /* Mobile Responsiveness */
-  @media (max-width: 768px) {
-    .side-timeline {
-      display: flex;
-      padding: 1rem 0;
-      position: static !important;
-      max-height: none;
-      overflow-x: auto;
-      overflow-y: visible;
-    }
-    
-    .timeline-progress-line {
-      top: 50%;
-      left: 0;
-      right: 0;
-      width: 100%;
-      height: 3px;
-      transform: translateY(-50%);
-    }
-    
-    .timeline-node {
-      flex: 0 0 auto;
-      margin-right: 1.5rem;
-      margin-bottom: 0;
-      flex-direction: column;
-      align-items: center;
-      min-width: 120px;
-    }
-    
-    .timeline-content-preview {
-      margin-left: 0;
-      margin-top: 0.75rem;
-      text-align: center;
-    }
-    
-    .timeline-title,
-    .timeline-subtitle {
-      white-space: normal;
-      text-overflow: unset;
-    }
-    
-    .timeline-node:hover {
-      transform: translateY(-3px);
-    }
-    
-    .content-section {
-      padding: 2rem;
-    }
-    
-    .content-title {
-      font-size: 1.5rem;
-    }
-    
-    .content-container {
-      min-height: 400px;
-    }
-    .content-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-  }
-  
-  /* Custom scrollbar for timeline */
-  .side-timeline::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
-  }
-  
-  .side-timeline::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  
-  .side-timeline::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 2px;
-  }
-  
-  .side-timeline::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
-  }
-  /* Hero Header Styles */
-/* Hero Header Styles */
-.hero-header {
-  padding: 3rem 2rem;
-  position: relative;
-  margin-bottom: 3rem;
-}
-
-.hero-content {
-  position: relative;
-  z-index: 2;
-}
-
-.hero-title {
-  font-size: 2.75rem;
-  font-weight: 700;
-  color: #212529;
-  margin-bottom: 0.75rem;
-  letter-spacing: -0.5px;
-  line-height: 1.2;
-  text-shadow:none;
-}
-
-.hero-subtitle {
-  font-size: 1.125rem;
-  color: #6c757d;
-  font-weight: 400;
-  margin-bottom: 1.5rem;
-  max-width: 500px;
-  margin-left: auto;
-  margin-right: auto;
-  line-height: 1.5;
-  text-shadow:none;
-
-}
-
-.hero-divider {
-  width: 150px;
-  height: 3px;
-  background: linear-gradient(90deg, #8B4513 0%, #D2691E 50%, #DEB887 100%);
-  margin: 0 auto;
-  border-radius: 2px;
-}
-
-/* Mobile adjustments for hero */
-@media (max-width: 768px) {
-  .hero-header {
-    padding: 2.5rem 1.5rem;
-  }
-  
-  .hero-title {
-    font-size: 2.25rem;
-  }
-  
-  .hero-subtitle {
-    font-size: 1rem;
-  }
-}
-
-.content-image {
-  position: relative;
-  overflow: hidden;
-  border-radius: 12px;
-  display: flex;
-  justify-content: center; /* Center the image horizontally */
-  align-items: center; /* Center the image vertically */
-}
-
-.content-image img {
-  max-height: 400px; /* Adjust this value as needed */
-  width: auto;
-  object-fit: cover;
-  display: block; /* Remove any inline spacing */
-}
-
-/* For mobile, make them even shorter */
-@media (max-width: 768px) {
-  .content-image img {
-    max-height: 300px;
-  }
-}
-
-.content-video {
-  position: relative;
-  overflow: hidden;
-  border-radius: 12px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.content-video video {
-  max-height: 400px;
-  width: auto;
-  object-fit: cover;
-  display: block;
-  transition: transform 0.3s ease;
-}
-
-.content-video video:hover {
-  transform: scale(1.02);
-}
-
-/* For mobile, make videos shorter */
-@media (max-width: 768px) {
-  .content-video video {
-    max-height: 300px;
-  }
-}
-  </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -714,29 +267,23 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
   
-  // Handle timeline node clicks
-  timelineNodes.forEach((node, index) => {
+  timelineNodes.forEach((node) => {
     node.addEventListener('click', function() {
       const targetId = this.getAttribute('data-target');
       
-      // Remove active class from all nodes and sections
       timelineNodes.forEach(n => n.classList.remove('active'));
       contentSections.forEach(s => s.classList.remove('active'));
       
-      // Add active class to clicked node
       this.classList.add('active');
       
-      // Show corresponding content with delay for smooth transition
       setTimeout(() => {
         document.getElementById(targetId).classList.add('active');
       }, 150);
       
-      // Update progress
       updateProgress();
     });
   });
   
-  // Initialize progress
   updateProgress();
 });
 </script>

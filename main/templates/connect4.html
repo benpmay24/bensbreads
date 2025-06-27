@@ -3,36 +3,167 @@
 {% block title %}Connect 4 | Ben's Breads{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-  <h1 class="text-center">Connect 4</h1>
-  <div id="status" class="text-center mb-4"></div>
-
-  <div id="connect4-container">
-    <div id="connect4-board"></div>
-  </div>
-
-  <div class="text-center mt-3">
-    <button class="btn btn-primary me-2" onclick="resetGame()">Reset Game</button>
-    <button class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#leaderboardModal">Leaderboards</button>
+<!-- Hero Header -->
+<div class="hero-header text-center">
+  <div class="hero-content">
+    <h1 class="hero-title">Connect 4</h1>
+    <div class="hero-divider"></div>
   </div>
 </div>
 
-<!-- Bootstrap Modal -->
+<div class="container py-2">
+  <!-- Game Status -->
+  <div class="row justify-content-center mb-2">
+    <div class="col-md-6 col-lg-5">
+      <div class="game-status-card">
+        <div id="status" class="game-status-content">
+          <div class="current-player">
+            <span class="player-indicator player-red active" id="player-indicator"></span>
+            <span class="status-text">Your Turn</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game Board Container -->
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="game-board-container">
+        <div class="game-board-wrapper">
+          <div id="connect4-board" class="connect4-board"></div>
+          <div class="board-shadow"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game Controls -->
+  <div class="row justify-content-center mt-4">
+    <div class="col-lg-8">
+      <div class="game-controls">
+        <button class="btn btn-game-primary" onclick="resetGame()">
+          <i class="fas fa-redo"></i>
+          New Game
+        </button>
+        <button class="btn btn-game-secondary" data-bs-toggle="modal" data-bs-target="#leaderboardModal">
+          <i class="fas fa-trophy"></i>
+          Leaderboard
+        </button>
+        <button class="btn btn-game-info" data-bs-toggle="modal" data-bs-target="#howToPlayModal">
+          <i class="fas fa-question-circle"></i>
+          How to Play
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game Stats -->
+  <div class="row justify-content-center mt-4">
+    <div class="col-lg-8">
+      <div class="game-stats-container">
+        <div class="stat-card">
+          <div class="stat-value" id="wins-count">0</div>
+          <div class="stat-label">Wins</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="losses-count">0</div>
+          <div class="stat-label">Losses</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="ties-count">0</div>
+          <div class="stat-label">Ties</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Leaderboard Modal -->
 <div class="modal fade" id="leaderboardModal" tabindex="-1" aria-labelledby="leaderboardModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content game-modal">
       <div class="modal-header">
-        <h5 class="modal-title" id="leaderboardModalLabel">Leaderboards</h5>
+        <h5 class="modal-title text-warning" id="leaderboardModalLabel">
+          <i class="fas fa-trophy me-2"></i>
+          Leaderboard
+        </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
         <div id="leaderboardContent" class="table-responsive">
-          <table class="table table-striped">
+          <table class="table table-game">
             <thead>
-              <tr><th>User</th><th>Wins</th><th>Losses</th><th>Ties</th></tr>
+              <tr>
+                <th><i class="fas fa-user me-1"></i>Player</th>
+                <th><i class="fas fa-crown me-1"></i>Wins</th>
+                <th><i class="fas fa-times me-1"></i>Losses</th>
+                <th><i class="fas fa-handshake me-1"></i>Ties</th>
+                <th><i class="fas fa-percent me-1"></i>Win Rate</th>
+              </tr>
             </thead>
-            <tbody id="leaderboardTableBody"></tbody>
+            <tbody id="leaderboardTableBody">
+              <tr>
+                <td colspan="5" class="text-center">
+                  <div class="loading-spinner">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    Loading...
+                  </div>
+                </td>
+              </tr>
+            </tbody>
           </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- How to Play Modal -->
+<div class="modal fade" id="howToPlayModal" tabindex="-1" aria-labelledby="howToPlayModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content game-modal">
+      <div class="modal-header">
+        <h5 class="modal-title" id="howToPlayModalLabel">
+          <i class="fas fa-question-circle me-2"></i>
+          How to Play
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="how-to-play-content">
+          <div class="rule-item">
+            <div class="rule-icon">
+              <i class="fas fa-mouse-pointer"></i>
+            </div>
+            <div class="rule-text">
+              <strong>Click to Play:</strong> Click on any column to drop your red disc
+            </div>
+          </div>
+          <div class="rule-item">
+            <div class="rule-icon">
+              <i class="fas fa-target"></i>
+            </div>
+            <div class="rule-text">
+              <strong>Win Condition:</strong> Get four of your discs in a row (horizontal, vertical, or diagonal)
+            </div>
+          </div>
+          <div class="rule-item">
+            <div class="rule-icon">
+              <i class="fas fa-robot"></i>
+            </div>
+            <div class="rule-text">
+              <strong>AI Opponent:</strong> The yellow discs are controlled by the computer
+            </div>
+          </div>
+          <div class="rule-item">
+            <div class="rule-icon">
+              <i class="fas fa-redo"></i>
+            </div>
+            <div class="rule-text">
+              <strong>New Game:</strong> Click "New Game" to start over at any time
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -45,6 +176,23 @@ const numRows = 6, numCols = 7;
 const playerDisc = 'red', cpuDisc = 'yellow';
 let board = Array.from({ length: numRows }, () => Array(numCols).fill(null));
 let currentPlayer = playerDisc, gameOver = false;
+
+function updateGameStatus(message, isGameOver = false) {
+  const statusElement = document.getElementById('status');
+  const playerIndicator = document.getElementById('player-indicator');
+  
+  if (isGameOver) {
+    statusElement.innerHTML = `<div class="game-over-message">${message}</div>`;
+  } else {
+    const isPlayerTurn = currentPlayer === playerDisc;
+    statusElement.innerHTML = `
+      <div class="current-player">
+        <span class="player-indicator ${isPlayerTurn ? 'player-red' : 'player-yellow'} active"></span>
+        <span class="status-text">${isPlayerTurn ? 'Your Turn' : 'CPU Thinking...'}</span>
+      </div>
+    `;
+  }
+}
 
 function createBoard() {
   const boardContainer = document.getElementById('connect4-board');
@@ -59,12 +207,14 @@ function createBoard() {
       cellDiv.dataset.col = col;
       if (board[row][col]) {
         cellDiv.classList.add(board[row][col]);
+        cellDiv.classList.add('disc-placed');
       }
       rowDiv.appendChild(cellDiv);
     }
     boardContainer.appendChild(rowDiv);
   }
   addCellClickHandlers();
+  updateGameStatus();
 }
 
 function addCellClickHandlers() {
@@ -76,14 +226,29 @@ function addCellClickHandlers() {
 function handlePlayerMove(event) {
   if (gameOver || currentPlayer !== playerDisc) return;
   const col = parseInt(event.target.dataset.col);
-  for (let row = 0; row < numRows; row++) {
+  
+  // Find the lowest available row (bottom to top)
+  for (let row = 0; row <= numRows-1; row++) {
     if (!board[row][col]) {
       board[row][col] = playerDisc;
-      createBoard();
+      
+      // Add visual feedback for player move
+      const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+      if (cell) {
+        cell.classList.add(playerDisc);
+        cell.classList.add('disc-dropped');
+        
+        setTimeout(() => {
+          cell.classList.remove('disc-dropped');
+          cell.classList.add('disc-placed');
+        }, 300);
+      }
+      
       checkGameOver();
       if (!gameOver) {
         currentPlayer = cpuDisc;
-        makeCpuMove();
+        updateGameStatus();
+        setTimeout(makeCpuMove, 800);
       }
       return;
     }
@@ -92,6 +257,8 @@ function handlePlayerMove(event) {
 
 async function makeCpuMove() {
   if (gameOver) return;
+  updateGameStatus();
+  
   try {
     const res = await fetch('/api/cpu-move/', {
       method: 'POST',
@@ -99,51 +266,53 @@ async function makeCpuMove() {
       body: JSON.stringify({ board })
     });
     const data = await res.json();
+    
     if (Array.isArray(data.move) && data.move.length === 2) {
       const [col, row] = data.move;
       board[row][col] = cpuDisc;
-      createBoard();
+      
+      const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+      cell.classList.add(cpuDisc);
+      cell.classList.add('disc-dropped');
+      
+      setTimeout(() => {
+        cell.classList.remove('disc-dropped');
+        cell.classList.add('disc-placed');
+      }, 300);
+      
       checkGameOver();
       currentPlayer = playerDisc;
+      if (!gameOver) {
+        updateGameStatus();
+      }
     }
   } catch (err) {
     console.error('CPU move error:', err);
+    updateGameStatus();
   }
 }
 
 function checkGameOver() {
   if (checkWinner(playerDisc)) {
-    document.getElementById('status').innerHTML = `<p>You win!</p>`;
+    updateGameStatus('<i class="fas fa-crown"></i> You Win!', true);
     gameOver = true;
     saveResult('win');
+    updateStats();
     return;
   }
   if (checkWinner(cpuDisc)) {
-    document.getElementById('status').innerHTML = `<p>CPU wins!</p>`;
+    updateGameStatus('<i class="fas fa-robot"></i> CPU Wins!', true);
     gameOver = true;
     saveResult('loss');
+    updateStats();
     return;
   }
   if (board.every(row => row.every(cell => cell))) {
-    document.getElementById('status').innerHTML = `<p>It's a draw!</p>`;
+    updateGameStatus('<i class="fas fa-handshake"></i> It\'s a Tie!', true);
     gameOver = true;
     saveResult('tie');
+    updateStats();
   }
-}
-
-function saveResult(result) {
-  fetch('/api/save-result/', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRFToken': '{{ csrf_token }}'
-    },
-    body: JSON.stringify({ result })
-  }).then(res => res.json()).then(data => {
-    if (data.status !== 'success') {
-      console.error('Result not saved:', data);
-    }
-  });
 }
 
 function checkWinner(disc) {
@@ -178,30 +347,74 @@ function checkDirection(row, col, rowDir, colDir, disc) {
 function resetGame() {
   board = Array.from({ length: numRows }, () => Array(numCols).fill(null));
   gameOver = false;
-  createBoard();
-  document.getElementById('status').innerHTML = '';
   currentPlayer = playerDisc;
+  createBoard();
+  updateGameStatus();
+}
+
+// Update stats display
+function updateStats() {
+  const stats = JSON.parse(localStorage.getItem('connect4Stats') || '{"wins":0,"losses":0,"ties":0}');
+  document.getElementById('wins-count').textContent = stats.wins;
+  document.getElementById('losses-count').textContent = stats.losses;
+  document.getElementById('ties-count').textContent = stats.ties;
+}
+
+function saveResult(result) {
+  // Save to server
+  fetch('/api/save-result/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': '{{ csrf_token }}'
+    },
+    body: JSON.stringify({ result })
+  }).then(res => res.json()).then(data => {
+    if (data.status !== 'success') {
+      console.error('Result not saved:', data);
+    }
+  });
+  
+  // Save to localStorage for immediate display
+  const stats = JSON.parse(localStorage.getItem('connect4Stats') || '{"wins":0,"losses":0,"ties":0}');
+  stats[result === 'win' ? 'wins' : result === 'loss' ? 'losses' : 'ties']++;
+  localStorage.setItem('connect4Stats', JSON.stringify(stats));
 }
 
 document.getElementById('leaderboardModal').addEventListener('show.bs.modal', () => {
+  const tbody = document.getElementById('leaderboardTableBody');
+  tbody.innerHTML = '<tr><td colspan="5" class="text-center"><div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Loading...</div></td></tr>';
+  
   fetch('/api/leaderboard/')
     .then(res => res.json())
     .then(data => {
-      const tbody = document.getElementById('leaderboardTableBody');
       tbody.innerHTML = '';
-      data.forEach(user => {
+      data.forEach((user, index) => {
+        const totalGames = user.wins + user.losses + user.ties;
+        const winRate = totalGames > 0 ? Math.round((user.wins / totalGames) * 100) : 0;
         tbody.innerHTML += `
-          <tr>
-            <td>${user.username}</td>
-            <td>${user.wins}</td>
-            <td>${user.losses}</td>
-            <td>${user.ties}</td>
+          <tr class="leaderboard-row">
+            <td>
+              <div class="player-info">
+                <span class="rank-badge">#${index + 1}</span>
+                <span class="username">${user.username}</span>
+              </div>
+            </td>
+            <td><span class="stat-wins">${user.wins}</span></td>
+            <td><span class="stat-losses">${user.losses}</span></td>
+            <td><span class="stat-ties">${user.ties}</span></td>
+            <td><span class="win-rate">${winRate}%</span></td>
           </tr>`;
       });
+    })
+    .catch(err => {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Failed to load leaderboard</td></tr>';
     });
 });
 
+// Initialize game
 createBoard();
+updateStats();
 </script>
 {% endblock %}
 

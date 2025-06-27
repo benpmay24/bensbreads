@@ -1,37 +1,183 @@
 {% extends 'base.html' %}
 {% load static %}
-{% block title %}Gallery | Ben's Breads{% endblock %}
+{% block title %}Photo Gallery | Ben's Breads{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-  {% if user.is_staff or user.is_superuser %}
-  <div class="d-flex justify-content-end mb-4">
-    <a href="{% url 'upload_ramsey_photo' %}" class="btn btn-outline-primary">Upload Ramsey Photo</a>
-  </div>
-  {% endif %}
-
-  <div class="container d-flex justify-content-center">
-    <div id="ramseyCarousel" class="carousel slide shadow-sm mb-5 w-100" data-bs-ride="carousel" data-bs-interval="4000" style="max-width: 800px;">
-      <div class="carousel-inner text-center" style="max-height: 400px; overflow: hidden; background-color: #f8f9fa;">
-        {% for photo in photos %}
-          <div class="carousel-item {% if forloop.first %}active{% endif %}">
-            <img src="{{ photo.image.url }}" class="d-inline-block" alt="Ramsey Photo" style="max-height: 400px; max-width: 100%; object-fit: contain;">
-          </div>
-        {% empty %}
-          <div class="carousel-item active">
-            <img src="{% static 'main/default_ramsey.jpg' %}" class="d-inline-block" alt="Ramsey" style="max-height: 400px; max-width: 100%; object-fit: contain;">
-          </div>
-        {% endfor %}
+<div class="container-fluid mt-5 pb-5">
+  <div class="row justify-content-center">
+    <div class="col-12 col-xl-10">
+      
+      <!-- Header -->
+      <div class="gallery-header text-center mb-5">
+        <div class="hero-content">
+          <h1 class="hero-title">Ramsey's Photo Gallery</h1>
+          <div class="hero-divider"></div>
+        </div>
       </div>
-      <button class="carousel-control-prev" type="button" data-bs-target="#ramseyCarousel" data-bs-slide="prev">
-        <span class="carousel-control-prev-icon bg-dark rounded-circle p-2" aria-hidden="true"></span>
-        <span class="visually-hidden">Previous</span>
-      </button>
-      <button class="carousel-control-next" type="button" data-bs-target="#ramseyCarousel" data-bs-slide="next">
-        <span class="carousel-control-next-icon bg-dark rounded-circle p-2" aria-hidden="true"></span>
-        <span class="visually-hidden">Next</span>
-      </button>
+
+      {% if photos %}
+        <!-- Main Slideshow -->
+        <div class="slideshow-container">
+          <div class="slideshow-wrapper">
+            {% for photo in photos %}
+              <div class="slide {% if forloop.first %}active{% endif %}" data-slide="{{ forloop.counter0 }}">
+                <div class="slide-image-container">
+                  <img src="{{ photo.image.url }}" alt="{{ photo.title }}" class="slide-image">
+                </div>
+                <div class="slide-info">
+                  <h3 class="slide-title">{{ photo.title }}</h3>
+                  {% if photo.caption %}
+                    <p class="slide-caption">{{ photo.caption }}</p>
+                  {% endif %}
+                  <div class="slide-meta">
+                    {% if photo.date_taken %}
+                      <span class="slide-date">📅 {{ photo.date_taken|date:"F j, Y" }}</span>
+                    {% endif %}
+                    <span class="slide-uploaded">Uploaded {{ photo.uploaded_at|date:"M j, Y" }}</span>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+
+          <!-- Navigation Controls -->
+          <button class="slide-nav slide-prev" onclick="changeSlide(-1)">
+            <span>‹</span>
+          </button>
+          <button class="slide-nav slide-next" onclick="changeSlide(1)">
+            <span>›</span>
+          </button>
+
+          <!-- Slide Indicators -->
+          <div class="slide-indicators">
+            {% for photo in photos %}
+              <button class="indicator {% if forloop.first %}active{% endif %}" 
+                      onclick="currentSlide({{ forloop.counter0 }})"
+                      data-slide="{{ forloop.counter0 }}">
+              </button>
+            {% endfor %}
+          </div>
+
+          <!-- Photo Counter -->
+          <div class="slide-counter">
+            <span id="currentSlideNum">1</span> / {{ photos.count }}
+          </div>
+        </div>
+
+        <!-- Thumbnail Strip -->
+        <div class="thumbnails-container">
+          <div class="thumbnails-scroll">
+            {% for photo in photos %}
+              <div class="thumbnail {% if forloop.first %}active{% endif %}" 
+                   onclick="currentSlide({{ forloop.counter0 }})"
+                   data-slide="{{ forloop.counter0 }}">
+                <img src="{{ photo.image.url }}" alt="{{ photo.title }}">
+                <div class="thumbnail-info">
+                  <span class="thumbnail-title">{{ photo.title|truncatechars:20 }}</span>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+      {% else %}
+        <!-- Empty State -->
+        <div class="empty-gallery">
+          <div class="empty-icon">📸</div>
+          <h3>No photos yet!</h3>
+          <p>Ramsey's adventures are waiting to be shared.</p>
+          {% if user.is_authenticated %}
+            <a href="{% url 'upload_ramsey_photo' %}" class="btn btn-primary">
+              Upload First Photo
+            </a>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      <!-- Upload Button for Authenticated Users -->
+      {% if user.is_authenticated and photos %}
+        <div class="text-center mt-4">
+          <a href="{% url 'upload_ramsey_photo' %}" class="upload-btn">
+            <span class="upload-icon">+</span>
+            Add New Photo
+          </a>
+        </div>
+      {% endif %}
+
     </div>
   </div>
 </div>
+
+<script>
+let currentSlideIndex = 0;
+const totalSlides = {{ photos.count|default:0 }};
+
+function showSlide(index) {
+  const slides = document.querySelectorAll('.slide');
+  const indicators = document.querySelectorAll('.indicator');
+  const thumbnails = document.querySelectorAll('.thumbnail');
+  
+  // Hide all slides
+  slides.forEach(slide => slide.classList.remove('active'));
+  indicators.forEach(indicator => indicator.classList.remove('active'));
+  thumbnails.forEach(thumbnail => thumbnail.classList.remove('active'));
+  
+  // Show current slide
+  if (slides[index]) {
+    slides[index].classList.add('active');
+    indicators[index].classList.add('active');
+    thumbnails[index].classList.add('active');
+  }
+  
+  // Update counter
+  document.getElementById('currentSlideNum').textContent = index + 1;
+  
+  // Scroll thumbnail into view
+  if (thumbnails[index]) {
+    thumbnails[index].scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+      inline: 'center'
+    });
+  }
+}
+
+function changeSlide(direction) {
+  currentSlideIndex += direction;
+  
+  if (currentSlideIndex >= totalSlides) {
+    currentSlideIndex = 0;
+  } else if (currentSlideIndex < 0) {
+    currentSlideIndex = totalSlides - 1;
+  }
+  
+  showSlide(currentSlideIndex);
+}
+
+function currentSlide(index) {
+  currentSlideIndex = index;
+  showSlide(currentSlideIndex);
+}
+
+// Keyboard navigation
+document.addEventListener('keydown', function(e) {
+  if (totalSlides === 0) return;
+  
+  switch(e.key) {
+    case 'ArrowLeft':
+      changeSlide(-1);
+      break;
+    case 'ArrowRight':
+      changeSlide(1);
+      break;
+  }
+});
+
+// Auto-advance slideshow (optional)
+// setInterval(() => {
+//   if (totalSlides > 1) {
+//     changeSlide(1);
+//   }
+// }, 5000);
+</script>
 {% endblock %}

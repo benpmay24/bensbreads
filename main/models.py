@@ -1,6 +1,7 @@
 from django.db import models
 import os
 from django.contrib.auth.models import User
+from django.utils import timezone
 
 class BlogPost(models.Model):
     title = models.CharField(max_length=200)
@@ -48,12 +49,18 @@ class Instruction(models.Model):
         return f"Step {self.step_number} for {self.recipe.title}"
 
 class RamseyPhoto(models.Model):
+    title = models.CharField(max_length=200, default="Untitled Photo")
     image = models.ImageField(upload_to='ramsey_photos/')
+    caption = models.TextField(blank=True)
+    date_taken = models.DateField(default=timezone.now)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Ramsey Photo {self.id}"
-    
+        return self.title
+
+    class Meta:
+        ordering = ['-date_taken', '-uploaded_at']
+
 class Connect4Result(models.Model):
     RESULT_CHOICES = [
         ('win', 'Win'),

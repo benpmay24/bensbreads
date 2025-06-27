@@ -4,7 +4,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
 from .models import BlogPost, Recipe, Ingredient, Instruction, RamseyPhoto, Connect4Result
-from .forms import BlogPostForm, RecipeForm, RamseyPhotoForm, CustomUserCreationForm
+from .forms import BlogPostForm, RecipeForm, RamseyPhotoForm, CustomUserCreationForm, IngredientForm, InstructionForm
 from django.db import transaction
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -12,6 +12,7 @@ from .connect4.board import board
 from .connect4.eval_cpu_moves import evalMoves
 from .connect4.generate_default import generateDefault
 from django.http import HttpResponse
+from django.forms import inlineformset_factory
 
 # Home, Games, About, Blog, Signup, Manage Users views — same as you wrote
 
@@ -109,50 +110,55 @@ from django.db.models import Count, Q
 @login_required
 @user_passes_test(lambda u: u.is_staff)
 def add_recipe(request):
+    from django.forms import inlineformset_factory
+    
+    # Create formsets for ingredients and instructions
+    IngredientFormSet = inlineformset_factory(
+        Recipe, Ingredient, 
+        form=IngredientForm,
+        extra=1,  # Show one empty form by default
+        can_delete=True
+    )
+    InstructionFormSet = inlineformset_factory(
+        Recipe, Instruction, 
+        form=InstructionForm,
+        extra=1,  # Show one empty form by default
+        can_delete=True
+    )
+    
     if request.method == 'POST':
         form = RecipeForm(request.POST, request.FILES)
-        if form.is_valid():
+        ingredient_formset = IngredientFormSet(request.POST, prefix='ingredients')
+        instruction_formset = InstructionFormSet(request.POST, prefix='instructions')
+        
+        if form.is_valid() and ingredient_formset.is_valid() and instruction_formset.is_valid():
             with transaction.atomic():
-                # Create the recipe and save it
                 recipe = form.save(commit=False)
                 recipe.featured = 'featured' in request.POST
                 recipe.save()
-
+                
                 # Save ingredients
-                ingredients_data = request.POST.get('ingredients', '[]')
-                try:
-                    ingredients = json.loads(ingredients_data)
-                    for item in ingredients:
-                        quantity = item.get('quantity', '')
-                        name = item.get('name', '')
-                        if name:
-                            Ingredient.objects.create(
-                                recipe=recipe,
-                                quantity=quantity.strip(),
-                                name=name.strip()
-                            )
-                except json.JSONDecodeError:
-                    pass  # Optional: log or raise
-
+                ingredient_formset.instance = recipe
+                ingredient_formset.save()
+                
                 # Save instructions
-                instructions_data = request.POST.get('instructions', '[]')
-                try:
-                    instructions = json.loads(instructions_data)
-                    for idx, instruction_text in enumerate(instructions):
-                        if instruction_text.strip():
-                            Instruction.objects.create(
-                                recipe=recipe,
-                                step_number=idx + 1,
-                                step_text=instruction_text.strip()
-                            )
-                except json.JSONDecodeError:
-                    pass  # Optional: log or raise
+                instruction_formset.instance = recipe
+                instructions = instruction_formset.save(commit=False)
+                for i, instruction in enumerate(instructions):
+                    instruction.step_number = i + 1
+                    instruction.save()
 
             return redirect('recipes')
     else:
         form = RecipeForm()
+        ingredient_formset = IngredientFormSet(prefix='ingredients')
+        instruction_formset = InstructionFormSet(prefix='instructions')
 
-    return render(request, 'add_recipe.html', {'form': form})
+    return render(request, 'add_recipe.html', {
+        'form': form,
+        'ingredient_formset': ingredient_formset,
+        'instruction_formset': instruction_formset,
+    })
 
 @login_required
 @user_passes_test(lambda u: u.is_staff)
@@ -178,7 +184,7 @@ def upload_ramsey_photo(request):
         form = RamseyPhotoForm(request.POST, request.FILES)
         if form.is_valid():
             form.save()
-            return redirect('ramsey')
+            return redirect('ramsey_gallery')
     else:
         form = RamseyPhotoForm()
     return render(request, 'upload_ramsey_photo.html', {'form': form})
@@ -239,3 +245,66 @@ def health(request):
     Faster response for basic keep-alive pings
     """
     return HttpResponse("OK", status=200)
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+def edit_recipe(request, pk):
+    recipe = get_object_or_404(Recipe, pk=pk)
+    
+    # Create formsets for ingredients and instructions using custom forms
+    IngredientFormSet = inlineformset_factory(
+        Recipe, Ingredient, 
+        form=IngredientForm,
+        extra=0,  # Don't show empty forms by default
+        can_delete=True
+    )
+    InstructionFormSet = inlineformset_factory(
+        Recipe, Instruction, 
+        form=InstructionForm,
+        extra=0,  # Don't show empty forms by default
+        can_delete=True
+    )
+    
+    if request.method == 'POST':
+        form = RecipeForm(request.POST, request.FILES, instance=recipe)
+        ingredient_formset = IngredientFormSet(request.POST, instance=recipe, prefix='ingredients')
+        instruction_formset = InstructionFormSet(request.POST, instance=recipe, prefix='instructions')
+        
+        if form.is_valid() and ingredient_formset.is_valid() and instruction_formset.is_valid():
+            with transaction.atomic():
+                # Update the recipe
+                recipe = form.save(commit=False)
+                recipe.featured = 'featured' in request.POST
+                recipe.save()
+                
+                # Save the formsets - they handle creation, updates, and deletions automatically
+                ingredient_formset.save()
+                
+                # Save instructions and update step numbers for remaining instructions
+                instructions = instruction_formset.save(commit=False)
+                # Delete marked instructions first
+                for instruction in instruction_formset.deleted_objects:
+                    instruction.delete()
+                
+                # Save and renumber remaining instructions
+                for i, instruction in enumerate(instructions):
+                    instruction.recipe = recipe
+                    instruction.step_number = i + 1
+                    instruction.save()
+
+            return redirect('recipes')
+    else:
+        form = RecipeForm(instance=recipe)
+        ingredient_formset = IngredientFormSet(instance=recipe, prefix='ingredients')
+        instruction_formset = InstructionFormSet(instance=recipe, prefix='instructions')
+
+    return render(request, 'edit_recipe.html', {
+        'form': form,
+        'recipe': recipe,
+        'ingredient_formset': ingredient_formset,
+        'instruction_formset': instruction_formset,
+    })
+
+def recipe_detail(request, pk):
+    recipe = get_object_or_404(Recipe, pk=pk)
+    return render(request, 'recipe_detail.html', {'recipe': recipe})

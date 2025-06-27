@@ -17,6 +17,7 @@ urlpatterns = [
     path('blog/delete/<int:post_id>/', views.delete_blog_post, name='delete_blog_post'),
     path('recipes/', views.recipes, name='recipes'),
     path('recipes/add/', views.add_recipe, name='add_recipe'),
+    path('recipes/edit/<int:pk>/', views.edit_recipe, name='edit_recipe'),
     path('recipes/delete/<int:pk>/', views.delete_recipe, name='delete_recipe'),
     path('recipes/<int:pk>/toggle_featured/', views.toggle_featured_recipe, name='toggle_featured_recipe'),
     path('secrets/', views.secrets, name='secrets'),
@@ -28,4 +29,5 @@ urlpatterns = [
     path('api/save-result/', views.save_connect4_result, name='save_connect4_result'),
     path('api/leaderboard/', views.connect4_leaderboard, name='connect4_leaderboard'),
     path('health/', views.health, name='health_check'),
+    path('recipes/<int:pk>/', views.recipe_detail, name='recipe_detail'),
 ]

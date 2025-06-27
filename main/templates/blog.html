@@ -1,74 +1,193 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Blog | Ben's Breads{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0">Blog Posts</h2>
-    <div>
-      {% if user.is_staff or user.is_superuser %}
-        <a href="{% url 'add_blog_post' %}" class="btn btn-outline-primary me-2">Add Blog Post</a>
-      {% endif %}
-      <button class="btn btn-outline-danger" id="secretsButton">Secrets</button>
-    </div>
+<!-- Hero Header -->
+<div class="hero-header text-center">
+  <div class="hero-content">
+    <h1 class="hero-title">Blog</h1>
+    <div class="hero-divider"></div>
   </div>
+</div>
 
-  <div class="row">
-    {% for post in posts %}
-      <div class="col-md-6 mb-4">
-        <div class="card h-100 shadow-sm" role="button" data-bs-toggle="modal" data-bs-target="#postModal{{ post.id }}">
-          <div class="card-body">
-            <small class="text-muted">{{ post.created_at|date:"F d, Y" }}</small>
-            <h5 class="card-title mt-2">{{ post.title }}</h5>
+<div class="container py-4">
+  <!-- Admin Controls -->
+  {% if user.is_staff or user.is_superuser %}
+    <div class="d-flex justify-content-end mb-4">
+      {% if request.resolver_match.url_name == 'secrets' %}
+        <a href="{% url 'blog' %}" class="btn btn-outline-secondary me-2">
+          <i class="fas fa-arrow-left me-1"></i>Back to Blog
+        </a>
+      {% endif %}
+      <a href="{% url 'add_blog_post' %}" class="btn btn-outline-primary me-2">
+        <i class="fas fa-plus me-1"></i>Add Blog Post
+      </a>
+      <button class="btn btn-outline-danger" id="secretsButton">
+        <i class="fas fa-lock me-1"></i>Secrets
+      </button>
+    </div>
+  {% endif %}
+
+  <!-- Recent Posts Section -->
+  {% if posts %}
+    <div class="recent-posts-section mb-5">
+      <h2 class="section-title mb-4">
+        <i class="fas fa-star me-2"></i>Recent Posts
+      </h2>
+      <div class="row">
+        {% for post in posts|slice:":3" %}
+          <div class="col-lg-4 mb-4">
+            <div class="featured-post-card" data-bs-toggle="modal" data-bs-target="#postModal{{ post.id }}">
+              <div class="featured-post-content">
+                <div class="post-date">
+                  <i class="fas fa-calendar-alt me-1"></i>
+                  {{ post.created_at|date:"M d, Y" }}
+                </div>
+                <h3 class="featured-post-title">{{ post.title }}</h3>
+                <p class="featured-post-preview">{{ post.content|truncatewords:25 }}</p>
+                <div class="read-more-link">
+                  Read More <i class="fas fa-arrow-right ms-1"></i>
+                </div>
+              </div>
+            </div>
           </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- All Posts Section -->
+    {% if posts|length > 3 %}
+      <div class="archive-section">
+        <h2 class="section-title mb-4">
+          <i class="fas fa-list me-2"></i>All Posts
+        </h2>
+        <div class="archive-timeline">
+          {% for post in posts %}
+            <div class="archive-post-item" data-bs-toggle="modal" data-bs-target="#postModal{{ post.id }}">
+              <div class="archive-post-date">
+                <div class="date-circle">
+                  <span class="date-day">{{ post.created_at|date:"d" }}</span>
+                  <span class="date-month">{{ post.created_at|date:"M" }}</span>
+                </div>
+              </div>
+              <div class="archive-post-content">
+                <h4 class="archive-post-title">{{ post.title }}</h4>
+                <p class="archive-post-preview">{{ post.content|truncatewords:15 }}</p>
+                <div class="archive-post-meta">
+                  <span class="post-year">{{ post.created_at|date:"Y" }}</span>
+                  <span class="read-time">{{ post.content|wordcount|floatformat:0 }} words</span>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
         </div>
       </div>
+    {% else %}
+      <!-- Show all posts if 3 or fewer -->
+      <div class="archive-section">
+        <h2 class="section-title mb-4">
+          <i class="fas fa-list me-2"></i>All Posts
+        </h2>
+        <div class="archive-timeline">
+          {% for post in posts %}
+            <div class="archive-post-item" data-bs-toggle="modal" data-bs-target="#postModal{{ post.id }}">
+              <div class="archive-post-date">
+                <div class="date-circle">
+                  <span class="date-day">{{ post.created_at|date:"d" }}</span>
+                  <span class="date-month">{{ post.created_at|date:"M" }}</span>
+                </div>
+              </div>
+              <div class="archive-post-content">
+                <h4 class="archive-post-title">{{ post.title }}</h4>
+                <p class="archive-post-preview">{{ post.content|truncatewords:15 }}</p>
+                <div class="archive-post-meta">
+                  <span class="post-year">{{ post.created_at|date:"Y" }}</span>
+                  <span class="read-time">{{ post.content|wordcount|floatformat:0 }} words</span>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
 
-      <!-- Modal for Blog Post -->
+    <!-- Post Modals -->
+    {% for post in posts %}
       <div class="modal fade" id="postModal{{ post.id }}" tabindex="-1" aria-labelledby="postModalLabel{{ post.id }}" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-          <div class="modal-content">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+          <div class="modal-content blog-modal">
             <div class="modal-header">
-              <div>
+              <div class="modal-title-section">
                 <h5 class="modal-title" id="postModalLabel{{ post.id }}">{{ post.title }}</h5>
-                <small class="text-muted">{{ post.created_at|date:"F d, Y" }}</small>
+                <div class="modal-post-meta">
+                  <span class="meta-item">
+                    <i class="fas fa-calendar-alt me-1"></i>
+                    {{ post.created_at|date:"F d, Y" }}
+                  </span>
+                  <span class="meta-item">
+                    <i class="fas fa-clock me-1"></i>
+                    {{ post.content|wordcount|floatformat:0 }} words
+                  </span>
+                </div>
               </div>
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-              <p>{{ post.content }}</p>
+              <div class="blog-post-content">
+                {{ post.content|linebreaks }}
+              </div>
             </div>
             {% if user.is_superuser %}
               <div class="modal-footer">
                 <form action="{% url 'delete_blog_post' post.id %}" method="post" onsubmit="return confirm('Are you sure you want to delete this post?');">
                   {% csrf_token %}
-                  <button type="submit" class="btn btn-danger">Delete Post</button>
+                  <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash me-1"></i>Delete Post
+                  </button>
                 </form>
               </div>
             {% endif %}
           </div>
         </div>
       </div>
-
-    {% empty %}
-      <p>No blog posts yet.</p>
     {% endfor %}
-  </div>
+
+  {% else %}
+    <!-- Empty State -->
+    <div class="empty-blog-state">
+      <div class="empty-icon">
+        <i class="fas fa-pen-fancy"></i>
+      </div>
+      <h3>No Blog Posts Yet</h3>
+      <p>Stay tuned for stories, insights, and updates from the world of bread!</p>
+      {% if user.is_staff or user.is_superuser %}
+        <a href="{% url 'add_blog_post' %}" class="btn btn-outline-primary mt-3">
+          <i class="fas fa-plus me-1"></i>Create First Post
+        </a>
+      {% endif %}
+    </div>
+  {% endif %}
 </div>
 
-<!-- Modal for Admin Warning -->
+<!-- Admin Warning Modal -->
 <div class="modal fade" id="adminWarningModal" tabindex="-1" aria-labelledby="adminWarningModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header bg-danger text-white">
-        <h5 class="modal-title" id="adminWarningModalLabel">Access Denied</h5>
+        <h5 class="modal-title" id="adminWarningModalLabel">
+          <i class="fas fa-shield-alt me-2"></i>Access Denied
+        </h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body">
-        Admin privileges are required to access the Secrets page.
+      <div class="modal-body text-center">
+        <i class="fas fa-user-shield fa-3x text-danger mb-3"></i>
+        <p class="mb-0">Admin privileges are required to access the Secrets page.</p>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
+      <div class="modal-footer justify-content-center">
+        <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">
+          <i class="fas fa-times me-1"></i>Close
+        </button>
       </div>
     </div>
   </div>

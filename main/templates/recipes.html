@@ -1,110 +1,123 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Recipes | Ben's Breads{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0">Recipes</h2>
-    {% if user.is_staff or user.is_superuser %}
-      <a href="{% url 'add_recipe' %}" class="btn btn-outline-primary">Add Recipe</a>
-    {% endif %}
-  </div>
-
-  <div class="row">
-    {% for recipe in recipes %}
-      <div class="col-md-6 col-lg-4 mb-4">
-        <div class="card h-100 recipe-card" role="button" data-bs-toggle="modal" data-bs-target="#recipeModal{{ recipe.id }}">
-          {% if recipe.image %}
-            <img src="{{ recipe.image.url }}" class="card-img-top" alt="{{ recipe.title }}" style="object-fit: cover; height: 200px;">
-          {% endif %}
-          <div class="card-body">
-            <h5 class="card-title">{{ recipe.title }}</h5>
-            {% if recipe.time_required %}
-              <p class="card-text text-muted">{{ recipe.time_required }}</p>
-            {% endif %}
-          </div>
-        </div>
-      </div>
-
-      <!-- Modal -->
-      <!-- Modal -->
-      <!-- Modal -->
- <!-- Modal -->
-<div class="modal fade" id="recipeModal{{ recipe.id }}" tabindex="-1" aria-labelledby="recipeModalLabel{{ recipe.id }}" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="recipeModalLabel{{ recipe.id }}">{{ recipe.title }}</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <div class="row">
-          {% if recipe.image %}
-            <div class="col-md-4 mb-3">
-              <img src="{{ recipe.image.url }}" alt="{{ recipe.title }}" class="img-fluid rounded">
-            </div>
-          {% endif %}
-          <div class="col-md-8">
-            {% if recipe.time_required %}
-              <p><strong>Time Required:</strong> {{ recipe.time_required }}</p>
-            {% endif %}
-            {% if recipe.description %}
-              <p>{{ recipe.description }}</p>
-            {% endif %}
-
-            {% if recipe.ingredients.all %}
-              <h5 class="mt-4"><strong>Ingredients</strong></h5>
-              <ul>
-                {% for ingredient in recipe.ingredients.all %}
-                  <li>{{ ingredient.quantity }} {{ ingredient.name }}</li>
-                {% endfor %}
-              </ul>
-            {% endif %}
-          </div>
-        </div>
-
-        <hr>
-
-        {% if recipe.instructions.all %}
-          <h5><strong>Instructions</strong></h5>
-          <ol>
-            {% for step in recipe.instructions.all|dictsort:"step_number" %}
-              <li>{{ step.step_text }}</li>
-            {% endfor %}
-          </ol>
-        {% endif %}
-      </div>
-
-      {% if user.is_staff %}
-        <div class="modal-footer d-flex justify-content-between">
-          <form action="{% url 'toggle_featured_recipe' recipe.id %}" method="post" class="d-flex align-items-center">
-            {% csrf_token %}
-            <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" id="featuredSwitch{{ recipe.id }}" name="is_featured"
-                {% if recipe.featured %}checked{% endif %}>
-              <label class="form-check-label" for="featuredSwitch{{ recipe.id }}">
-                Featured
-              </label>
-            </div>
-            <button type="submit" class="btn btn-outline-primary ms-3">
-              Save Changes
-            </button>
-          </form>
-
-          <form action="{% url 'delete_recipe' recipe.id %}" method="post" onsubmit="return confirm('Are you sure you want to delete this recipe?');">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-outline-danger">🗑️ Delete Recipe</button>
-          </form>
-        </div>
-      {% endif %}
-    </div>
+<!-- Hero Header -->
+<div class="hero-header text-center">
+  <div class="hero-content">
+    <h1 class="hero-title">Recipes</h1>
+    <div class="hero-divider"></div>
   </div>
 </div>
 
+<div class="container-fluid">
+  <div class="container py-4">
+    <!-- Admin Controls -->
+    {% if user.is_staff or user.is_superuser %}
+      <div class="row">
+        <div class="col-12">
+          <div class="d-flex justify-content-end mb-4">
+            <a href="{% url 'add_recipe' %}" class="btn btn-outline-primary">
+              <i class="fas fa-plus me-1"></i>Add Recipe
+            </a>
+          </div>
+        </div>
+      </div>
+    {% endif %}
 
-    {% empty %}
-      <p>No recipes yet.</p>
-    {% endfor %}
+    {% if recipes %}
+      <!-- Recent Recipes Section -->
+      <div class="recent-recipes-section mb-5">
+        <div class="row">
+          <div class="col-12">
+            <h2 class="section-title mb-4">
+              <i class="fas fa-star me-2"></i>Recent Recipes
+            </h2>
+          </div>
+        </div>
+        <div class="row">
+          {% for recipe in recipes|slice:":3" %}
+            <div class="col-lg-4 col-md-6 mb-4">
+              <div class="featured-recipe-card" onclick="window.location.href='{% url 'recipe_detail' recipe.id %}';" style="cursor: pointer;">
+                {% if recipe.image %}
+                  <div class="featured-recipe-image">
+                    <img src="{{ recipe.image.url }}" alt="{{ recipe.title }}" class="img-fluid">
+                  </div>
+                {% endif %}
+                <div class="featured-recipe-content">
+                  {% if recipe.time_required %}
+                    <div class="recipe-time">
+                      <i class="fas fa-clock me-1"></i>
+                      {{ recipe.time_required }}
+                    </div>
+                  {% endif %}
+                  <h3 class="featured-recipe-title">{{ recipe.title }}</h3>
+                  {% if recipe.description %}
+                    <p class="featured-recipe-description">{{ recipe.description|truncatewords:20 }}</p>
+                  {% endif %}
+                  <div class="view-recipe-link">
+                    View Recipe <i class="fas fa-arrow-right ms-1"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- All Recipes Section -->
+      <div class="all-recipes-section">
+        <div class="row">
+          <div class="col-12">
+            <h2 class="section-title mb-4">
+              <i class="fas fa-list me-2"></i>All Recipes
+            </h2>
+          </div>
+        </div>
+        <div class="row">
+          {% for recipe in recipes|dictsort:"title" %}
+            <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+              <div class="recipe-item" onclick="window.location.href='{% url 'recipe_detail' recipe.id %}';" style="cursor: pointer;">
+                {% if recipe.image %}
+                  <div class="recipe-item-image">
+                    <img src="{{ recipe.image.url }}" alt="{{ recipe.title }}" class="img-fluid">
+                  </div>
+                {% endif %}
+                <div class="recipe-item-content">
+                  <h4 class="recipe-item-title">{{ recipe.title }}</h4>
+                  {% if recipe.time_required %}
+                    <div class="recipe-item-time">
+                      <i class="fas fa-clock me-1"></i>
+                      {{ recipe.time_required }}
+                    </div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+
+    {% else %}
+      <!-- Empty State -->
+      <div class="row justify-content-center">
+        <div class="col-md-6">
+          <div class="empty-recipes-state text-center">
+            <div class="empty-icon">
+              <i class="fas fa-utensils"></i>
+            </div>
+            <h3>No Recipes Yet</h3>
+            <p>Start building your collection of delicious bread recipes!</p>
+            {% if user.is_staff or user.is_superuser %}
+              <a href="{% url 'add_recipe' %}" class="btn btn-outline-primary mt-3">
+                <i class="fas fa-plus me-1"></i>Add First Recipe
+              </a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}
