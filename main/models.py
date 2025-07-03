@@ -74,3 +74,11 @@ class Connect4Result(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.result} - {self.timestamp.strftime('%Y-%m-%d %H:%M')}"
+
+class WordFindScore(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    score = models.PositiveIntegerField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.score} points"

@@ -30,4 +30,8 @@ urlpatterns = [
     path('api/leaderboard/', views.connect4_leaderboard, name='connect4_leaderboard'),
     path('health/', views.health, name='health_check'),
     path('recipes/<int:pk>/', views.recipe_detail, name='recipe_detail'),
+    path('games/word-find/', views.word_find, name='word_find'),
+    path('api/validate-word/', views.validate_word, name='validate_word'),
+    path('api/word-find-leaderboard/', views.word_find_leaderboard, name='word_find_leaderboard'),
+    path('api/save-word-find-result/', views.save_word_find_result, name='save_word_find_result'),
 ]

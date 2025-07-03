@@ -3,7 +3,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
-from .models import BlogPost, Recipe, Ingredient, Instruction, RamseyPhoto, Connect4Result
+from .models import BlogPost, Recipe, Ingredient, Instruction, RamseyPhoto, Connect4Result, WordFindScore
 from .forms import BlogPostForm, RecipeForm, RamseyPhotoForm, CustomUserCreationForm, IngredientForm, InstructionForm
 from django.db import transaction
 from django.http import JsonResponse
@@ -13,6 +13,7 @@ from .connect4.eval_cpu_moves import evalMoves
 from .connect4.generate_default import generateDefault
 from django.http import HttpResponse
 from django.forms import inlineformset_factory
+import requests
 
 # Home, Games, About, Blog, Signup, Manage Users views — same as you wrote
 
@@ -308,3 +309,40 @@ def edit_recipe(request, pk):
 def recipe_detail(request, pk):
     recipe = get_object_or_404(Recipe, pk=pk)
     return render(request, 'recipe_detail.html', {'recipe': recipe})
+
+def word_find(request):
+    return render(request, 'word_find.html')
+
+def validate_word(request):
+    if request.method == 'POST':
+        word = request.POST.get('word', '').lower()
+        if not word:
+            return JsonResponse({'valid': False, 'error': 'No word provided'})
+
+        try:
+            # Check if the word is valid using an external dictionary API
+            response = requests.get(f"https://api.dictionaryapi.dev/api/v2/entries/en/{word}")
+            if response.status_code == 200:
+                return JsonResponse({'valid': True})
+            else:
+                return JsonResponse({'valid': False, 'error': f"API returned status {response.status_code}"})
+        except requests.exceptions.RequestException as e:
+            return JsonResponse({'valid': False, 'error': f"API request failed: {str(e)}"})
+
+    return JsonResponse({'error': 'Invalid request'}, status=400)
+
+def word_find_leaderboard(request):
+    scores = WordFindScore.objects.order_by('-score')[:10]
+    leaderboard = [{'user': score.user.username, 'score': score.score} for score in scores]
+    return JsonResponse({'leaderboard': leaderboard})
+
+@csrf_exempt
+@login_required
+def save_word_find_result(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        score = data.get('score')
+        if score is not None:
+            WordFindScore.objects.create(user=request.user, score=score)
+            return JsonResponse({'status': 'success'})
+        return JsonResponse({'status': 'invalid score'}, status=400)

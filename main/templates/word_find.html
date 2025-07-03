@@ -1,0 +1,481 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container">
+    <h1 class="game-title">Word Find</h1>
+    <div id="game-container">
+        <div id="feedback-message" class="feedback-message"></div>
+        <div class="game-layout">
+            <div id="score-container" class="info-box">
+                <p>Score:</p>
+                <p id="score" class="info-value">0</p>
+            </div>
+            <div id="grid" class="grid"></div>
+            <div id="timer-container" class="info-box">
+                <p>Time Remaining:</p>
+                <p id="timer" class="info-value">90</p>
+            </div>
+        </div>
+        <div id="current-word-container">
+            <p class="current-word-display" id="current-word"></p>
+            <button id="submit-word" class="btn hidden">Submit</button>
+        </div>
+        <div class="button-container">
+            <button id="start-game" class="btn">New Game</button>
+            <button id="leaderboard-button" class="btn" data-bs-toggle="modal" data-bs-target="#leaderboardModal">Leaderboard</button>
+            <button id="how-to-play-button" class="btn" data-bs-toggle="modal" data-bs-target="#howToPlayModal">How to Play</button>
+        </div>
+    </div>
+    <!-- Leaderboard Modal -->
+    <div class="modal fade" id="leaderboardModal" tabindex="-1" aria-labelledby="leaderboardModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content game-modal">
+                <div class="modal-header">
+                    <h5 class="modal-title text-warning" id="leaderboardModalLabel">
+                        <i class="fas fa-trophy me-2"></i>
+                        Leaderboard
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="leaderboardContent" class="table-responsive">
+                        <table class="table table-game">
+                            <thead>
+                                <tr>
+                                    <th>Player</th>
+                                    <th>Score</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leaderboardTableBody">
+                                <tr>
+                                    <td colspan="2" class="text-center">
+                                        <div class="loading-spinner">
+                                            <i class="fas fa-spinner fa-spin"></i>
+                                            Loading...
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- How to Play Modal -->
+    <div class="modal fade" id="howToPlayModal" tabindex="-1" aria-labelledby="howToPlayModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content game-modal">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="howToPlayModalLabel">
+                        <i class="fas fa-question-circle me-2"></i>
+                        How to Play
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <ul>
+                        <li>Select letters by clicking on them to form a word.</li>
+                        <li>Words must be valid and connected sequentially.</li>
+                        <li>Submit your word using the "Submit" button.</li>
+                        <li>Earn points based on the length of valid words.</li>
+                        <li>The game ends when the timer runs out.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const grid = document.getElementById('grid');
+    const scoreElement = document.getElementById('score');
+    const timerElement = document.getElementById('timer');
+    const submitButton = document.getElementById('submit-word');
+    const startButton = document.getElementById('start-game');
+    const leaderboardButton = document.getElementById('leaderboard-button');
+    const howToPlayButton = document.getElementById('how-to-play-button');
+    const leaderboardTableBody = document.getElementById('leaderboardTableBody');
+    const currentWordElement = document.getElementById('current-word');
+    const feedbackMessage = document.getElementById('feedback-message');
+    const leaderboardModal = document.getElementById('leaderboardModal');
+
+    let score = 0;
+    let timeRemaining = 90;
+    let gridLetters = [];
+    let timerInterval;
+    let currentWord = '';
+    let selectedCells = [];
+    let gameActive = true;
+
+    function generateGrid() {
+        grid.innerHTML = '';
+        gridLetters = [];
+        for (let i = 0; i < 25; i++) { // Generate 25 cells for a 5x5 grid
+            const letter = String.fromCharCode(65 + Math.floor(Math.random() * 26));
+            gridLetters.push(letter);
+            const cell = document.createElement('div');
+            cell.classList.add('grid-cell');
+            cell.textContent = letter;
+            cell.dataset.index = i; // Store the cell's index
+            cell.addEventListener('click', () => selectCell(cell));
+            grid.appendChild(cell);
+        }
+    }
+
+    function getNeighbors(index) {
+        const neighbors = [];
+        const row = Math.floor(index / 5);
+        const col = index % 5;
+
+        // Check all possible neighbors
+        const directions = [
+            [-1, -1], [-1, 0], [-1, 1],
+            [0, -1],          [0, 1],
+            [1, -1], [1, 0], [1, 1]
+        ];
+
+        directions.forEach(([dx, dy]) => {
+            const newRow = row + dx;
+            const newCol = col + dy;
+            if (newRow >= 0 && newRow < 5 && newCol >= 0 && newCol < 5) {
+                neighbors.push(newRow * 5 + newCol);
+            }
+        });
+
+        return neighbors;
+    }
+
+    function selectCell(cell) {
+        if (!gameActive) return; // Disable selection if the game is inactive
+        const index = parseInt(cell.dataset.index, 10);
+
+        // If the cell is already selected, deselect it and all following cells
+        const selectedIndex = selectedCells.indexOf(index);
+        if (selectedIndex !== -1) {
+            selectedCells.slice(selectedIndex).forEach(idx => {
+                const deselectCell = grid.children[idx];
+                deselectCell.classList.remove('selected');
+            });
+            selectedCells = selectedCells.slice(0, selectedIndex);
+            currentWord = currentWord.slice(0, selectedIndex);
+            currentWordElement.textContent = currentWord;
+            return;
+        }
+
+        // Check if the cell is a neighbor of the last selected cell
+        if (selectedCells.length === 0 || getNeighbors(selectedCells[selectedCells.length - 1]).includes(index)) {
+            selectedCells.push(index);
+            currentWord += cell.textContent;
+            currentWordElement.textContent = currentWord;
+            cell.classList.add('selected');
+        }
+    }
+
+    function resetSelection() {
+        selectedCells.forEach(index => {
+            const cell = grid.children[index];
+            cell.classList.remove('selected');
+        });
+        selectedCells = [];
+        currentWord = '';
+        currentWordElement.textContent = '';
+    }
+
+    function updateLeaderboard() {
+        leaderboardTableBody.innerHTML = '<tr><td colspan="2" class="text-center"><div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Loading...</div></td></tr>';
+        fetch('/api/word-find-leaderboard/')
+            .then(res => res.json())
+            .then(data => {
+                leaderboardTableBody.innerHTML = '';
+                data.leaderboard.forEach(entry => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `<td>${entry.user}</td><td>${entry.score}</td>`;
+                    leaderboardTableBody.appendChild(row);
+                });
+            })
+            .catch(() => {
+                leaderboardTableBody.innerHTML = '<tr><td colspan="2" class="text-center text-muted">Failed to load leaderboard</td></tr>';
+            });
+    }
+
+    function saveResult() {
+        fetch('/api/save-word-find-result/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({
+                score: score, // Send the final score to the API
+                timeRemaining: 0 // Time is 0 at the end of the game
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                updateLeaderboard(); // Refresh leaderboard after saving result
+            } else {
+                console.error('Failed to save result:', data);
+            }
+        })
+        .catch(err => console.error('Error saving result:', err));
+    }
+
+    function startTimer() {
+        timerInterval = setInterval(() => {
+            timeRemaining--;
+            timerElement.textContent = timeRemaining;
+            if (timeRemaining <= 0) {
+                clearInterval(timerInterval);
+                feedbackMessage.textContent = 'Time is up!';
+                feedbackMessage.classList.add('red');
+                gameActive = false; // Disable selection
+                resetSelection(); // Clear selection
+                submitButton.classList.add('hidden');
+                saveResult(); // Save the result only at the end of the game
+            }
+        }, 1000);
+    }
+
+    function startGame() {
+        score = 0;
+        timeRemaining = 90; // Reset game time to 90 seconds
+        gameActive = true; // Enable selection
+        scoreElement.textContent = score;
+        timerElement.textContent = timeRemaining;
+        submitButton.classList.remove('hidden');
+        feedbackMessage.textContent = '';
+        feedbackMessage.classList.remove('red', 'green');
+        resetSelection();
+        generateGrid();
+        startTimer();
+        updateLeaderboard(); // Ensure leaderboard is refreshed at the start of a new game
+    }
+
+    submitButton.addEventListener('click', function() {
+        if (!currentWord || !gameActive) return;
+
+        fetch('/api/validate-word/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: new URLSearchParams({ word: currentWord })
+        })
+        .then(res => res.json())
+        .then(data => {
+            feedbackMessage.classList.remove('red', 'green'); // Reset feedback colors
+            if (data.valid) {
+                score += currentWord.length;
+                scoreElement.textContent = score;
+                feedbackMessage.textContent = `${currentWord} (+${currentWord.length})`;
+                feedbackMessage.classList.add('green');
+                // saveResult('valid'); // Save valid word result
+            } else {
+                feedbackMessage.textContent = 'Invalid word!';
+                feedbackMessage.classList.add('red');
+            }
+            resetSelection();
+        });
+    });
+
+    startButton.addEventListener('click', startGame);
+    leaderboardModal.addEventListener('show.bs.modal', updateLeaderboard);
+
+    updateLeaderboard();
+});
+</script>
+<style>
+.container {
+    text-align: center;
+    margin-top: 20px;
+}
+.game-title {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #212529; /* Dark gray for title */
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    border-bottom: 5px solid; /* Restore underline bar */
+    border-image: linear-gradient(90deg, #8B4513 0%, #D2691E 50%, #DEB887 100%) 1; /* Apply gradient to border */
+    display: inline-block;
+}
+.game-layout {
+    display: flex;
+    justify-content: center; /* Center the layout horizontally */
+    align-items: center; /* Align items vertically */
+    gap: 40px; /* Space between score, grid, and timer */
+    margin-top: 40px; /* Add spacing below the title */
+}
+.info-box {
+    width: 150px;
+    padding: 10px;
+    background-color: #ffffff; /* White background */
+    color: #212529; /* Dark gray text */
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid #dee2e6;
+}
+.grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: repeat(5, 1fr);
+    gap: 10px;
+    width: 300px;
+    height: 300px;
+    background-color: #f8f9fa; /* Light gray background */
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+.grid-cell {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 2px solid #dee2e6; /* Light gray border */
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    cursor: pointer;
+    background-color: #ffffff; /* White background for cells */
+    border-radius: 50%; /* Circular cells */
+    transition: background-color 0.2s, border-color 0.2s;
+}
+.grid-cell.selected {
+    background-color: #ffdd44; /* Yellow background for selected cells */
+    border-color: #ffaa00; /* Dark yellow border for selected cells */
+}
+.info-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #8B4513; /* Brown for values */
+}
+.feedback-message {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+.feedback-message.green {
+    color: #28a745; /* Green for valid word */
+}
+.feedback-message.red {
+    color: #dc3545; /* Red for invalid word */
+}
+.current-word-display {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #212529; /* Dark gray for current word */
+    margin-bottom: 20px;
+}
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    font-size: 1rem;
+    font-weight: bold;
+    color: #ffffff; /* White text */
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+.btn#submit-word {
+    background: linear-gradient(135deg, #4a90e2, #357abd); /* Blue gradient for Submit */
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2); /* Enhanced shadow */
+}
+.btn#submit-word:hover {
+    background: linear-gradient(135deg, #357abd, #2c6fb0); /* Darker gradient on hover */
+}
+.btn#start-game {
+    background: linear-gradient(135deg, #8B4513, #D2691E); /* Brown gradient for New Game */
+}
+.btn#start-game:hover {
+    background: linear-gradient(135deg, #D2691E, #DEB887); /* Lighter gradient on hover */
+}
+.btn#leaderboard-button {
+    background: linear-gradient(135deg, #6c757d, #495057); /* Gray gradient for Leaderboard */
+}
+.btn#leaderboard-button:hover {
+    background: linear-gradient(135deg, #495057, #343a40); /* Darker gradient on hover */
+}
+.btn#how-to-play-button {
+    background: linear-gradient(135deg, #17a2b8, #138496); /* Blue gradient for How to Play */
+}
+.btn#how-to-play-button:hover {
+    background: linear-gradient(135deg, #138496, #0d6efd); /* Darker blue gradient on hover */
+}
+.btn:disabled {
+    background-color: #6c757d; /* Gray for disabled buttons */
+    cursor: not-allowed;
+}
+.button-container {
+    margin-top: 30px;
+}
+.hidden {
+    display: none;
+}
+.loading-spinner {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+}
+.loading-spinner i {
+    margin-right: 5px;
+}
+.table-game {
+    width: 100%;
+    margin: 0;
+    border-collapse: collapse;
+}
+.table-game th, .table-game td {
+    padding: 10px;
+    text-align: center;
+    border: 1px solid #dee2e6;
+}
+.table-game th {
+    background-color: #f1f1f1;
+    font-weight: bold;
+}
+.table-game td {
+    background-color: #ffffff;
+}
+.table-game tr:hover {
+    background-color: #f9f9f9;
+}
+.game-modal {
+    border-radius: 12px;
+    overflow: hidden;
+}
+.modal-header {
+    background-color: #343a40;
+    color: #ffffff;
+    border-bottom: 1px solid #dee2e6;
+}
+.modal-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+.btn-close {
+    background: none;
+    border: none;
+    color: #ffffff;
+    font-size: 1.2rem;
+}
+.btn-close:hover {
+    color: #dc3545;
+}
+.modal-body {
+    padding: 20px;
+}
+.modal-body ul {
+    list-style-type: none;
+    padding: 0;
+}
+.modal-body li {
+    margin-bottom: 10px;
+    font-size: 1.1rem;
+}
+</style>
+{% endblock %}
