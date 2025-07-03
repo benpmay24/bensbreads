@@ -256,8 +256,8 @@ document.addEventListener('DOMContentLoaded', function() {
         usedWords = []; // Reset used words for a new round
     }
 
-    // Add touchstart event listener for mobile devices
-    submitButton.addEventListener('touchstart', function(event) {
+    // Add touchend event listener for mobile devices
+    submitButton.addEventListener('touchend', function(event) {
         event.preventDefault(); // Prevent default touch behavior
         submitButton.click(); // Trigger the click event
     });
