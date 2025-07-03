@@ -108,6 +108,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentWord = '';
     let selectedCells = [];
     let gameActive = true;
+    let usedWords = []; // Track used words in the current round
 
     function generateGrid() {
         grid.innerHTML = '';
@@ -252,10 +253,24 @@ document.addEventListener('DOMContentLoaded', function() {
         generateGrid();
         startTimer();
         updateLeaderboard(); // Ensure leaderboard is refreshed at the start of a new game
+        usedWords = []; // Reset used words for a new round
     }
+
+    // Add touchstart event listener for mobile devices
+    submitButton.addEventListener('touchstart', function(event) {
+        event.preventDefault(); // Prevent default touch behavior
+        submitButton.click(); // Trigger the click event
+    });
 
     submitButton.addEventListener('click', function() {
         if (!currentWord || !gameActive) return;
+
+        if (usedWords.includes(currentWord)) {
+            feedbackMessage.textContent = 'Word already used!';
+            feedbackMessage.classList.add('red');
+            resetSelection();
+            return;
+        }
 
         fetch('/api/validate-word/', {
             method: 'POST',
@@ -273,7 +288,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 scoreElement.textContent = score;
                 feedbackMessage.textContent = `${currentWord} (+${currentWord.length})`;
                 feedbackMessage.classList.add('green');
-                // saveResult('valid'); // Save valid word result
+                usedWords.push(currentWord); // Add word to used words
             } else {
                 feedbackMessage.textContent = 'Invalid word!';
                 feedbackMessage.classList.add('red');
