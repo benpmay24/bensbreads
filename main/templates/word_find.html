@@ -3,17 +3,19 @@
 <div class="container">
     <h1 class="game-title">Word Find</h1>
     <div id="game-container">
-        <div id="feedback-message" class="feedback-message"></div>
         <div class="game-layout">
-            <div id="score-container" class="info-box">
-                <p>Score:</p>
-                <p id="score" class="info-value">0</p>
+            <div class="info-container">
+                <div id="score-container" class="info-box">
+                    <p>Score:</p>
+                    <p id="score" class="info-value">0</p>
+                </div>
+                <div id="timer-container" class="info-box">
+                    <p>Time:</p> <!-- Changed label -->
+                    <p id="timer" class="info-value">90</p>
+                </div>
             </div>
+            <div id="feedback-message" class="feedback-message"></div>
             <div id="grid" class="grid"></div>
-            <div id="timer-container" class="info-box">
-                <p>Time Remaining:</p>
-                <p id="timer" class="info-value">90</p>
-            </div>
         </div>
         <div id="current-word-container">
             <p class="current-word-display" id="current-word"></p>
@@ -303,14 +305,26 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 .game-layout {
     display: flex;
-    justify-content: center; /* Center the layout horizontally */
-    align-items: center; /* Align items vertically */
-    gap: 40px; /* Space between score, grid, and timer */
-    margin-top: 40px; /* Add spacing below the title */
+    flex-direction: column; /* Stack elements vertically */
+    align-items: center; /* Center elements horizontally */
+    gap: 20px; /* Space between score, timer, and grid */
+    margin-top: 20px; /* Add spacing below the title */
 }
+
+.info-container {
+    display: flex;
+    justify-content: space-between; /* Spread boxes across the container */
+    gap: 10px; /* Reduce gap between boxes */
+    margin-bottom: 10px; /* Add spacing below the info container */
+    width: 100%; /* Ensure the container spans the full width */
+    max-width: 400px; /* Reduced max width for larger screens */
+    margin-left: auto; /* Center the container */
+    margin-right: auto; /* Center the container */
+}
+
 .info-box {
-    width: 150px;
-    padding: 10px;
+    flex: 1; /* Allow boxes to take equal space */
+    padding: 15px; /* Increase padding */
     background-color: #ffffff; /* White background */
     color: #212529; /* Dark gray text */
     border-radius: 12px;
@@ -318,13 +332,27 @@ document.addEventListener('DOMContentLoaded', function() {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     border: 1px solid #dee2e6;
 }
+
+@media (max-width: 768px) {
+    .info-container {
+        max-width: none; /* Remove width cap for mobile */
+        gap: 15px; /* Slightly increase gap for smaller screens */
+    }
+
+    .info-box {
+        max-width: none; /* Remove width cap to allow full container width */
+    }
+}
+
 .grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     grid-template-rows: repeat(5, 1fr);
     gap: 10px;
-    width: 300px;
-    height: 300px;
+    width: 90%; /* Make the grid take up most of the screen width */
+    max-width: 400px; /* Limit maximum width */
+    height: auto; /* Allow height to adjust dynamically */
+    aspect-ratio: 1; /* Maintain square shape */
     background-color: #f8f9fa; /* Light gray background */
     border-radius: 20px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
@@ -334,7 +362,7 @@ document.addEventListener('DOMContentLoaded', function() {
     justify-content: center;
     align-items: center;
     border: 2px solid #dee2e6; /* Light gray border */
-    font-size: 1.5rem;
+    font-size: 1.2rem; /* Adjust font size for smaller screens */
     font-weight: bold;
     text-transform: uppercase;
     cursor: pointer;
@@ -352,9 +380,10 @@ document.addEventListener('DOMContentLoaded', function() {
     color: #8B4513; /* Brown for values */
 }
 .feedback-message {
+    margin-top: 10px; /* Add spacing above the feedback message */
     font-size: 1.2rem;
     font-weight: bold;
-    margin-bottom: 10px;
+    text-align: center;
 }
 .feedback-message.green {
     color: #28a745; /* Green for valid word */
@@ -476,6 +505,28 @@ document.addEventListener('DOMContentLoaded', function() {
 .modal-body li {
     margin-bottom: 10px;
     font-size: 1.1rem;
+}
+
+@media (max-width: 768px) {
+    .game-layout {
+        flex-direction: column; /* Stack elements vertically */
+        gap: 15px; /* Reduce spacing for smaller screens */
+    }
+
+    .info-container {
+        flex-direction: row; /* Keep score and timer side by side on smaller screens */
+        gap: 15px; /* Reduce spacing for smaller screens */
+    }
+
+    .info-box {
+        width: 95%; /* Fill most of the screen width on mobile */
+        max-width: 350px; /* Cap the maximum width */
+    }
+
+    .grid {
+        width: 100%; /* Make the grid take up the full screen width */
+        max-width: 100%; /* Remove maximum width restriction */
+    }
 }
 </style>
 {% endblock %}
