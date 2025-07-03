@@ -256,13 +256,11 @@ document.addEventListener('DOMContentLoaded', function() {
         usedWords = []; // Reset used words for a new round
     }
 
-    // Add touchend event listener for mobile devices
-    submitButton.addEventListener('touchend', function(event) {
+    // Add touchstart event listener for mobile devices
+    submitButton.addEventListener('touchstart', function(event) {
         event.preventDefault(); // Prevent default touch behavior
-        submitButton.click(); // Trigger the click event
-    });
+        event.stopPropagation(); // Stop event bubbling
 
-    submitButton.addEventListener('click', function() {
         if (!currentWord || !gameActive) return;
 
         if (usedWords.includes(currentWord)) {
