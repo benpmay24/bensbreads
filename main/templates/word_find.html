@@ -28,17 +28,22 @@
                         <p id="score" class="info-value">0</p>
                     </div>
                     <div id="timer-container" class="info-box">
-                        <p>Time:</p> <!-- Changed label -->
+                        <p>Time:</p>
                         <p id="timer" class="info-value">90</p>
                     </div>
                 </div>
-                <div id="feedback-message" class="feedback-message"></div>
+                <!-- Set a fixed height and style for feedback-message to prevent shifting -->
+                <div id="feedback-message" class="feedback-message" style="min-height:1.4em; height:1.4em; display:flex; align-items:center; justify-content:center; margin-bottom:0;"></div>
+                <!-- Prevent shifting by setting a fixed height and overflow for the word row -->
+                <div id="current-word-row" style="margin: 6px 0; min-height: 1.6em; display: flex; align-items: center; justify-content: center;">
+                    <p class="current-word-display" id="current-word" style="margin:0; min-height:1.4em; max-width:100vw; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-size:1.1rem;"></p>
+                </div>
                 <div id="grid" class="grid"></div>
+                <div id="submit-word-row" style="margin: 15px 0;">
+                    <button id="submit-word" class="btn hidden">Submit</button>
+                </div>
             </div>
-            <div id="current-word-container">
-                <p class="current-word-display" id="current-word"></p>
-                <button id="submit-word" class="btn hidden">Submit</button>
-            </div>
+            <div id="current-word-container" style="display:none;"></div>
             <div class="button-container">
                 <button id="start-game" class="btn">New Game</button>
                 <button id="leaderboard-button" class="btn" data-bs-toggle="modal" data-bs-target="#leaderboardModal">Leaderboard</button>
@@ -366,35 +371,83 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .info-container {
     display: flex;
-    justify-content: space-between; /* Spread boxes across the container */
-    gap: 10px; /* Reduce gap between boxes */
-    margin-bottom: 10px; /* Add spacing below the info container */
-    width: 100%; /* Ensure the container spans the full width */
-    max-width: 400px; /* Reduced max width for larger screens */
-    margin-left: auto; /* Center the container */
-    margin-right: auto; /* Center the container */
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+    width: 100%;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .info-box {
-    flex: 1; /* Allow boxes to take equal space */
-    padding: 15px; /* Increase padding */
-    background-color: #ffffff; /* White background */
-    color: #212529; /* Dark gray text */
+    flex: 1;
+    padding: 10px 5px; /* Reduce padding for mobile */
+    background-color: #ffffff;
+    color: #212529;
     border-radius: 12px;
     text-align: center;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     border: 1px solid #dee2e6;
+    min-width: 0;
+}
+
+.info-box p {
+    margin: 0;
+    font-size: 1em;
+    line-height: 1.1;
+}
+
+.info-value {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #8B4513;
+    word-break: break-all;
 }
 
 @media (max-width: 768px) {
     .info-container {
-        max-width: none; /* Remove width cap for mobile */
-        gap: 15px; /* Slightly increase gap for smaller screens */
+        max-width: none;
+        gap: 6px;
     }
-
     .info-box {
-        max-width: none; /* Remove width cap to allow full container width */
+        padding: 6px 2px; /* Even smaller padding for mobile */
+        font-size: 0.95em;
+        min-width: 0;
     }
+    .info-value {
+        font-size: 1rem;
+    }
+    .game-layout {
+        gap: 10px;
+    }
+    #current-word-row {
+        min-height: 1.4em;
+    }
+    .current-word-display {
+        font-size: 1rem;
+        min-height: 1.2em;
+    }
+}
+
+/* Prevent shifting of grid/buttons when word is being formed */
+#current-word-row {
+    min-height: 1.6em;
+    box-sizing: border-box;
+    /* Ensures space is always reserved for the word */
+}
+
+.current-word-display {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #212529;
+    margin-bottom: 0;
+    min-height: 1.4em;
+    max-width: 100vw;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    transition: color 0.2s;
 }
 
 .grid {
@@ -427,28 +480,24 @@ document.addEventListener('DOMContentLoaded', function() {
     background-color: #ffdd44; /* Yellow background for selected cells */
     border-color: #ffaa00; /* Dark yellow border for selected cells */
 }
-.info-value {
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: #8B4513; /* Brown for values */
-}
 .feedback-message {
-    margin-top: 10px; /* Add spacing above the feedback message */
-    font-size: 1.2rem;
+    margin-top: 10px;
+    margin-bottom: 0;
+    font-size: 1.1rem;
     font-weight: bold;
     text-align: center;
+    min-height: 1.4em;
+    height: 1.4em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
 }
 .feedback-message.green {
-    color: #28a745; /* Green for valid word */
+    color: #28a745;
 }
 .feedback-message.red {
-    color: #dc3545; /* Red for invalid word */
-}
-.current-word-display {
-    font-size: 2rem;
-    font-weight: bold;
-    color: #212529; /* Dark gray for current word */
-    margin-bottom: 20px;
+    color: #dc3545;
 }
 .btn {
     display: inline-block;
