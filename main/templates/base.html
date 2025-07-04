@@ -56,9 +56,19 @@
             <a class="nav-link dropdown-toggle bg-light border rounded px-3 py-1" href="#" id="accountDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="box-shadow: 0 0 5px rgba(0,0,0,0.1);">
               Account
             </a>
-            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="accountDropdown">
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="accountDropdown" style="right: 0; left: auto; min-width: 220px;">
               {% if user.is_authenticated %}
                 <li class="dropdown-item-text">Welcome, <strong>{{ user.username }}</strong></li>
+                <li class="dropdown-item-text text-muted" style="font-size: 0.95em;">
+                  Role:
+                  {% if user.is_superuser %}
+                    Superuser
+                  {% elif user.is_staff %}
+                    Staff
+                  {% else %}
+                    User
+                  {% endif %}
+                </li>
                 <li><hr class="dropdown-divider"></li>
                 <li><a class="dropdown-item" href="{% url 'logout' %}" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Logout</a></li>
                 <form id="logout-form" method="post" action="{% url 'logout' %}" style="display: none;">

@@ -1,24 +1,38 @@
-{% extends 'base.html' %}
-
+{% extends "base.html" %}
+{% block title %}Log In | Ben's Breads{% endblock %}
 {% block content %}
-<div class="container mt-5">
-  <h2 class="mb-4">Login</h2>
-
-  {% if form.errors %}
-    <div class="alert alert-danger">Invalid username or password.</div>
-  {% endif %}
-
-  <form method="post" action="{% url 'login' %}">
-    {% csrf_token %}
-    <div class="mb-3">
-      <label for="id_username" class="form-label">Username</label>
-      {{ form.username }}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+      <div class="card shadow-lg border-0 rounded-4">
+        <div class="card-body form-card-body p-4">
+          <h2 class="mb-4 text-center" style="color:#8B4513;">Log In</h2>
+          {% if form.errors %}
+            <div class="alert alert-danger">
+              Please enter a correct username and password.
+            </div>
+          {% endif %}
+          <form method="post" novalidate>
+            {% csrf_token %}
+            <div class="mb-3">
+              <label for="id_username" class="form-label">Username</label>
+              <input type="text" name="username" autofocus required class="form-control" id="id_username" value="{{ form.username.value|default_if_none:'' }}">
+            </div>
+            <div class="mb-3">
+              <label for="id_password" class="form-label">Password</label>
+              <input type="password" name="password" required class="form-control" id="id_password">
+            </div>
+            <div class="d-grid gap-2">
+              <button type="submit" class="btn btn-outline-primary btn-lg">Log In</button>
+            </div>
+          </form>
+          <div class="mt-4 text-center">
+            <span>Don't have an account?</span>
+            <a href="{% url 'signup' %}" class="btn btn-link">Create Account</a>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="mb-3">
-      <label for="id_password" class="form-label">Password</label>
-      {{ form.password }}
-    </div>
-    <button type="submit" class="btn btn-primary">Login</button>
-  </form>
+  </div>
 </div>
 {% endblock %}

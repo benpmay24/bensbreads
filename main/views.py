@@ -55,7 +55,7 @@ def signup(request):
             return redirect('login')
     else:
         form = CustomUserCreationForm()
-    return render(request, 'signup.html', {'form': form})
+    return render(request, 'registration/signup.html', {'form': form})
 
 @user_passes_test(lambda u: u.is_superuser)
 def manage_users(request):
