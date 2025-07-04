@@ -8,12 +8,14 @@ dj-database-url==2.3.0
 Django==5.2
 django-storages==1.14.6
 django-widget-tweaks==1.5.0
+english-words==2.0.1
 gunicorn==23.0.0
 idna==3.10
 jmespath==1.0.1
 packaging==25.0
 pillow==11.2.1
 psycopg2-binary==2.9.10
+pyenchant==3.2.2
 python-dateutil==2.9.0.post0
 python-dotenv==1.1.0
 requests==2.32.4

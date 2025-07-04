@@ -2,92 +2,127 @@
 {% block title %}Word Find | Ben's Breads{% endblock %}
 {% block content %}
 <div class="container">
-    <h1 class="game-title">Word Find</h1>
-    <div id="game-container">
-        <div class="game-layout">
-            <div class="info-container">
-                <div id="score-container" class="info-box">
-                    <p>Score:</p>
-                    <p id="score" class="info-value">0</p>
-                </div>
-                <div id="timer-container" class="info-box">
-                    <p>Time:</p> <!-- Changed label -->
-                    <p id="timer" class="info-value">90</p>
-                </div>
+    <div id="game-loader" style="display:flex;align-items:center;justify-content:center;height:350px;">
+        <div class="loading-spinner" style="font-size:2rem; flex-direction:column; align-items:center; gap:1rem;">
+            <i class="fas fa-bread-slice fa-spin" style="color:#8B4513; font-size:3rem;"></i>
+            <div style="font-family:'Montserrat',sans-serif; font-size:1.5rem; font-weight:600; color:#8B4513; letter-spacing:1px;">
+                Loading Game...
             </div>
-            <div id="feedback-message" class="feedback-message"></div>
-            <div id="grid" class="grid"></div>
-        </div>
-        <div id="current-word-container">
-            <p class="current-word-display" id="current-word"></p>
-            <button id="submit-word" class="btn hidden">Submit</button>
-        </div>
-        <div class="button-container">
-            <button id="start-game" class="btn">New Game</button>
-            <button id="leaderboard-button" class="btn" data-bs-toggle="modal" data-bs-target="#leaderboardModal">Leaderboard</button>
-            <button id="how-to-play-button" class="btn" data-bs-toggle="modal" data-bs-target="#howToPlayModal">How to Play</button>
+            <!-- Spinning bread SVG below the text -->
+            <div style="margin-top:0.5rem;">
+                <svg width="48" height="48" viewBox="0 0 48 48" style="animation: spin-bread 1.2s linear infinite;">
+                    <ellipse cx="24" cy="32" rx="14" ry="10" fill="#DEB887" stroke="#8B4513" stroke-width="2"/>
+                    <ellipse cx="24" cy="22" rx="16" ry="12" fill="#F5DEB3" stroke="#8B4513" stroke-width="2"/>
+                    <ellipse cx="24" cy="18" rx="12" ry="8" fill="#fff8dc" stroke="#8B4513" stroke-width="1.5"/>
+                </svg>
+            </div>
         </div>
     </div>
-    <!-- Leaderboard Modal -->
-    <div class="modal fade" id="leaderboardModal" tabindex="-1" aria-labelledby="leaderboardModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content game-modal">
-                <div class="modal-header">
-                    <h5 class="modal-title text-warning" id="leaderboardModalLabel">
-                        <i class="fas fa-trophy me-2"></i>
-                        Leaderboard
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <div id="main-container" style="display:none;">
+        <h1 class="game-title">Word Find</h1>
+        <div id="game-container">
+            <div class="game-layout">
+                <div class="info-container">
+                    <div id="score-container" class="info-box">
+                        <p>Score:</p>
+                        <p id="score" class="info-value">0</p>
+                    </div>
+                    <div id="timer-container" class="info-box">
+                        <p>Time:</p> <!-- Changed label -->
+                        <p id="timer" class="info-value">90</p>
+                    </div>
                 </div>
-                <div class="modal-body">
-                    <div id="leaderboardContent" class="table-responsive">
-                        <table class="table table-game">
-                            <thead>
-                                <tr>
-                                    <th>Player</th>
-                                    <th>Score</th>
-                                </tr>
-                            </thead>
-                            <tbody id="leaderboardTableBody">
-                                <tr>
-                                    <td colspan="2" class="text-center">
-                                        <div class="loading-spinner">
-                                            <i class="fas fa-spinner fa-spin"></i>
-                                            Loading...
-                                        </div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
+                <div id="feedback-message" class="feedback-message"></div>
+                <div id="grid" class="grid"></div>
+            </div>
+            <div id="current-word-container">
+                <p class="current-word-display" id="current-word"></p>
+                <button id="submit-word" class="btn hidden">Submit</button>
+            </div>
+            <div class="button-container">
+                <button id="start-game" class="btn">New Game</button>
+                <button id="leaderboard-button" class="btn" data-bs-toggle="modal" data-bs-target="#leaderboardModal">Leaderboard</button>
+                <button id="how-to-play-button" class="btn" data-bs-toggle="modal" data-bs-target="#howToPlayModal">How to Play</button>
+            </div>
+        </div>
+        <!-- Leaderboard Modal -->
+        <div class="modal fade" id="leaderboardModal" tabindex="-1" aria-labelledby="leaderboardModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content game-modal">
+                    <div class="modal-header">
+                        <h5 class="modal-title text-warning" id="leaderboardModalLabel">
+                            <i class="fas fa-trophy me-2"></i>
+                            Leaderboard
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="leaderboardContent" class="table-responsive">
+                            <table class="table table-game">
+                                <thead>
+                                    <tr>
+                                        <th>Player</th>
+                                        <th>Score</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="leaderboardTableBody">
+                                    <tr>
+                                        <td colspan="2" class="text-center">
+                                            <div class="loading-spinner">
+                                                <i class="fas fa-spinner fa-spin"></i>
+                                                Loading...
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- How to Play Modal -->
+        <div class="modal fade" id="howToPlayModal" tabindex="-1" aria-labelledby="howToPlayModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content game-modal">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="howToPlayModalLabel">
+                            <i class="fas fa-question-circle me-2"></i>
+                            How to Play
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <ul>
+                            <li>Select letters by clicking on them to form a word.</li>
+                            <li>Words must be valid and connected sequentially.</li>
+                            <li>Submit your word using the "Submit" button.</li>
+                            <li>Earn points based on the length of valid words.</li>
+                            <li>The game ends when the timer runs out.</li>
+                        </ul>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    <!-- How to Play Modal -->
-    <div class="modal fade" id="howToPlayModal" tabindex="-1" aria-labelledby="howToPlayModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content game-modal">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="howToPlayModalLabel">
-                        <i class="fas fa-question-circle me-2"></i>
-                        How to Play
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <ul>
-                        <li>Select letters by clicking on them to form a word.</li>
-                        <li>Words must be valid and connected sequentially.</li>
-                        <li>Submit your word using the "Submit" button.</li>
-                        <li>Earn points based on the length of valid words.</li>
-                        <li>The game ends when the timer runs out.</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
+<!-- Loading overlay -->
+<!-- <div id="loading-overlay" style="position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.95);">
+    <div class="loading-spinner" style="font-size:2rem;">
+        <i class="fas fa-spinner fa-spin"></i>
+        Loading dictionary...
+    </div>
+</div> -->
+<!-- Use the popular-english-words library for a more game-appropriate word list -->
+<script type="module">
+    import { words } from 'https://cdn.jsdelivr.net/npm/popular-english-words@1.0.2/index.js';
+    window.all_words = words.getMostPopular(60000);
+    // Hide loader and show game after dictionary is loaded
+    window.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('game-loader').style.display = 'none';
+        document.getElementById('main-container').style.display = '';
+    });
+</script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const grid = document.getElementById('grid');
@@ -110,6 +145,12 @@ document.addEventListener('DOMContentLoaded', function() {
     let selectedCells = [];
     let gameActive = true;
     let usedWords = []; // Track used words in the current round
+
+    // Use the popular-english-words library for validation
+    // The global variable 'popularWords' is provided by the CDN above
+    // We'll use a Set for fast lookup
+
+    const WORD_SET = new Set(typeof all_words !== "undefined" ? all_words : []);
 
     function generateGrid() {
         grid.innerHTML = '';
@@ -257,10 +298,10 @@ document.addEventListener('DOMContentLoaded', function() {
         usedWords = []; // Reset used words for a new round
     }
 
-    // Add touchstart event listener for mobile devices
-    submitButton.addEventListener('touchstart', function(event) {
-        event.preventDefault(); // Prevent default touch behavior
-        event.stopPropagation(); // Stop event bubbling
+    // Add both click and touchstart event listeners for submit button
+    function handleSubmit(event) {
+        event.preventDefault();
+        event.stopPropagation();
 
         if (!currentWord || !gameActive) return;
 
@@ -271,30 +312,24 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        fetch('/api/validate-word/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-            },
-            body: new URLSearchParams({ word: currentWord })
-        })
-        .then(res => res.json())
-        .then(data => {
-            feedbackMessage.classList.remove('red', 'green'); // Reset feedback colors
-            if (data.valid) {
-                score += currentWord.length;
-                scoreElement.textContent = score;
-                feedbackMessage.textContent = `${currentWord} (+${currentWord.length})`;
-                feedbackMessage.classList.add('green');
-                usedWords.push(currentWord); // Add word to used words
-            } else {
-                feedbackMessage.textContent = 'Invalid word!';
-                feedbackMessage.classList.add('red');
-            }
-            resetSelection();
-        });
-    });
+        feedbackMessage.classList.remove('red', 'green');
+
+        // Use the popular words set for validation (case-insensitive)
+        if (WORD_SET.has(currentWord.toLowerCase())) {
+            score += currentWord.length;
+            scoreElement.textContent = score;
+            feedbackMessage.textContent = `${currentWord} (+${currentWord.length})`;
+            feedbackMessage.classList.add('green');
+            usedWords.push(currentWord);
+        } else {
+            feedbackMessage.textContent = 'Invalid word!';
+            feedbackMessage.classList.add('red');
+        }
+        resetSelection();
+    }
+
+    submitButton.addEventListener('click', handleSubmit);
+    submitButton.addEventListener('touchstart', handleSubmit);
 
     startButton.addEventListener('click', startGame);
     leaderboardModal.addEventListener('show.bs.modal', updateLeaderboard);
@@ -303,6 +338,10 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 <style>
+@keyframes spin-bread {
+    100% { transform: rotate(360deg);}
+}
+
 .container {
     text-align: center;
     margin-top: 20px;
