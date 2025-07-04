@@ -249,7 +249,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function saveResult() {
-        console.log("yeet")
         // Use setTimeout to ensure UI updates before network request (fixes some mobile browsers)
         setTimeout(function() {
             fetch('/api/save-word-find-result/', {
@@ -261,17 +260,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: JSON.stringify({
                     score: score,
                     timeRemaining: 0
-                })
+                }),
+                credentials: 'include'
             })
-            .then(res => res.json())
+            .then(res => {
+                // If redirected to login (302), show a message or handle gracefully
+                if (res.redirected && res.url.includes('/accounts/login')) {
+                    feedbackMessage.textContent = 'Log in to save your score to the leaderboard!';
+                    feedbackMessage.classList.remove('green', 'red');
+                    feedbackMessage.classList.add('red');
+                    updateLeaderboard();
+                    return;
+                }
+                return res.json();
+            })
             .then(data => {
-                updateLeaderboard();
+                if (data) updateLeaderboard();
             })
             .catch(err => {
                 updateLeaderboard();
                 console.error('Error saving result:', err);
             });
-        }, 100); // slight delay to allow UI to update
+        }, 100);
     }
 
     function startTimer() {
