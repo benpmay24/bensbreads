@@ -143,7 +143,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const leaderboardModal = document.getElementById('leaderboardModal');
 
     let score = 0;
-    let timeRemaining = 90;
+    let timeRemaining = 10;
     let gridLetters = [];
     let timerInterval;
     let currentWord = '';
@@ -249,26 +249,29 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function saveResult() {
-        fetch('/api/save-word-find-result/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-            },
-            body: JSON.stringify({
-                score: score, // Send the final score to the API
-                timeRemaining: 0 // Time is 0 at the end of the game
+        console.log("yeet")
+        // Use setTimeout to ensure UI updates before network request (fixes some mobile browsers)
+        setTimeout(function() {
+            fetch('/api/save-word-find-result/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || ''
+                },
+                body: JSON.stringify({
+                    score: score,
+                    timeRemaining: 0
+                })
             })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.status === 'success') {
-                updateLeaderboard(); // Refresh leaderboard after saving result
-            } else {
-                console.error('Failed to save result:', data);
-            }
-        })
-        .catch(err => console.error('Error saving result:', err));
+            .then(res => res.json())
+            .then(data => {
+                updateLeaderboard();
+            })
+            .catch(err => {
+                updateLeaderboard();
+                console.error('Error saving result:', err);
+            });
+        }, 100); // slight delay to allow UI to update
     }
 
     function startTimer() {
@@ -279,8 +282,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 clearInterval(timerInterval);
                 feedbackMessage.textContent = 'Time is up!';
                 feedbackMessage.classList.add('red');
-                gameActive = false; // Disable selection
-                resetSelection(); // Clear selection
+                gameActive = false;
+                resetSelection();
                 submitButton.classList.add('hidden');
                 saveResult(); // Save the result only at the end of the game
             }
@@ -289,7 +292,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function startGame() {
         score = 0;
-        timeRemaining = 90; // Reset game time to 90 seconds
+        timeRemaining = 10; // Reset game time to 90 seconds
         gameActive = true; // Enable selection
         scoreElement.textContent = score;
         timerElement.textContent = timeRemaining;
