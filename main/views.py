@@ -104,7 +104,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db import transaction
 from .forms import RecipeForm
 from .models import Recipe, Ingredient, Instruction
-from django.db.models import Count, Q
+from django.db.models import Count, Q, F, FloatField, ExpressionWrapper
 
 
 
@@ -230,13 +230,29 @@ def save_connect4_result(request):
             return JsonResponse({'status': 'success'})
         return JsonResponse({'status': 'invalid result'}, status=400)
     
-@login_required
 def connect4_leaderboard(request):
+    # Only include users who have played at least one game
     leaderboard = User.objects.annotate(
         wins=Count('connect4result', filter=Q(connect4result__result='win')),
         losses=Count('connect4result', filter=Q(connect4result__result='loss')),
-        ties=Count('connect4result', filter=Q(connect4result__result='tie'))
-    ).values('username', 'wins', 'losses', 'ties')
+        ties=Count('connect4result', filter=Q(connect4result__result='tie')),
+    ).annotate(
+        total_games=F('wins') + F('losses') + F('ties')
+    ).filter(
+        total_games__gt=0
+    ).values('username', 'wins', 'losses', 'ties', 'total_games')
+
+    # Add win_percentage to each entry
+    leaderboard = [
+        {
+            **entry,
+            'win_percentage': (entry['wins'] / entry['total_games']) if entry['total_games'] > 0 else 0
+        }
+        for entry in leaderboard
+    ]
+
+    # Sort by win_percentage descending, then by wins descending
+    leaderboard.sort(key=lambda x: (x['win_percentage'], x['wins']), reverse=True)
 
     return JsonResponse(list(leaderboard), safe=False)
 

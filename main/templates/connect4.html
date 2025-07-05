@@ -292,12 +292,27 @@ async function makeCpuMove() {
   }
 }
 
+const userIsAuthenticated = {{ request.user.is_authenticated|yesno:"true,false" }};
+
+function showLoginToSaveMessage() {
+  const statusElement = document.getElementById('status');
+  const msg = `<div class="alert alert-warning mt-2" style="font-size:1rem;">
+    <i class="fas fa-sign-in-alt me-1"></i>
+    <strong>Log in to save your results to the leaderboard!</strong>
+  </div>`;
+  // Only show if not already present
+  if (!statusElement.innerHTML.includes('Log in to save')) {
+    statusElement.innerHTML += msg;
+  }
+}
+
 function checkGameOver() {
   if (checkWinner(playerDisc)) {
     updateGameStatus('<i class="fas fa-crown"></i> You Win!', true);
     gameOver = true;
     saveResult('win');
     updateStats();
+    if (!userIsAuthenticated) showLoginToSaveMessage();
     return;
   }
   if (checkWinner(cpuDisc)) {
@@ -305,6 +320,7 @@ function checkGameOver() {
     gameOver = true;
     saveResult('loss');
     updateStats();
+    if (!userIsAuthenticated) showLoginToSaveMessage();
     return;
   }
   if (board.every(row => row.every(cell => cell))) {
@@ -312,6 +328,7 @@ function checkGameOver() {
     gameOver = true;
     saveResult('tie');
     updateStats();
+    if (!userIsAuthenticated) showLoginToSaveMessage();
   }
 }
 
@@ -388,10 +405,20 @@ document.getElementById('leaderboardModal').addEventListener('show.bs.modal', ()
   fetch('/api/leaderboard/')
     .then(res => res.json())
     .then(data => {
+      // Sort by win percentage (wins / total games), descending
+      data.sort((a, b) => {
+        const aGames = a.wins + a.losses + a.ties;
+        const bGames = b.wins + b.losses + b.ties;
+        const aPct = aGames > 0 ? a.wins / aGames : 0;
+        const bPct = bGames > 0 ? b.wins / bGames : 0;
+        // If tie, sort by wins descending as secondary
+        if (bPct === aPct) return b.wins - a.wins;
+        return bPct - aPct;
+      });
       tbody.innerHTML = '';
       data.forEach((user, index) => {
         const totalGames = user.wins + user.losses + user.ties;
-        const winRate = totalGames > 0 ? Math.round((user.wins / totalGames) * 100) : 0;
+        const winRate = totalGames > 0 ? ((user.wins / totalGames) * 100).toFixed(1) : '0.0';
         tbody.innerHTML += `
           <tr class="leaderboard-row">
             <td>

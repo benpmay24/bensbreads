@@ -281,37 +281,45 @@ document.addEventListener('DOMContentLoaded', function() {
     function saveResult() {
         // Use setTimeout to ensure UI updates before network request (fixes some mobile browsers)
         setTimeout(function() {
-            fetch('/api/save-word-find-result/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || ''
-                },
-                body: JSON.stringify({
-                    score: score,
-                    timeRemaining: 0
-                }),
-                credentials: 'include'
-            })
-            .then(res => {
-                // If redirected to login (302), show a message or handle gracefully
-                if (res.redirected && res.url.includes('/accounts/login')) {
-                    feedbackMessage.textContent = 'Log in to save your score to the leaderboard!';
-                    feedbackMessage.classList.remove('green', 'red');
-                    feedbackMessage.classList.add('red');
+            // Blur any active element to force virtual keyboard to close (helps on mobile)
+            if (document.activeElement && typeof document.activeElement.blur === 'function') {
+                document.activeElement.blur();
+            }
+            // Use requestAnimationFrame to ensure UI updates before fetch (extra reliability for mobile)
+            window.requestAnimationFrame(function() {
+                fetch('/api/save-word-find-result/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || ''
+                    },
+                    body: JSON.stringify({
+                        score: score,
+                        timeRemaining: 0
+                    }),
+                    credentials: 'include',
+                    cache: 'no-store'
+                })
+                .then(res => {
+                    // If redirected to login (302), show a message or handle gracefully
+                    if (res.redirected && res.url.includes('/accounts/login')) {
+                        feedbackMessage.textContent = 'Log in to save your score to the leaderboard!';
+                        feedbackMessage.classList.remove('green', 'red');
+                        feedbackMessage.classList.add('red');
+                        updateLeaderboard();
+                        return;
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    if (data) updateLeaderboard();
+                })
+                .catch(err => {
                     updateLeaderboard();
-                    return;
-                }
-                return res.json();
-            })
-            .then(data => {
-                if (data) updateLeaderboard();
-            })
-            .catch(err => {
-                updateLeaderboard();
-                console.error('Error saving result:', err);
+                    console.error('Error saving result:', err);
+                });
             });
-        }, 100);
+        }, 150); // Slightly increased delay for mobile UI update reliability
     }
 
     function startTimer() {
