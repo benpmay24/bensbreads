@@ -467,25 +467,49 @@ document.addEventListener('DOMContentLoaded', function() {
 @media (max-width: 768px) {
     .info-container {
         max-width: none;
-        gap: 6px;
+        gap: 1px;
+        margin-bottom: 0;
+        padding: 0 1px;
+        height: 32px;
+        min-height: 0;
     }
     .info-box {
-        padding: 6px 2px; /* Even smaller padding for mobile */
-        font-size: 0.95em;
+        padding: 1px 0 0 0;
+        font-size: 0.82em;
         min-width: 0;
+        border-radius: 6px;
+        box-shadow: none;
+        border-width: 1px;
+        height: 30px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    .info-box p {
+        font-size: 0.85em;
+        line-height: 1;
+        margin: 0;
     }
     .info-value {
-        font-size: 1rem;
+        font-size: 0.92rem;
+        line-height: 1;
     }
     .game-layout {
-        gap: 10px;
+        gap: 4px;
+        margin-top: 4px;
     }
     #current-word-row {
-        min-height: 1.4em;
+        min-height: 1em;
+        margin: 1px 0;
     }
     .current-word-display {
-        font-size: 1rem;
-        min-height: 1.2em;
+        font-size: 0.90rem;
+        min-height: 0.9em;
+    }
+    .game-title {
+        font-size: 1.1rem;
+        margin-bottom: 4px;
+        border-bottom-width: 2px;
     }
 }
 
