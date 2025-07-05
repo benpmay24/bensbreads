@@ -121,7 +121,7 @@
 <!-- Use the popular-english-words library for a more game-appropriate word list -->
 <script type="module">
     import { words } from 'https://cdn.jsdelivr.net/npm/popular-english-words@1.0.2/index.js';
-    window.all_words = words.getMostPopular(60000);
+    window.all_words = words.getMostPopular(150000);
     // Hide loader and show game after dictionary is loaded
     window.addEventListener('DOMContentLoaded', function() {
         document.getElementById('game-loader').style.display = 'none';
@@ -160,8 +160,38 @@ document.addEventListener('DOMContentLoaded', function() {
     function generateGrid() {
         grid.innerHTML = '';
         gridLetters = [];
+        // English letter frequency (approximate, weighted for 5x5 grid)
+        // More vowels and common consonants
+        const letterFrequency = [
+            'E','E','E','E','E','E','E','E','E','E','E','E',
+            'A','A','A','A','A','A','A','A','A',
+            'R','R','R','R','R','R','R',
+            'I','I','I','I','I','I','I',
+            'O','O','O','O','O','O',
+            'T','T','T','T','T','T',
+            'N','N','N','N','N',
+            'S','S','S','S',
+            'L','L','L','L',
+            'C','C','C',
+            'U','U','U',
+            'D','D','D',
+            'P','P',
+            'M','M',
+            'H','H',
+            'G','G',
+            'B','B',
+            'F','F',
+            'Y','Y',
+            'W','W',
+            'K',
+            'V',
+            'X',
+            'Z',
+            'J',
+            'Q'
+        ];
         for (let i = 0; i < 25; i++) { // Generate 25 cells for a 5x5 grid
-            const letter = String.fromCharCode(65 + Math.floor(Math.random() * 26));
+            const letter = letterFrequency[Math.floor(Math.random() * letterFrequency.length)];
             gridLetters.push(letter);
             const cell = document.createElement('div');
             cell.classList.add('grid-cell');
@@ -467,32 +497,65 @@ document.addEventListener('DOMContentLoaded', function() {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     grid-template-rows: repeat(5, 1fr);
-    gap: 10px;
-    width: 90%; /* Make the grid take up most of the screen width */
-    max-width: 400px; /* Limit maximum width */
-    height: auto; /* Allow height to adjust dynamically */
-    aspect-ratio: 1; /* Maintain square shape */
-    background-color: #f8f9fa; /* Light gray background */
-    border-radius: 20px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    gap: 16px; /* Increased gap for clarity */
+    width: 90%;
+    max-width: 400px;
+    height: auto;
+    aspect-ratio: 1;
+    background: radial-gradient(ellipse at center, #f8f9fa 60%, #e0cfae 100%);
+    border-radius: 28px;
+    box-shadow: 0 10px 32px 0 rgba(139,69,19,0.18), 0 2px 8px rgba(0,0,0,0.10);
+    border: 3px solid #d2b48c;
+    padding: 18px 10px;
+    position: relative;
+    margin-bottom: 10px;
 }
+
 .grid-cell {
     display: flex;
     justify-content: center;
     align-items: center;
-    border: 2px solid #dee2e6; /* Light gray border */
-    font-size: 1.2rem; /* Adjust font size for smaller screens */
+    border: 2.5px solid #b8860b;
+    font-size: 1.45rem;
     font-weight: bold;
     text-transform: uppercase;
     cursor: pointer;
-    background-color: #ffffff; /* White background for cells */
-    border-radius: 50%; /* Circular cells */
-    transition: background-color 0.2s, border-color 0.2s;
+    background: linear-gradient(145deg, #fffbe6 60%, #f5deb3 100%);
+    border-radius: 50%;
+    box-shadow:
+        0 2px 8px 0 rgba(139,69,19,0.10),
+        inset 0 2px 8px 0 rgba(255,255,255,0.25),
+        0 1.5px 0 #fff8dc inset;
+    transition: background 0.18s, border-color 0.18s, box-shadow 0.18s, transform 0.12s;
+    color: #8B4513;
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    aspect-ratio: 1;
+    user-select: none;
 }
+
 .grid-cell.selected {
-    background-color: #ffdd44; /* Yellow background for selected cells */
-    border-color: #ffaa00; /* Dark yellow border for selected cells */
+    background: radial-gradient(circle at 60% 40%, #ffe066 70%, #ffd700 100%);
+    border-color: #ffaa00;
+    box-shadow:
+        0 4px 16px 0 rgba(255,215,0,0.18),
+        0 2px 8px 0 rgba(255,215,0,0.10),
+        0 0 0 4px #ffe06655;
+    color: #7c4a00;
+    transform: scale(1.08);
+    z-index: 1;
 }
+
+.grid-cell:hover:not(.selected) {
+    background: linear-gradient(145deg, #fffbe6 70%, #ffe4b5 100%);
+    border-color: #deb887;
+    box-shadow:
+        0 2px 12px 0 rgba(139,69,19,0.13),
+        0 1.5px 0 #fff8dc inset;
+    transform: scale(1.04);
+}
+
 .feedback-message {
     margin-top: 10px;
     margin-bottom: 0;
