@@ -143,7 +143,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const leaderboardModal = document.getElementById('leaderboardModal');
 
     let score = 0;
-    let timeRemaining = 10; // Reduced game time to 10 seconds
+    let timeRemaining = 90; // Game time set to 90 seconds
     let gridLetters = [];
     let timerInterval;
     let currentWord = '';
@@ -414,7 +414,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         score = 0;
-        timeRemaining = 10; // Reduced game time to 10 seconds
+        timeRemaining = 90; // Game time set to 90 seconds
         gameActive = true; // Enable selection
         scoreElement.textContent = score;
         timerElement.textContent = timeRemaining;
