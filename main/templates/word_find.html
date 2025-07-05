@@ -363,10 +363,26 @@ document.addEventListener('DOMContentLoaded', function() {
         feedbackMessage.classList.remove('red', 'green');
 
         // Use the popular words set for validation (case-insensitive)
+        const wordLen = currentWord.length;
+        let points = 0;
+        if (wordLen === 3) points = 1;
+        else if (wordLen === 4) points = 2;
+        else if (wordLen === 5) points = 4;
+        else if (wordLen === 6) points = 6;
+        else if (wordLen === 7) points = 8;
+        else if (wordLen >= 8) points = 11;
+
+        if (wordLen < 3) {
+            feedbackMessage.textContent = 'Word too short!';
+            feedbackMessage.classList.add('red');
+            resetSelection();
+            return;
+        }
+
         if (WORD_SET.has(currentWord.toLowerCase())) {
-            score += currentWord.length;
+            score += points;
             scoreElement.textContent = score;
-            feedbackMessage.textContent = `${currentWord} (+${currentWord.length})`;
+            feedbackMessage.textContent = `${currentWord} (+${points})`;
             feedbackMessage.classList.add('green');
             usedWords.push(currentWord);
         } else {
