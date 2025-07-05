@@ -33,10 +33,10 @@
                     </div>
                 </div>
                 <!-- Set a fixed height and style for feedback-message to prevent shifting -->
-                <div id="feedback-message" class="feedback-message" style="min-height:1.4em; height:1.4em; display:flex; align-items:center; justify-content:center; margin-bottom:0;"></div>
+                <div id="feedback-message" class="feedback-message" style="min-height:1em; height:1em; display:flex; align-items:center; justify-content:center; margin-bottom:0; font-size:0.98rem; padding:0;"></div>
                 <!-- Prevent shifting by setting a fixed height and overflow for the word row -->
-                <div id="current-word-row" style="margin: 6px 0; min-height: 1.6em; display: flex; align-items: center; justify-content: center;">
-                    <p class="current-word-display" id="current-word" style="margin:0; min-height:1.4em; max-width:100vw; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-size:1.1rem;"></p>
+                <div id="current-word-row" style="margin: 2px 0; min-height: 1em; display: flex; align-items: center; justify-content: center; padding:0;">
+                    <p class="current-word-display" id="current-word" style="margin:0; min-height:1em; max-width:100vw; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-size:0.98rem; padding:0;"></p>
                 </div>
                 <div id="grid" class="grid"></div>
                 <div id="submit-word-row" style="margin: 15px 0;">
@@ -143,7 +143,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const leaderboardModal = document.getElementById('leaderboardModal');
 
     let score = 0;
-    let timeRemaining = 90; // Reduced game time to 10 seconds
+    let timeRemaining = 10; // Reduced game time to 10 seconds
     let gridLetters = [];
     let timerInterval;
     let currentWord = '';
@@ -279,13 +279,42 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function saveResult() {
-        // Use setTimeout to ensure UI updates before network request (fixes some mobile browsers)
+        // Prevent multiple calls if already saving
+        if (saveResult._saving) return;
+        saveResult._saving = true;
+
+        // Hide the grid and submit button row
+        document.getElementById('grid').style.display = 'none';
+        document.getElementById('submit-word-row').style.display = 'none';
+
+        // Insert loader below feedback-message (below "Time is up!")
+        let loader = document.getElementById('saving-result-loader');
+        if (!loader) {
+            loader = document.createElement('div');
+            loader.id = 'saving-result-loader';
+            // Insert after feedback-message
+            const feedback = document.getElementById('feedback-message');
+            feedback.parentNode.insertBefore(loader, feedback.nextSibling);
+        }
+        loader.innerHTML = `
+            <div class="loading-spinner" style="font-size:2rem; flex-direction:column; align-items:center; gap:1rem; margin-top:1.5rem;">
+                <div style="font-family:'Montserrat',sans-serif; font-size:1.5rem; font-weight:600; color:#8B4513; letter-spacing:1px; margin-bottom:0.5rem;">
+                    Saving result...
+                </div>
+                <i class="fas fa-bread-slice fa-spin" style="color:#8B4513; font-size:3rem;"></i>
+                <svg width="48" height="48" viewBox="0 0 48 48" style="animation: spin-bread 1.2s linear infinite; margin-top:0.5rem;">
+                    <ellipse cx="24" cy="32" rx="14" ry="10" fill="#DEB887" stroke="#8B4513" stroke-width="2"/>
+                    <ellipse cx="24" cy="22" rx="16" ry="12" fill="#F5DEB3" stroke="#8B4513" stroke-width="2"/>
+                    <ellipse cx="24" cy="18" rx="12" ry="8" fill="#fff8dc" stroke="#8B4513" stroke-width="1.5"/>
+                </svg>
+            </div>
+        `;
+        loader.style.display = 'flex';
+
         setTimeout(function() {
-            // Blur any active element to force virtual keyboard to close (helps on mobile)
             if (document.activeElement && typeof document.activeElement.blur === 'function') {
                 document.activeElement.blur();
             }
-            // Use requestAnimationFrame to ensure UI updates before fetch (extra reliability for mobile)
             window.requestAnimationFrame(function() {
                 fetch('/api/save-word-find-result/', {
                     method: 'POST',
@@ -301,46 +330,91 @@ document.addEventListener('DOMContentLoaded', function() {
                     cache: 'no-store'
                 })
                 .then(res => {
-                    // If redirected to login (302), show a message or handle gracefully
                     if (res.redirected && res.url.includes('/accounts/login')) {
-                        feedbackMessage.textContent = 'Log in to save your score to the leaderboard!';
-                        feedbackMessage.classList.remove('green', 'red');
-                        feedbackMessage.classList.add('red');
+                        loader.innerHTML = `
+                            <div class="loading-spinner" style="font-size:2rem; flex-direction:column; align-items:center; gap:1rem;">
+                                <div style="font-family:'Montserrat',sans-serif; font-size:1.3rem; font-weight:600; color:#dc3545; letter-spacing:1px; margin-bottom:0.5rem;">
+                                    Log in to save your score to the leaderboard!
+                                </div>
+                                <i class="fas fa-bread-slice fa-spin" style="color:#8B4513; font-size:3rem;"></i>
+                                <svg width="48" height="48" viewBox="0 0 48 48" style="animation: spin-bread 1.2s linear infinite; margin-top:0.5rem;">
+                                    <ellipse cx="24" cy="32" rx="14" ry="10" fill="#DEB887" stroke="#8B4513" stroke-width="2"/>
+                                    <ellipse cx="24" cy="22" rx="16" ry="12" fill="#F5DEB3" stroke="#8B4513" stroke-width="2"/>
+                                    <ellipse cx="24" cy="18" rx="12" ry="8" fill="#fff8dc" stroke="#8B4513" stroke-width="1.5"/>
+                                </svg>
+                            </div>
+                        `;
                         updateLeaderboard();
+                        saveResult._saving = false;
                         return;
                     }
                     return res.json();
                 })
                 .then(data => {
-                    if (data) updateLeaderboard();
+                    loader.innerHTML = `
+                        <div class="loading-spinner" style="font-size:2rem; flex-direction:column; align-items:center; gap:1rem;">
+                            <div style="font-family:'Montserrat',sans-serif; font-size:1.5rem; font-weight:600; color:#212529; letter-spacing:1px; margin-bottom:0.5rem;">
+                                Final Score: ${score}
+                            </div>
+                            <i class="fas fa-bread-slice" style="color:#8B4513; font-size:3rem;"></i>
+                            <svg width="48" height="48" viewBox="0 0 48 48" style="margin-top:0.5rem;">
+                                <ellipse cx="24" cy="32" rx="14" ry="10" fill="#DEB887" stroke="#8B4513" stroke-width="2"/>
+                                <ellipse cx="24" cy="22" rx="16" ry="12" fill="#F5DEB3" stroke="#8B4513" stroke-width="2"/>
+                                <ellipse cx="24" cy="18" rx="12" ry="8" fill="#fff8dc" stroke="#8B4513" stroke-width="1.5"/>
+                            </svg>
+                        </div>
+                    `;
+                    updateLeaderboard();
+                    saveResult._saving = false;
                 })
                 .catch(err => {
+                    loader.innerHTML = `
+                        <div class="loading-spinner" style="font-size:2rem; flex-direction:column; align-items:center; gap:1rem;">
+                            <div style="font-family:'Montserrat',sans-serif; font-size:1.3rem; font-weight:600; color:#dc3545; letter-spacing:1px; margin-bottom:0.5rem;">
+                                Failed to save result. Please try again.
+                            </div>
+                            <i class="fas fa-bread-slice" style="color:#8B4513; font-size:3rem;"></i>
+                        </div>
+                    `;
                     updateLeaderboard();
+                    saveResult._saving = false;
                     console.error('Error saving result:', err);
                 });
             });
-        }, 150); // Slightly increased delay for mobile UI update reliability
+        }, 150);
     }
 
     function startTimer() {
+        // Clear any previous timer to prevent multiple intervals
+        if (timerInterval) clearInterval(timerInterval);
         timerInterval = setInterval(() => {
             timeRemaining--;
             timerElement.textContent = timeRemaining;
             if (timeRemaining <= 0) {
                 clearInterval(timerInterval);
+                timerInterval = null; // Prevent further intervals
                 feedbackMessage.textContent = 'Time is up!';
                 feedbackMessage.classList.add('red');
                 gameActive = false;
                 resetSelection();
                 submitButton.classList.add('hidden');
-                saveResult(); // Save the result only at the end of the game
+                if (!saveResult._saving) saveResult(); // Only call once
             }
         }, 1000);
     }
 
     function startGame() {
+        // Reset saving flag so saveResult can run for the new game only
+        saveResult._saving = false;
+
+        // Clear any previous timer to prevent multiple intervals
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+
         score = 0;
-        timeRemaining = 90; // Reduced game time to 10 seconds
+        timeRemaining = 10; // Reduced game time to 10 seconds
         gameActive = true; // Enable selection
         scoreElement.textContent = score;
         timerElement.textContent = timeRemaining;
@@ -352,6 +426,16 @@ document.addEventListener('DOMContentLoaded', function() {
         startTimer();
         updateLeaderboard(); // Ensure leaderboard is refreshed at the start of a new game
         usedWords = []; // Reset used words for a new round
+
+        // Show grid and submit button row again
+        document.getElementById('grid').style.display = '';
+        document.getElementById('submit-word-row').style.display = '';
+
+        // Remove the saving/final score loader if present
+        const loader = document.getElementById('saving-result-loader');
+        if (loader && loader.parentNode) {
+            loader.parentNode.removeChild(loader);
+        }
     }
 
     // Add both click and touchstart event listeners for submit button
@@ -404,7 +488,72 @@ document.addEventListener('DOMContentLoaded', function() {
     submitButton.addEventListener('touchstart', handleSubmit);
 
     startButton.addEventListener('click', startGame);
-    leaderboardModal.addEventListener('show.bs.modal', updateLeaderboard);
+
+    // Ensure Bootstrap modals work (for static HTML, you need Bootstrap JS loaded)
+    // If using Bootstrap 5, use Modal API to show modals
+    function showModalById(id) {
+        const modalEl = document.getElementById(id);
+        if (modalEl) {
+            // Always ensure the close button is visible and styled for visibility
+            const closeBtn = modalEl.querySelector('.btn-close');
+            if (closeBtn) {
+                closeBtn.style.display = '';
+                closeBtn.style.color = '#212529';
+                closeBtn.style.filter = 'none';
+                closeBtn.style.opacity = '1';
+                closeBtn.style.background = 'white';
+                closeBtn.style.borderRadius = '50%';
+                closeBtn.style.width = '2.2rem';
+                closeBtn.style.height = '2.2rem';
+                closeBtn.style.fontSize = '1.5rem';
+                closeBtn.style.position = 'absolute';
+                closeBtn.style.top = '1rem';
+                closeBtn.style.right = '1rem';
+                closeBtn.style.zIndex = '1001';
+                closeBtn.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)';
+                closeBtn.style.border = '1px solid #dee2e6';
+            }
+            // Prefer Bootstrap 5 Modal API if available
+            if (window.bootstrap && window.bootstrap.Modal) {
+                let modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+                modal.show();
+                if (closeBtn) {
+                    closeBtn.onclick = () => modal.hide();
+                }
+            } else if (typeof $ !== "undefined" && $(modalEl).modal) {
+                $(modalEl).modal('show');
+                if (closeBtn) {
+                    closeBtn.onclick = () => $(modalEl).modal('hide');
+                }
+            } else {
+                modalEl.style.display = 'block';
+                modalEl.classList.add('show');
+                if (closeBtn) {
+                    closeBtn.onclick = () => {
+                        modalEl.style.display = 'none';
+                        modalEl.classList.remove('show');
+                    };
+                }
+            }
+        }
+    }
+
+    leaderboardButton.addEventListener('click', function(e) {
+        e.preventDefault();
+        showModalById('leaderboardModal');
+        updateLeaderboard();
+    });
+
+    howToPlayButton.addEventListener('click', function(e) {
+        e.preventDefault();
+        showModalById('howToPlayModal');
+    });
+
+    // Remove data-bs-toggle and data-bs-target attributes to prevent Bootstrap's default handler
+    leaderboardButton.removeAttribute('data-bs-toggle');
+    leaderboardButton.removeAttribute('data-bs-target');
+    howToPlayButton.removeAttribute('data-bs-toggle');
+    howToPlayButton.removeAttribute('data-bs-target');
 
     updateLeaderboard();
 });
@@ -432,7 +581,7 @@ document.addEventListener('DOMContentLoaded', function() {
     display: flex;
     flex-direction: column; /* Stack elements vertically */
     align-items: center; /* Center elements horizontally */
-    gap: 20px; /* Space between score, timer, and grid */
+    gap: 12px; /* Reduced gap for less vertical space */
     margin-top: 20px; /* Add spacing below the title */
 }
 
@@ -440,7 +589,7 @@ document.addEventListener('DOMContentLoaded', function() {
     display: flex;
     justify-content: space-between;
     gap: 10px;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     width: 100%;
     max-width: 400px;
     margin-left: auto;
@@ -449,7 +598,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .info-box {
     flex: 1;
-    padding: 10px 5px; /* Reduce padding for mobile */
+    padding: 10px 5px;
     background-color: #ffffff;
     color: #212529;
     border-radius: 12px;
@@ -503,16 +652,18 @@ document.addEventListener('DOMContentLoaded', function() {
         line-height: 1;
     }
     .game-layout {
-        gap: 4px;
+        gap: 2px;
         margin-top: 4px;
     }
     #current-word-row {
-        min-height: 1em;
+        min-height: 0.8em;
         margin: 1px 0;
+        padding: 0;
     }
     .current-word-display {
-        font-size: 0.90rem;
-        min-height: 0.9em;
+        font-size: 0.85rem;
+        min-height: 0.8em;
+        padding: 0;
     }
     .game-title {
         font-size: 1.1rem;
@@ -523,22 +674,44 @@ document.addEventListener('DOMContentLoaded', function() {
 
 /* Prevent shifting of grid/buttons when word is being formed */
 #current-word-row {
-    min-height: 1.6em;
+    min-height: 1em;
     box-sizing: border-box;
-    /* Ensures space is always reserved for the word */
+    padding: 0;
 }
 
 .current-word-display {
-    font-size: 1.1rem;
+    font-size: 0.98rem;
     font-weight: bold;
     color: #212529;
     margin-bottom: 0;
-    min-height: 1.4em;
+    min-height: 1em;
     max-width: 100vw;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
     transition: color 0.2s;
+    padding: 0;
+}
+
+.feedback-message {
+    margin-top: 2px;
+    margin-bottom: 0;
+    font-size: 0.98rem;
+    font-weight: bold;
+    text-align: center;
+    min-height: 1em;
+    height: 1em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+    padding: 0;
+}
+.feedback-message.green {
+    color: #28a745 !important;
+}
+.feedback-message.red {
+    color: #dc3545 !important;
 }
 
 .grid {
@@ -604,25 +777,6 @@ document.addEventListener('DOMContentLoaded', function() {
     transform: scale(1.04);
 }
 
-.feedback-message {
-    margin-top: 10px;
-    margin-bottom: 0;
-    font-size: 1.1rem;
-    font-weight: bold;
-    text-align: center;
-    min-height: 1.4em;
-    height: 1.4em;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: color 0.2s;
-}
-.feedback-message.green {
-    color: #28a745;
-}
-.feedback-message.red {
-    color: #dc3545;
-}
 .btn {
     display: inline-block;
     padding: 10px 20px;
@@ -754,5 +908,4 @@ document.addEventListener('DOMContentLoaded', function() {
         max-width: 100%; /* Remove maximum width restriction */
     }
 }
-</style>
 {% endblock %}
