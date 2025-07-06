@@ -25,15 +25,26 @@
                   <img src="{{ photo.image.url }}" alt="{{ photo.title }}" class="slide-image">
                 </div>
                 <div class="slide-info">
-                  <h3 class="slide-title">{{ photo.title }}</h3>
-                  {% if photo.caption %}
-                    <p class="slide-caption">{{ photo.caption }}</p>
-                  {% endif %}
-                  <div class="slide-meta">
-                    {% if photo.date_taken %}
-                      <span class="slide-date">📅 {{ photo.date_taken|date:"F j, Y" }}</span>
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                      <h3 class="slide-title">{{ photo.title }}</h3>
+                      {% if photo.caption %}
+                        <p class="slide-caption">{{ photo.caption }}</p>
+                      {% endif %}
+                      <div class="slide-meta">
+                        {% if photo.date_taken %}
+                          <span class="slide-date">📅 {{ photo.date_taken|date:"F j, Y" }}</span>
+                        {% endif %}
+                        <span class="slide-uploaded">Uploaded {{ photo.uploaded_at|date:"M j, Y" }}</span>
+                      </div>
+                    </div>
+                    {% if user.is_superuser or user.is_staff %}
+                      <div class="slide-admin-controls">
+                        <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal{{ photo.id }}">
+                          <i class="fas fa-trash"></i> Delete
+                        </button>
+                      </div>
                     {% endif %}
-                    <span class="slide-uploaded">Uploaded {{ photo.uploaded_at|date:"M j, Y" }}</span>
                   </div>
                 </div>
               </div>
@@ -111,6 +122,43 @@
     </div>
   </div>
 </div>
+
+<!-- Delete Confirmation Modals -->
+{% for photo in photos %}
+  {% if user.is_superuser or user.is_staff %}
+    <div class="modal fade" id="deleteModal{{ photo.id }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ photo.id }}" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header border-0">
+            <h5 class="modal-title text-danger" id="deleteModalLabel{{ photo.id }}">
+              <i class="fas fa-exclamation-triangle me-2"></i>Delete Photo
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-3">Are you sure you want to delete <strong>"{{ photo.title }}"</strong>?</p>
+            <div class="text-center mb-3">
+              <img src="{{ photo.image.url }}" alt="{{ photo.title }}" class="img-fluid rounded" style="max-height: 150px;">
+            </div>
+            <div class="alert alert-warning">
+              <i class="fas fa-info-circle me-2"></i>
+              This action cannot be undone.
+            </div>
+          </div>
+          <div class="modal-footer border-0">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <form method="post" action="{% url 'delete_ramsey_photo' photo.id %}" style="display:inline;">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-danger">
+                <i class="fas fa-trash me-1"></i>Delete Photo
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+{% endfor %}
 
 <script>
 let currentSlideIndex = 0;

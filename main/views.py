@@ -192,6 +192,16 @@ def upload_ramsey_photo(request):
 
 @login_required
 @user_passes_test(lambda u: u.is_staff or u.is_superuser)
+def delete_ramsey_photo(request, pk):
+    photo = get_object_or_404(RamseyPhoto, pk=pk)
+    if request.method == 'POST':
+        if photo.image:
+            photo.image.delete(save=False)
+        photo.delete()
+    return redirect('ramsey_gallery')
+
+@login_required
+@user_passes_test(lambda u: u.is_staff or u.is_superuser)
 def toggle_featured_recipe(request, pk):
     recipe = get_object_or_404(Recipe, pk=pk)
     recipe.featured = not recipe.featured  # Toggle the featured status

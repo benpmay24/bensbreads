@@ -3,14 +3,14 @@
 {% block content %}
 <div class="container">
     <div id="game-loader" style="display:flex;align-items:center;justify-content:center;height:350px;">
-        <div class="loading-spinner" style="font-size:2rem; flex-direction:column; align-items:center; gap:1rem;">
-            <i class="fas fa-bread-slice fa-spin" style="color:#8B4513; font-size:3rem;"></i>
-            <div style="font-family:'Montserrat',sans-serif; font-size:1.5rem; font-weight:600; color:#8B4513; letter-spacing:1px;">
+        <div class="loading-spinner" style="font-size:2rem; flex-direction:column; align-items:center; gap:1rem; width:100%; justify-content:center;">
+            <i class="fas fa-bread-slice fa-spin" style="color:#8B4513; font-size:3rem; display:block; margin:0 auto;"></i>
+            <div style="font-family:'Montserrat',sans-serif; font-size:1.5rem; font-weight:600; color:#8B4513; letter-spacing:1px; text-align:center;">
                 Loading Game...
             </div>
             <!-- Spinning bread SVG below the text -->
-            <div style="margin-top:0.5rem;">
-                <svg width="48" height="48" viewBox="0 0 48 48" style="animation: spin-bread 1.2s linear infinite;">
+            <div style="margin-top:0.5rem; display:flex; justify-content:center;">
+                <svg width="48" height="48" viewBox="0 0 48 48" style="animation: spin-bread 1.2s linear infinite; display:block; margin:0 auto;">
                     <ellipse cx="24" cy="32" rx="14" ry="10" fill="#DEB887" stroke="#8B4513" stroke-width="2"/>
                     <ellipse cx="24" cy="22" rx="16" ry="12" fill="#F5DEB3" stroke="#8B4513" stroke-width="2"/>
                     <ellipse cx="24" cy="18" rx="12" ry="8" fill="#fff8dc" stroke="#8B4513" stroke-width="1.5"/>
@@ -126,6 +126,16 @@
     window.addEventListener('DOMContentLoaded', function() {
         document.getElementById('game-loader').style.display = 'none';
         document.getElementById('main-container').style.display = '';
+    });
+    // Ensure Bootstrap menu toggler works on mobile (re-attach event if needed)
+    window.addEventListener('DOMContentLoaded', function() {
+        var toggler = document.querySelector('.navbar-toggler');
+        var nav = document.getElementById('navbarNav');
+        if (toggler && nav) {
+            toggler.addEventListener('click', function() {
+                nav.classList.toggle('show');
+            });
+        }
     });
 </script>
 <script>
@@ -316,6 +326,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.activeElement.blur();
             }
             window.requestAnimationFrame(function() {
+                // Use relative URL and avoid credentials/caching issues for mobile networks
                 fetch('/api/save-word-find-result/', {
                     method: 'POST',
                     headers: {
@@ -326,8 +337,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         score: score,
                         timeRemaining: 0
                     }),
-                    credentials: 'include',
-                    cache: 'no-store'
+                    // Remove credentials and cache options for better compatibility
                 })
                 .then(res => {
                     if (res.redirected && res.url.includes('/accounts/login')) {

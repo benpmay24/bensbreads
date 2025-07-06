@@ -26,6 +26,7 @@ urlpatterns = [
     path('ramsey/story/', views.ramsey_bio, name='ramsey'),
     path('ramsey/gallery/', views.ramsey_gallery, name='ramsey_gallery'),
     path('ramsey/upload/', views.upload_ramsey_photo, name='upload_ramsey_photo'),
+    path('ramsey/photo/<int:pk>/delete/', views.delete_ramsey_photo, name='delete_ramsey_photo'),
     path('api/cpu-move/', views.cpu_move, name='cpu_move'),
     path('api/save-result/', views.save_connect4_result, name='save_connect4_result'),
     path('api/leaderboard/', views.connect4_leaderboard, name='connect4_leaderboard'),
