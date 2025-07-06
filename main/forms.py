@@ -13,7 +13,7 @@ class BlogPostForm(forms.ModelForm):
 class RecipeForm(forms.ModelForm):
     class Meta:
         model = Recipe
-        fields = ['title', 'description', 'prep_time', 'cook_time', 'servings', 'image']
+        fields = ['title', 'description', 'time_required', 'image']
 
 class RamseyPhotoForm(forms.ModelForm):
     class Meta:

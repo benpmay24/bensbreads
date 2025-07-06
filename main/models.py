@@ -35,9 +35,7 @@ class BlogPost(models.Model):
 class Recipe(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField()  # Replaces original ingredients+instructions
-    prep_time = models.IntegerField(help_text="Prep time in minutes")
-    cook_time = models.IntegerField(help_text="Cook time in minutes")
-    servings = models.IntegerField()
+    time_required = models.CharField(max_length=100)
     image = models.ImageField(upload_to=recipe_image_upload_path, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     featured = models.BooleanField(default=False)  # New field to mark a recipe as featured
