@@ -1,17 +1,61 @@
 {% extends 'base.html' %}
 
-{% block title %}Games | Bread & Bytes{% endblock %}
+{% block title %}Games | Ben's Breads{% endblock %}
 
 {% block content %}
-<section class="py-5 text-center">
-  <div class="container">
-    <h1 class="mb-4">Games</h1>
-    <p class="lead">A collection of mini-games for fun and learning. Baked with code!</p>
-
-    <div class="my-4">
-      <iframe src="https://example.com/yourgame" width="600" height="400" class="shadow-sm border rounded" title="Embedded Game"></iframe>
+<div class="container py-4">
+  <h1 class="text-center mb-4" style="font-weight:700; color:#8B4513;">Games</h1>
+  <div class="row justify-content-center g-4">
+    <!-- Connect 4 Preview Card -->
+    <div class="col-md-6 col-lg-4">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body d-flex flex-column align-items-center">
+          <div style="font-size:2.5rem; color:#D2691E;">
+            <i class="fas fa-grip-horizontal"></i>
+          </div>
+          <h3 class="card-title mt-2 mb-1" style="font-weight:600;">Connect 4</h3>
+          <p class="card-text text-muted mb-3 text-center" style="font-size:1rem;">
+            Play against the computer in this classic game. Try to get four in a row before the AI does!
+          </p>
+          <a href="{% url 'connect4' %}" class="btn btn-outline-primary w-100 mt-auto" style="font-weight:600; font-size:1.08rem;">
+            <i class="fas fa-grip-horizontal me-2"></i>Play Connect 4
+          </a>
+        </div>
+      </div>
     </div>
-    <!-- More embedded games here -->
+    <!-- Word Find Preview Card -->
+    <div class="col-md-6 col-lg-4">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body d-flex flex-column align-items-center">
+          <div style="font-size:2.5rem; color:#8B4513;">
+            <i class="fas fa-bread-slice"></i>
+          </div>
+          <h3 class="card-title mt-2 mb-1" style="font-weight:600;">Word Find</h3>
+          <p class="card-text text-muted mb-3 text-center" style="font-size:1rem;">
+            Find as many words as you can in 90 seconds! Select letters to form words and climb the leaderboard.
+          </p>
+          <a href="{% url 'word_find' %}" class="btn btn-outline-primary w-100 mt-auto" style="font-weight:600; font-size:1.08rem;">
+            <i class="fas fa-bread-slice me-2"></i>Play Word Find
+          </a>
+        </div>
+      </div>
+    </div>
+    <!-- Placeholder for future games -->
+    <div class="col-md-6 col-lg-4">
+      <div class="card h-100 shadow-sm" style="border:2px dashed #d2b48c;">
+        <div class="card-body d-flex flex-column align-items-center justify-content-center" style="opacity:0.6;">
+          <div style="font-size:2.5rem; color:#b8860b;">
+            <i class="fas fa-gamepad"></i>
+          </div>
+          <h3 class="card-title mt-2 mb-1" style="font-weight:600;">More Coming Soon</h3>
+          <p class="card-text text-muted mb-0 text-center" style="font-size:1rem;">
+            Stay tuned for more fun games!
+          </p>
+          <!-- Keep button spacing for consistent layout, but hide the button -->
+          <a class="btn btn-outline-primary w-100 mt-auto" style="visibility:hidden;">Coming Soon</a>
+        </div>
+      </div>
+    </div>
   </div>
-</section>
+</div>
 {% endblock %}

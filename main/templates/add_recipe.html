@@ -447,6 +447,44 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // Fix for stale CSRF token after long editing sessions
+    function refreshCsrfToken() {
+        fetch(window.location.href, { credentials: 'same-origin' })
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const newToken = doc.querySelector('input[name="csrfmiddlewaretoken"]');
+                if (newToken) {
+                    document.querySelectorAll('input[name="csrfmiddlewaretoken"]').forEach(el => {
+                        el.value = newToken.value;
+                    });
+                }
+            });
+    }
+
+    // Prevent double submit and refresh CSRF token before form submit
+    const form = document.querySelector('form');
+    if (form) {
+        let submitting = false;
+        form.addEventListener('submit', function(e) {
+            const token = document.querySelector('input[name="csrfmiddlewaretoken"]');
+            if (!token || !token.value) {
+                e.preventDefault();
+                refreshCsrfToken();
+                setTimeout(() => form.submit(), 300);
+                return;
+            }
+            if (submitting) {
+                e.preventDefault();
+                return false;
+            }
+            submitting = true;
+            // Disable submit button(s)
+            form.querySelectorAll('button[type="submit"]').forEach(btn => btn.disabled = true);
+        });
+    }
 });
 </script>
 {% endblock %}
