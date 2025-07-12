@@ -33,10 +33,17 @@ class BlogPost(models.Model):
         return self.title
 
 class Recipe(models.Model):
+    CATEGORY_CHOICES = [
+        ('bread', 'Bread'),
+        ('other', 'Other'),
+    ]
+    
     title = models.CharField(max_length=200)
     description = models.TextField()  # Replaces original ingredients+instructions
     time_required = models.CharField(max_length=100)
     image = models.ImageField(upload_to=recipe_image_upload_path, blank=True, null=True)
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='recipes')
+    category = models.CharField(max_length=10, choices=CATEGORY_CHOICES, default='other')
     created_at = models.DateTimeField(auto_now_add=True)
     featured = models.BooleanField(default=False)  # New field to mark a recipe as featured
 

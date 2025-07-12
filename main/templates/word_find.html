@@ -91,20 +91,45 @@
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content game-modal">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="howToPlayModalLabel">
+                        <h5 class="modal-title" id="howToPlayModalLabel" style="color: white;">
                             <i class="fas fa-question-circle me-2"></i>
                             How to Play
                         </h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                        <ul>
-                            <li>Select letters by clicking on them to form a word.</li>
-                            <li>Words must be valid and connected sequentially.</li>
-                            <li>Submit your word using the "Submit" button.</li>
-                            <li>Earn points based on the length of valid words.</li>
-                            <li>The game ends when the timer runs out.</li>
-                        </ul>
+                        <div class="how-to-play-content">
+                            <h6 class="text-primary mb-3"><i class="fas fa-gamepad me-2"></i>Objective</h6>
+                            <p class="mb-4">Form as many valid words as possible by connecting adjacent letters on the grid before time runs out!</p>
+                            
+                            <h6 class="text-primary mb-3"><i class="fas fa-mouse-pointer me-2"></i>How to Form Words</h6>
+                            <ul class="instruction-list mb-4">
+                                <li><strong>Click letters</strong> to select them in sequence</li>
+                                <li><strong>Connect adjacent letters</strong> - horizontally, vertically, or diagonally</li>
+                                <li><strong>Minimum 3 letters</strong> required to form a valid word</li>
+                                <li><strong>Click a selected letter</strong> to deselect it and all letters after it</li>
+                                <li><strong>Submit your word</strong> using the Submit button</li>
+                            </ul>
+                            
+                            <h6 class="text-primary mb-3"><i class="fas fa-star me-2"></i>Scoring System</h6>
+                            <div class="scoring-table mb-4">
+                                <div class="score-row"><span class="word-length">3 letters:</span> <span class="points">1 point</span></div>
+                                <div class="score-row"><span class="word-length">4 letters:</span> <span class="points">2 points</span></div>
+                                <div class="score-row"><span class="word-length">5 letters:</span> <span class="points">4 points</span></div>
+                                <div class="score-row"><span class="word-length">6 letters:</span> <span class="points">6 points</span></div>
+                                <div class="score-row"><span class="word-length">7 letters:</span> <span class="points">8 points</span></div>
+                                <div class="score-row"><span class="word-length">8+ letters:</span> <span class="points">11 points</span></div>
+                            </div>
+                            
+                            <h6 class="text-primary mb-3"><i class="fas fa-clock me-2"></i>Game Rules</h6>
+                            <ul class="instruction-list">
+                                <li>You have <strong>90 seconds</strong> to find as many words as possible</li>
+                                <li>Each word can only be used <strong>once per game</strong></li>
+                                <li>Words must be <strong>valid English words</strong></li>
+                                <li>Letters must be <strong>connected in sequence</strong> (no skipping)</li>
+                                <li>Your final score determines your leaderboard position</li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -153,13 +178,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const leaderboardModal = document.getElementById('leaderboardModal');
 
     let score = 0;
-    let timeRemaining = 90; // Game time set to 90 seconds
+    let timeRemaining = 10; // Game time
     let gridLetters = [];
     let timerInterval;
     let currentWord = '';
     let selectedCells = [];
     let gameActive = true;
     let usedWords = []; // Track used words in the current round
+    let validWordsForCurrentGame = []; // Pre-calculated valid words for this game
+    let gameStarted = false; // Track if game has actually started
 
     // Use the popular-english-words library for validation
     // The global variable 'popularWords' is provided by the CDN above
@@ -170,36 +197,40 @@ document.addEventListener('DOMContentLoaded', function() {
     function generateGrid() {
         grid.innerHTML = '';
         gridLetters = [];
-        // English letter frequency (approximate, weighted for 5x5 grid)
-        // More vowels and common consonants
+        // Optimized letter frequency for better word formation
+        // Higher frequency of vowels and common consonants that form many words
         const letterFrequency = [
-            'E','E','E','E','E','E','E','E','E','E','E','E',
-            'A','A','A','A','A','A','A','A','A',
-            'R','R','R','R','R','R','R',
-            'I','I','I','I','I','I','I',
-            'O','O','O','O','O','O',
-            'T','T','T','T','T','T',
-            'N','N','N','N','N',
-            'S','S','S','S',
-            'L','L','L','L',
-            'C','C','C',
-            'U','U','U',
-            'D','D','D',
-            'P','P',
-            'M','M',
-            'H','H',
-            'G','G',
-            'B','B',
-            'F','F',
-            'Y','Y',
-            'W','W',
-            'K',
-            'V',
+            // Vowels (increased frequency for better word formation)
+            'E','E','E','E','E','E','E','E','E','E','E','E','E','E','E',
+            'A','A','A','A','A','A','A','A','A','A','A','A',
+            'I','I','I','I','I','I','I','I','I','I',
+            'O','O','O','O','O','O','O','O','O',
+            'U','U','U','U','U','U',
+            // High-frequency consonants that form many words
+            'R','R','R','R','R','R','R','R','R',
+            'T','T','T','T','T','T','T','T','T',
+            'N','N','N','N','N','N','N','N',
+            'S','S','S','S','S','S','S','S',
+            'L','L','L','L','L','L','L',
+            'C','C','C','C','C','C',
+            'D','D','D','D','D','D',
+            'P','P','P','P','P',
+            'M','M','M','M','M',
+            'H','H','H','H','H',
+            'G','G','G','G',
+            'B','B','B','B',
+            'F','F','F','F',
+            'Y','Y','Y','Y',
+            'W','W','W',
+            'K','K','K',
+            'V','V',
+            // Lower frequency letters
+            'J','J',
             'X',
-            'Z',
-            'J',
-            'Q'
+            'Q',
+            'Z'
         ];
+        
         for (let i = 0; i < 25; i++) { // Generate 25 cells for a 5x5 grid
             const letter = letterFrequency[Math.floor(Math.random() * letterFrequency.length)];
             gridLetters.push(letter);
@@ -210,6 +241,56 @@ document.addEventListener('DOMContentLoaded', function() {
             cell.addEventListener('click', () => selectCell(cell));
             grid.appendChild(cell);
         }
+    }
+
+    function findWordsFromPosition(currentIndex, path, currentWord, foundWords) {
+        // Check if current word is valid (3+ letters)
+        if (currentWord.length >= 3 && WORD_SET.has(currentWord.toLowerCase())) {
+            foundWords.push(currentWord);
+        }
+        
+        // Don't continue if word is too long (optimization)
+        if (currentWord.length >= 10) return; // Reverted from 12 to 10
+        
+        // Don't continue if path is getting too long (safety measure)
+        if (path.length >= 10) return; // Reverted from 12 to 10
+        
+        // Get neighbors and continue building words
+        const neighbors = getNeighbors(currentIndex);
+        for (const neighborIndex of neighbors) {
+            if (!path.includes(neighborIndex)) {
+                const newPath = [...path, neighborIndex];
+                const newWord = currentWord + gridLetters[neighborIndex];
+                findWordsFromPosition(neighborIndex, newPath, newWord, foundWords);
+            }
+        }
+    }
+
+    function findAllValidWordsForGrid() {
+        const foundWords = [];
+        
+        // Check all possible starting positions without progress tracking
+        for (let startIndex = 0; startIndex < 25; startIndex++) {
+            try {
+                findWordsFromPosition(startIndex, [startIndex], gridLetters[startIndex], foundWords);
+            } catch (error) {
+                console.error(`Error processing position ${startIndex}:`, error);
+                continue; // Skip this position and continue with the next
+            }
+        }
+        
+        // Remove duplicates and add point values
+        const uniqueWords = [...new Set(foundWords)];
+        const wordsWithPoints = uniqueWords.map(word => ({
+            word: word,
+            points: getPointsForLength(word.length)
+        }));
+        
+        // Sort by length (longest first), then alphabetically
+        return wordsWithPoints.sort((a, b) => {
+            if (a.word.length !== b.word.length) return b.word.length - a.word.length;
+            return a.word.localeCompare(b.word);
+        });
     }
 
     function getNeighbors(index) {
@@ -346,12 +427,18 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <div style="font-family:'Montserrat',sans-serif; font-size:1.3rem; font-weight:600; color:#dc3545; letter-spacing:1px; margin-bottom:0.5rem;">
                                     Log in to save your score to the leaderboard!
                                 </div>
-                                <i class="fas fa-bread-slice fa-spin" style="color:#8B4513; font-size:3rem;"></i>
-                                <svg width="48" height="48" viewBox="0 0 48 48" style="animation: spin-bread 1.2s linear infinite; margin-top:0.5rem;">
+                                <div style="font-family:'Montserrat',sans-serif; font-size:1.5rem; font-weight:600; color:#212529; letter-spacing:1px; margin-bottom:0.5rem;">
+                                    Final Score: ${score}
+                                </div>
+                                <i class="fas fa-bread-slice" style="color:#8B4513; font-size:3rem;"></i>
+                                <svg width="48" height="48" viewBox="0 0 48 48" style="margin-top:0.5rem;">
                                     <ellipse cx="24" cy="32" rx="14" ry="10" fill="#DEB887" stroke="#8B4513" stroke-width="2"/>
                                     <ellipse cx="24" cy="22" rx="16" ry="12" fill="#F5DEB3" stroke="#8B4513" stroke-width="2"/>
                                     <ellipse cx="24" cy="18" rx="12" ry="8" fill="#fff8dc" stroke="#8B4513" stroke-width="1.5"/>
                                 </svg>
+                                <button id="show-possible-words" class="btn" style="margin-top: 1rem; background: linear-gradient(135deg, #28a745, #20c997);">
+                                    Show All Possible Words (${validWordsForCurrentGame.length})
+                                </button>
                             </div>
                         `;
                         updateLeaderboard();
@@ -372,6 +459,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <ellipse cx="24" cy="22" rx="16" ry="12" fill="#F5DEB3" stroke="#8B4513" stroke-width="2"/>
                                 <ellipse cx="24" cy="18" rx="12" ry="8" fill="#fff8dc" stroke="#8B4513" stroke-width="1.5"/>
                             </svg>
+                            <button id="show-possible-words" class="btn" style="margin-top: 1rem; background: linear-gradient(135deg, #28a745, #20c997);">
+                                Show All Possible Words (${validWordsForCurrentGame.length})
+                            </button>
                         </div>
                     `;
                     updateLeaderboard();
@@ -383,7 +473,13 @@ document.addEventListener('DOMContentLoaded', function() {
                             <div style="font-family:'Montserrat',sans-serif; font-size:1.3rem; font-weight:600; color:#dc3545; letter-spacing:1px; margin-bottom:0.5rem;">
                                 Failed to save result. Please try again.
                             </div>
+                            <div style="font-family:'Montserrat',sans-serif; font-size:1.5rem; font-weight:600; color:#212529; letter-spacing:1px; margin-bottom:0.5rem;">
+                                Final Score: ${score}
+                            </div>
                             <i class="fas fa-bread-slice" style="color:#8B4513; font-size:3rem;"></i>
+                            <button id="show-possible-words" class="btn" style="margin-top: 1rem; background: linear-gradient(135deg, #28a745, #20c997);">
+                                Show All Possible Words (${validWordsForCurrentGame.length})
+                            </button>
                         </div>
                     `;
                     updateLeaderboard();
@@ -392,6 +488,85 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             });
         }, 150);
+    }
+
+    // Add event delegation for dynamically created buttons
+    document.addEventListener('click', function(e) {
+        if (e.target && e.target.id === 'show-possible-words') {
+            showPossibleWordsModal();
+        }
+    });
+
+    function showPossibleWordsModal() {
+        // Create modal if it doesn't exist
+        let modal = document.getElementById('possibleWordsModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'possibleWordsModal';
+            modal.className = 'modal fade';
+            modal.innerHTML = `
+                <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+                    <div class="modal-content game-modal">
+                        <div class="modal-header">
+                            <h5 class="modal-title" style="color: white;">
+                                <i class="fas fa-list-ul me-2"></i>
+                                All Possible Words (${validWordsForCurrentGame.length})
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div id="possibleWordsContent"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        // Group words by length
+        const wordsByLength = {};
+        validWordsForCurrentGame.forEach(wordObj => {
+            const len = wordObj.word.length;
+            if (!wordsByLength[len]) wordsByLength[len] = [];
+            wordsByLength[len].push(wordObj);
+        });
+
+        // Build content
+        let content = '';
+        const lengths = Object.keys(wordsByLength).sort((a, b) => b - a);
+        
+        lengths.forEach(length => {
+            const words = wordsByLength[length];
+            const points = words[0].points; // All words of same length have same points
+            content += `
+                <div class="word-length-section mb-4">
+                    <h6 class="text-primary mb-2">
+                        ${length}-Letter Words (${points} points each) - ${words.length} found
+                    </h6>
+                    <div class="word-grid">
+                        ${words.map(wordObj => {
+                            const wasFound = usedWords.includes(wordObj.word);
+                            return `<span class="word-chip ${wasFound ? 'found' : 'missed'}">${wordObj.word}</span>`;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+        });
+
+        document.getElementById('possibleWordsContent').innerHTML = content;
+        
+        // Use the same modal display pattern as other modals in the game
+        showModalById('possibleWordsModal');
+    }
+
+    function getPointsForLength(length) {
+        if (length === 3) return 1;
+        if (length === 4) return 2;
+        if (length === 5) return 4;
+        if (length === 6) return 6;
+        if (length === 7) return 8;
+        if (length >= 8) return 11;
+        return 0;
     }
 
     function startTimer() {
@@ -416,6 +591,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function startGame() {
         // Reset saving flag so saveResult can run for the new game only
         saveResult._saving = false;
+        gameStarted = false;
 
         // Clear any previous timer to prevent multiple intervals
         if (timerInterval) {
@@ -423,29 +599,90 @@ document.addEventListener('DOMContentLoaded', function() {
             timerInterval = null;
         }
 
-        score = 0;
-        timeRemaining = 90; // Game time set to 90 seconds
-        gameActive = true; // Enable selection
-        scoreElement.textContent = score;
-        timerElement.textContent = timeRemaining;
-        submitButton.classList.remove('hidden');
-        feedbackMessage.textContent = '';
-        feedbackMessage.classList.remove('red', 'green');
-        resetSelection();
-        generateGrid();
-        startTimer();
-        updateLeaderboard(); // Ensure leaderboard is refreshed at the start of a new game
-        usedWords = []; // Reset used words for a new round
-
-        // Show grid and submit button row again
-        document.getElementById('grid').style.display = '';
-        document.getElementById('submit-word-row').style.display = '';
-
-        // Remove the saving/final score loader if present
-        const loader = document.getElementById('saving-result-loader');
-        if (loader && loader.parentNode) {
-            loader.parentNode.removeChild(loader);
+        // Clean up any existing game end displays
+        const saveLoader = document.getElementById('saving-result-loader');
+        if (saveLoader && saveLoader.parentNode) {
+            saveLoader.parentNode.removeChild(saveLoader);
         }
+
+        // Show loading state
+        feedbackMessage.textContent = '';
+        feedbackMessage.classList.remove('red', 'green', 'loading');
+        document.getElementById('submit-word-row').style.display = 'none';
+
+        // Show the grid container and replace content with loading animation
+        const gridContainer = document.getElementById('grid');
+        gridContainer.style.display = '';
+        gridContainer.style.position = 'relative';
+        gridContainer.innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:center;height:100%;width:100%;position:absolute;top:0;left:0;background:radial-gradient(ellipse at center, #f8f9fa 60%, #e0cfae 100%);border-radius:28px;">
+                <div class="loading-spinner" style="font-size:2rem; flex-direction:column; align-items:center; gap:1rem; width:100%; justify-content:center;">
+                    <i class="fas fa-bread-slice fa-spin" style="color:#8B4513; font-size:3rem; display:block; margin:0 auto;"></i>
+                    <div style="font-family:'Montserrat',sans-serif; font-size:1.5rem; font-weight:600; color:#8B4513; letter-spacing:1px; text-align:center;">
+                        Loading Game...
+                    </div>
+                    <!-- Spinning bread SVG below the text -->
+                    <div style="margin-top:0.5rem; display:flex; justify-content:center;">
+                        <svg width="48" height="48" viewBox="0 0 48 48" style="animation: spin-bread 1.2s linear infinite; display:block; margin:0 auto;">
+                            <ellipse cx="24" cy="32" rx="14" ry="10" fill="#DEB887" stroke="#8B4513" stroke-width="2"/>
+                            <ellipse cx="24" cy="22" rx="16" ry="12" fill="#F5DEB3" stroke="#8B4513" stroke-width="2"/>
+                            <ellipse cx="24" cy="18" rx="12" ry="8" fill="#fff8dc" stroke="#8B4513" stroke-width="1.5"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Use setTimeout to allow UI to update
+        setTimeout(() => {
+            try {
+                // Generate grid first (this will clear the loading content)
+                generateGrid();
+                
+                // Calculate all valid words for this grid
+                validWordsForCurrentGame = findAllValidWordsForGrid();
+                
+                // Safety check - if no words found, something went wrong
+                if (validWordsForCurrentGame.length === 0) {
+                    console.warn('No valid words found, regenerating grid...');
+                    generateGrid();
+                    validWordsForCurrentGame = findAllValidWordsForGrid();
+                }
+                
+                // Initialize game state
+                score = 0;
+                timeRemaining = 10; // Game time
+                gameActive = true; // Enable selection
+                gameStarted = true;
+                usedWords = []; // Reset used words for a new round
+                
+                // Update UI
+                scoreElement.textContent = score;
+                timerElement.textContent = timeRemaining;
+                submitButton.classList.remove('hidden');
+                feedbackMessage.textContent = '';
+                resetSelection();
+                
+                // Ensure grid and submit button are visible
+                gridContainer.style.position = 'relative';
+                document.getElementById('submit-word-row').style.display = '';
+                
+                // Start timer
+                startTimer();
+                updateLeaderboard(); // Ensure leaderboard is refreshed at the start of a new game
+            } catch (error) {
+                console.error('Error during game initialization:', error);
+                // Fallback - show error message and allow retry
+                feedbackMessage.textContent = 'Error generating game. Click New Game to try again.';
+                feedbackMessage.classList.add('red');
+                // Make sure grid is visible even on error
+                gridContainer.style.display = '';
+                gridContainer.style.position = 'relative';
+                generateGrid();
+                gameActive = false;
+                gameStarted = false;
+            }
+        }, 500);
     }
 
     // Add both click and touchstart event listeners for submit button
@@ -453,7 +690,7 @@ document.addEventListener('DOMContentLoaded', function() {
         event.preventDefault();
         event.stopPropagation();
 
-        if (!currentWord || !gameActive) return;
+        if (!currentWord || !gameActive || !gameStarted) return;
 
         if (usedWords.includes(currentWord)) {
             feedbackMessage.textContent = 'Word already used!';
@@ -464,27 +701,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
         feedbackMessage.classList.remove('red', 'green');
 
-        // Use the popular words set for validation (case-insensitive)
-        const wordLen = currentWord.length;
-        let points = 0;
-        if (wordLen === 3) points = 1;
-        else if (wordLen === 4) points = 2;
-        else if (wordLen === 5) points = 4;
-        else if (wordLen === 6) points = 6;
-        else if (wordLen === 7) points = 8;
-        else if (wordLen >= 8) points = 11;
-
-        if (wordLen < 3) {
+        if (currentWord.length < 3) {
             feedbackMessage.textContent = 'Word too short!';
             feedbackMessage.classList.add('red');
             resetSelection();
             return;
         }
 
-        if (WORD_SET.has(currentWord.toLowerCase())) {
-            score += points;
+        // Check if word is in our pre-calculated valid words list
+        const validWord = validWordsForCurrentGame.find(w => w.word === currentWord);
+        
+        if (validWord) {
+            score += validWord.points;
             scoreElement.textContent = score;
-            feedbackMessage.textContent = `${currentWord} (+${points})`;
+            feedbackMessage.textContent = `${currentWord} (+${validWord.points})`;
             feedbackMessage.classList.add('green');
             usedWords.push(currentWord);
         } else {
@@ -494,10 +724,9 @@ document.addEventListener('DOMContentLoaded', function() {
         resetSelection();
     }
 
+    startButton.addEventListener('click', startGame);
     submitButton.addEventListener('click', handleSubmit);
     submitButton.addEventListener('touchstart', handleSubmit);
-
-    startButton.addEventListener('click', startGame);
 
     // Ensure Bootstrap modals work (for static HTML, you need Bootstrap JS loaded)
     // If using Bootstrap 5, use Modal API to show modals
@@ -723,6 +952,9 @@ document.addEventListener('DOMContentLoaded', function() {
 .feedback-message.red {
     color: #dc3545 !important;
 }
+.feedback-message.loading {
+    color: #8B4513 !important;
+}
 
 .grid {
     display: grid;
@@ -894,6 +1126,93 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 .modal-body li {
     margin-bottom: 10px;
+    font-size: 1.1rem;
+}
+
+.word-length-section {
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 1rem;
+}
+
+.word-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.word-chip {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border: 1px solid;
+}
+
+.word-chip.found {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+    color: #155724;
+}
+
+.word-chip.missed {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
+
+.how-to-play-content {
+    text-align: left;
+}
+
+.instruction-list {
+    list-style: none;
+    padding-left: 0;
+}
+
+.instruction-list li {
+    margin-bottom: 12px;
+    font-size: 1rem;
+    line-height: 1.5;
+    padding-left: 20px;
+    position: relative;
+}
+
+.instruction-list li:before {
+    content: "▶";
+    position: absolute;
+    left: 0;
+    color: #17a2b8;
+    font-weight: bold;
+}
+
+.scoring-table {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+    border: 1px solid #dee2e6;
+}
+
+.score-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.score-row:last-child {
+    border-bottom: none;
+}
+
+.word-length {
+    font-weight: 600;
+    color: #495057;
+}
+
+.points {
+    font-weight: bold;
+    color: #28a745;
     font-size: 1.1rem;
 }
 

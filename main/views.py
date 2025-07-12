@@ -91,7 +91,13 @@ def delete_blog_post(request, post_id):
 
 def recipes(request):
     recipes = Recipe.objects.all().order_by('-created_at')
-    return render(request, 'recipes.html', {'recipes': recipes})
+    bread_recipes = recipes.filter(category='bread')
+    other_recipes = recipes.filter(category='other')
+    return render(request, 'recipes.html', {
+        'recipes': recipes,
+        'bread_recipes': bread_recipes,
+        'other_recipes': other_recipes
+    })
 
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -135,6 +141,7 @@ def add_recipe(request):
         if form.is_valid() and ingredient_formset.is_valid() and instruction_formset.is_valid():
             with transaction.atomic():
                 recipe = form.save(commit=False)
+                recipe.author = request.user  # Set the author to the current user
                 recipe.featured = 'featured' in request.POST
                 recipe.save()
                 

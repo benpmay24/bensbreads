@@ -61,6 +61,17 @@
                       <div class="form-error">{{ form.time_required.errors.0 }}</div>
                     {% endif %}
                   </div>
+
+                  <div class="form-group">
+                    <label class="form-label">Category</label>
+                    <select name="{{ form.category.name }}" class="form-control">
+                      <option value="other" {% if form.category.value == 'other' %}selected{% endif %}>Other</option>
+                      <option value="bread" {% if form.category.value == 'bread' %}selected{% endif %}>Bread</option>
+                    </select>
+                    {% if form.category.errors %}
+                      <div class="form-error">{{ form.category.errors.0 }}</div>
+                    {% endif %}
+                  </div>
                 </div>
 
                 <div class="col-lg-4">
@@ -92,9 +103,6 @@
                 <h3 class="section-title">
                   <i class="fas fa-list-ul me-2"></i>Ingredients
                 </h3>
-                <button type="button" class="btn btn-outline-primary btn-sm" id="add-ingredient">
-                  <i class="fas fa-plus me-1"></i>Add Ingredient
-                </button>
               </div>
               
               <div id="ingredient-forms" class="dynamic-forms">
@@ -121,6 +129,10 @@
                   </div>
                 {% endfor %}
               </div>
+              
+              <button type="button" class="btn btn-outline-primary btn-sm" id="add-ingredient">
+                <i class="fas fa-plus me-1"></i>Add Ingredient
+              </button>
             </div>
 
             <!-- Instructions Section -->
@@ -129,9 +141,6 @@
                 <h3 class="section-title">
                   <i class="fas fa-tasks me-2"></i>Instructions
                 </h3>
-                <button type="button" class="btn btn-outline-primary btn-sm" id="add-instruction">
-                  <i class="fas fa-plus me-1"></i>Add Step
-                </button>
               </div>
               
               <div id="instruction-forms" class="dynamic-forms">
@@ -159,6 +168,10 @@
                   </div>
                 {% endfor %}
               </div>
+              
+              <button type="button" class="btn btn-outline-primary btn-sm" id="add-instruction">
+                <i class="fas fa-plus me-1"></i>Add Step
+              </button>
             </div>
 
             <!-- Form Actions -->
@@ -332,6 +345,99 @@
   transform: translateY(-2px);
 }
 
+.custom-select-wrapper {
+  position: relative;
+}
+
+.custom-select {
+  appearance: none;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  padding: 0.875rem 3rem 0.875rem 1rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #495057;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.custom-select:hover {
+  border-color: #8B4513;
+  box-shadow: 0 4px 8px rgba(139, 69, 19, 0.1);
+  transform: translateY(-1px);
+}
+
+.custom-select:focus {
+  border-color: #8B4513;
+  box-shadow: 0 0 0 0.25rem rgba(139, 69, 19, 0.15);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.select-arrow {
+  position: absolute;
+  top: 50%;
+  right: 1rem;
+  transform: translateY(-50%);
+  color: #8B4513;
+  pointer-events: none;
+  transition: transform 0.3s ease;
+}
+
+.custom-select:focus + .select-arrow {
+  transform: translateY(-50%) rotate(180deg);
+  color: #D2691E;
+}
+
+.custom-select option {
+  padding: 0.75rem 1rem;
+  font-weight: 500;
+  background-color: white;
+  color: #495057;
+  border-radius: 8px;
+  margin: 0.25rem 0;
+}
+
+.custom-select option:hover {
+  background-color: #f8f9fa;
+}
+
+.custom-select option:checked,
+.custom-select option:selected {
+  background: linear-gradient(135deg, #8B4513, #D2691E);
+  color: white;
+  font-weight: 600;
+}
+
+/* Add a subtle animation when the dropdown opens */
+@keyframes dropdownOpen {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.custom-select:focus option {
+  animation: dropdownOpen 0.3s ease;
+}
+
+/* Optional: Add category icons in a more elegant way */
+.custom-select option[value="bread"]::before {
+  content: "🍞 ";
+  margin-right: 0.5rem;
+}
+
+.custom-select option[value="other"]::before {
+  content: "🍽️ ";
+  margin-right: 0.5rem;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .recipe-form-card {
@@ -400,17 +506,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="col-md-2">
                         <label class="form-label">Step</label>
                         <div class="step-number-display">${stepNumber}</div>
-                    </div>
-                    <div class="col-md-8">
+                      </div>
+                      <div class="col-md-8">
                         <label class="form-label">Instructions</label>
                         <textarea name="instructions-${formCount}-step_text" class="form-control" rows="3"></textarea>
-                    </div>
-                    <div class="col-md-2">
+                      </div>
+                      <div class="col-md-2">
                         <label class="form-label">&nbsp;</label>
                         <button type="button" class="btn btn-outline-danger btn-sm delete-item-btn">
-                            <i class="fas fa-trash"></i>
+                          <i class="fas fa-trash"></i>
                         </button>
-                    </div>
+                      </div>
                 </div>
             </div>
         `;

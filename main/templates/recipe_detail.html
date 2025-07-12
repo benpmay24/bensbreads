@@ -70,8 +70,15 @@
                 </div>
 
                 <!-- Recipe Meta -->
-                {% if recipe.time_required or recipe.description %}
+                {% if recipe.time_required or recipe.description or recipe.author %}
                   <div class="recipe-meta-section">
+                    {% if recipe.author %}
+                      <div class="meta-item">
+                        <i class="fas fa-user text-primary"></i>
+                        <span class="meta-label">Created by:</span>
+                        <span class="meta-value">{{ recipe.author.get_full_name|default:recipe.author.username }}</span>
+                      </div>
+                    {% endif %}
                     {% if recipe.time_required %}
                       <div class="meta-item">
                         <i class="fas fa-clock text-primary"></i>

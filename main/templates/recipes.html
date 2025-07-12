@@ -56,6 +56,10 @@
                   {% if recipe.description %}
                     <p class="featured-recipe-description">{{ recipe.description|truncatewords:20 }}</p>
                   {% endif %}
+                  <div class="recipe-author mb-2">
+                    <i class="fas fa-user me-1"></i>
+                    <small class="text-muted">by {{ recipe.author.get_full_name|default:recipe.author.username }}</small>
+                  </div>
                   <div class="view-recipe-link">
                     View Recipe <i class="fas fa-arrow-right ms-1"></i>
                   </div>
@@ -73,29 +77,107 @@
             <h2 class="section-title mb-4">
               <i class="fas fa-list me-2"></i>All Recipes
             </h2>
-          </div>
-        </div>
-        <div class="row">
-          {% for recipe in recipes|dictsort:"title" %}
-            <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
-              <div class="recipe-item" onclick="window.location.href='{% url 'recipe_detail' recipe.id %}';" style="cursor: pointer;">
-                {% if recipe.image %}
-                  <div class="recipe-item-image">
-                    <img src="{{ recipe.image.url }}" alt="{{ recipe.title }}" class="img-fluid">
-                  </div>
-                {% endif %}
-                <div class="recipe-item-content">
-                  <h4 class="recipe-item-title">{{ recipe.title }}</h4>
-                  {% if recipe.time_required %}
-                    <div class="recipe-item-time">
-                      <i class="fas fa-clock me-1"></i>
-                      {{ recipe.time_required }}
+            
+            <!-- Category Tabs -->
+            <ul class="nav nav-tabs recipe-tabs mb-4" id="recipeTabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all-recipes" type="button" role="tab">
+                  All Recipes ({{ recipes.count }})
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="bread-tab" data-bs-toggle="tab" data-bs-target="#bread-recipes" type="button" role="tab">
+                  Bread ({{ bread_recipes.count }})
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="other-tab" data-bs-toggle="tab" data-bs-target="#other-recipes" type="button" role="tab">
+                  Other ({{ other_recipes.count }})
+                </button>
+              </li>
+            </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content" id="recipeTabContent">
+              <!-- All Recipes Tab -->
+              <div class="tab-pane fade show active" id="all-recipes" role="tabpanel">
+                <div class="row">
+                  {% for recipe in recipes|dictsort:"title" %}
+                    <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                      <div class="recipe-item" onclick="window.location.href='{% url 'recipe_detail' recipe.id %}';" style="cursor: pointer;">
+                        {% if recipe.image %}
+                          <div class="recipe-item-image">
+                            <img src="{{ recipe.image.url }}" alt="{{ recipe.title }}" class="img-fluid">
+                          </div>
+                        {% endif %}
+                        <div class="recipe-item-content">
+                          <h4 class="recipe-item-title">{{ recipe.title }}</h4>
+                          {% if recipe.time_required %}
+                            <div class="recipe-item-time">
+                              <i class="fas fa-clock me-1"></i>
+                              {{ recipe.time_required }}
+                            </div>
+                          {% endif %}
+                        </div>
+                      </div>
                     </div>
-                  {% endif %}
+                  {% endfor %}
+                </div>
+              </div>
+
+              <!-- Bread Recipes Tab -->
+              <div class="tab-pane fade" id="bread-recipes" role="tabpanel">
+                <div class="row">
+                  {% for recipe in bread_recipes|dictsort:"title" %}
+                    <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                      <div class="recipe-item" onclick="window.location.href='{% url 'recipe_detail' recipe.id %}';" style="cursor: pointer;">
+                        {% if recipe.image %}
+                          <div class="recipe-item-image">
+                            <img src="{{ recipe.image.url }}" alt="{{ recipe.title }}" class="img-fluid">
+                          </div>
+                        {% endif %}
+                        <div class="recipe-item-content">
+                          <h4 class="recipe-item-title">{{ recipe.title }}</h4>
+                          {% if recipe.time_required %}
+                            <div class="recipe-item-time">
+                              <i class="fas fa-clock me-1"></i>
+                              {{ recipe.time_required }}
+                            </div>
+                          {% endif %}
+                        </div>
+                      </div>
+                    </div>
+                  {% endfor %}
+                </div>
+              </div>
+
+              <!-- Other Recipes Tab -->
+              <div class="tab-pane fade" id="other-recipes" role="tabpanel">
+                <div class="row">
+                  {% for recipe in other_recipes|dictsort:"title" %}
+                    <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                      <div class="recipe-item" onclick="window.location.href='{% url 'recipe_detail' recipe.id %}';" style="cursor: pointer;">
+                        {% if recipe.image %}
+                          <div class="recipe-item-image">
+                            <img src="{{ recipe.image.url }}" alt="{{ recipe.title }}" class="img-fluid">
+                          </div>
+                        {% endif %}
+                        <div class="recipe-item-content">
+                          <h4 class="recipe-item-title">{{ recipe.title }}</h4>
+                          {% if recipe.time_required %}
+                            <div class="recipe-item-time">
+                              <i class="fas fa-clock me-1"></i>
+                              {{ recipe.time_required }}
+                            </div>
+                          {% endif %}
+                        </div>
+                      </div>
+                    </div>
+                  {% endfor %}
                 </div>
               </div>
             </div>
-          {% endfor %}
+          </div>
         </div>
       </div>
 
@@ -120,4 +202,33 @@
     {% endif %}
   </div>
 </div>
+
+<style>
+/* ...existing styles... */
+
+.recipe-tabs .nav-link {
+  color: #8B4513;
+  border: 2px solid transparent;
+  border-radius: 8px 8px 0 0;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  margin-right: 0.25rem;
+}
+
+.recipe-tabs .nav-link:hover {
+  color: #D2691E;
+  border-color: #e9ecef #e9ecef #dee2e6;
+}
+
+.recipe-tabs .nav-link.active {
+  color: #8B4513;
+  background-color: white;
+  border-color: #dee2e6 #dee2e6 white;
+}
+
+.tab-content {
+  border-top: 2px solid #dee2e6;
+  padding-top: 2rem;
+}
+</style>
 {% endblock %}
