@@ -3,7 +3,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
-from .models import BlogPost, Recipe, Ingredient, Instruction, RamseyPhoto, Connect4Result, WordFindScore
+from .models import BlogPost, Recipe, Ingredient, Instruction, RamseyPhoto, Connect4Result, WordFindScore, Comment
 from .forms import BlogPostForm, RecipeForm, RamseyPhotoForm, CustomUserCreationForm, IngredientForm, InstructionForm
 from django.db import transaction
 from django.http import JsonResponse
@@ -31,6 +31,23 @@ def games(request):
 # Home view (showing public posts)
 def blog(request):
     posts = BlogPost.objects.filter(private=False).order_by('-created_at')  # Only non-private posts
+    
+    # Handle comment submission
+    if request.method == 'POST' and request.user.is_authenticated:
+        post_id = request.POST.get('post_id')
+        comment_text = request.POST.get('comment', '').strip()
+        if post_id and comment_text:
+            try:
+                post = BlogPost.objects.get(id=post_id)
+                Comment.objects.create(
+                    post=post,
+                    user=request.user,
+                    text=comment_text
+                )
+            except BlogPost.DoesNotExist:
+                pass
+        return redirect('blog')
+    
     return render(request, 'blog.html', {'posts': posts})
 
 # views.py
@@ -379,3 +396,25 @@ def save_word_find_result(request):
             WordFindScore.objects.create(user=request.user, score=score)
             return JsonResponse({'status': 'success'})
         return JsonResponse({'status': 'invalid score'}, status=400)
+
+from django.shortcuts import render, redirect, get_object_or_404
+from .models import BlogPost, Comment
+
+def blog_post(request, slug):
+    post = get_object_or_404(BlogPost, slug=slug)
+    comments = Comment.objects.filter(post=post).order_by('-created_at')
+    
+    if request.method == 'POST' and request.user.is_authenticated:
+        comment_text = request.POST.get('comment', '').strip()
+        if comment_text:
+            Comment.objects.create(
+                post=post,
+                user=request.user,
+                text=comment_text
+            )
+            return redirect('blog_post', slug=slug)
+    
+    return render(request, 'blog_post.html', {
+        'post': post,
+        'comments': comments,
+    })

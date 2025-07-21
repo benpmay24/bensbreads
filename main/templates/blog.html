@@ -137,6 +137,67 @@
               <div class="blog-post-content">
                 {{ post.content|linebreaks }}
               </div>
+              
+              <!-- Comments Section -->
+              <hr class="my-4">
+              <div class="comments-section">
+                <h5 class="comments-title">
+                  <i class="fas fa-comments me-2"></i>Comments ({{ post.comments.count }})
+                </h5>
+                
+                <!-- Comment Form for Authenticated Users -->
+                {% if user.is_authenticated %}
+                <div class="comment-form-section mb-4">
+                  <form method="post" action="{% url 'blog' %}" class="comment-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="post_id" value="{{ post.id }}">
+                    <div class="mb-3">
+                      <label for="comment-text-{{ post.id }}" class="form-label">
+                        <strong>Leave a comment:</strong>
+                      </label>
+                      <textarea 
+                        id="comment-text-{{ post.id }}" 
+                        name="comment" 
+                        class="form-control comment-textarea" 
+                        rows="3" 
+                        maxlength="500" 
+                        placeholder="Share your thoughts..."
+                        required></textarea>
+                      <div class="form-text">Maximum 500 characters</div>
+                    </div>
+                    <button type="submit" class="btn btn-comment">
+                      <i class="fas fa-paper-plane me-1"></i>Post Comment
+                    </button>
+                  </form>
+                </div>
+                {% else %}
+                <div class="alert alert-info login-prompt mb-4">
+                  <i class="fas fa-sign-in-alt me-2"></i>
+                  <a href="{% url 'login' %}?next={% url 'blog' %}" class="alert-link">Log in</a> 
+                  to join the conversation.
+                </div>
+                {% endif %}
+
+                <!-- Comments List -->
+                <div class="comments-list">
+                  {% for comment in post.comments.all %}
+                  <div class="comment-card">
+                    <div class="comment-header">
+                      <span class="comment-user">
+                        <i class="fas fa-user me-1"></i>{{ comment.user.username }}
+                      </span>
+                      <span class="comment-date">{{ comment.created_at|date:"M d, g:i A" }}</span>
+                    </div>
+                    <div class="comment-body">{{ comment.text|linebreaksbr }}</div>
+                  </div>
+                  {% empty %}
+                  <div class="no-comments">
+                    <i class="fas fa-comment-slash text-muted me-2"></i>
+                    <span class="text-muted">No comments yet. Be the first to comment!</span>
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
             </div>
             {% if user.is_superuser %}
               <div class="modal-footer">
@@ -203,4 +264,127 @@
     {% endif %}
   });
 </script>
+
+<style>
+/* ...existing styles... */
+
+.comments-section {
+  margin-top: 2rem;
+}
+
+.comments-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #8B4513;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #DEB887;
+  padding-bottom: 0.5rem;
+}
+
+.comment-form-section {
+  background: #fffbe6;
+  border: 1px solid #DEB887;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.comment-textarea {
+  border-radius: 6px;
+  border: 1px solid #DEB887;
+  background: #fff;
+  font-size: 0.9rem;
+  padding: 0.75rem;
+  text-align: left !important;
+  direction: ltr;
+}
+
+.comment-textarea:focus {
+  border-color: #8B4513;
+  box-shadow: 0 0 0 0.1rem rgba(139,69,19,0.15);
+  background: #fff;
+}
+
+.btn-comment {
+  background: #8B4513;
+  color: #fff;
+  border-radius: 6px;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border: none;
+  transition: background 0.2s ease;
+  font-size: 0.85rem;
+}
+
+.btn-comment:hover {
+  background: #A0522D;
+  color: #fff;
+}
+
+.login-prompt {
+  background: #e8f4f8;
+  border: 1px solid #bee5eb;
+  border-radius: 6px;
+  padding: 0.75rem;
+  text-align: center;
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+}
+
+.comment-card {
+  background: #f8f9fa;
+  border-left: 3px solid #DEB887;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  border-radius: 4px;
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.comment-user {
+  font-weight: 600;
+  color: #8B4513;
+}
+
+.comment-date {
+  color: #6c757d;
+  font-size: 0.75rem;
+}
+
+.comment-body {
+  font-size: 0.9rem;
+  color: #495057;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.no-comments {
+  text-align: center;
+  padding: 1.5rem;
+  font-size: 0.9rem;
+  color: #6c757d;
+}
+
+@media (max-width: 768px) {
+  .comment-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+  
+  .comments-title {
+    font-size: 1rem;
+  }
+  
+  .comment-card {
+    padding: 0.5rem;
+  }
+}
+</style>
 {% endblock %}
