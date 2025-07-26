@@ -36,15 +36,52 @@
   </div>
 </div>
 
+<style>
+/* Fix textarea scrolling behavior */
+textarea {
+    overflow-y: auto;
+    resize: vertical;
+    scroll-behavior: smooth;
+}
+
+textarea:focus {
+    /* Prevent page jumping when typing */
+    scroll-margin: 0;
+    scroll-padding: 0;
+}
+
+/* Ensure form doesn't cause page jumps */
+.form-control {
+    scroll-margin-top: 0;
+    scroll-margin-bottom: 0;
+}
+</style>
+
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-    const textarea = document.querySelector('textarea');
+    // Get the textarea element
+    const textarea = document.querySelector('textarea[name="content"]');
+    
     if (textarea) {
-      textarea.setAttribute('style', 'height:' + (textarea.scrollHeight) + 'px;overflow-y:hidden;');
-      textarea.addEventListener('input', function() {
-        this.style.height = 'auto';
-        this.style.height = (this.scrollHeight) + 'px';
-      });
+        // Prevent page scrolling when textarea scrolls
+        textarea.addEventListener('input', function(e) {
+            // Store current scroll position
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            
+            // Use setTimeout to restore scroll position after input processing
+            setTimeout(function() {
+                window.scrollTo(0, scrollTop);
+            }, 0);
+        });
+        
+        // Also handle keydown events
+        textarea.addEventListener('keydown', function(e) {
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            
+            setTimeout(function() {
+                window.scrollTo(0, scrollTop);
+            }, 0);
+        });
     }
 
     // Fix for stale CSRF token after long editing sessions
