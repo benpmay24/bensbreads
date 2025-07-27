@@ -23,9 +23,20 @@ def recipe_image_upload_path(instance, filename):
     filename = f"recipe_{timestamp}_{unique_id}.{ext}"
     return os.path.join('recipe_images/', filename)
 
+def blog_image_upload_path(instance, filename):
+    # Get the file extension
+    ext = filename.split('.')[-1]
+    # Generate unique filename with timestamp
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    unique_id = str(uuid.uuid4())[:8]
+    filename = f"blog_{timestamp}_{unique_id}.{ext}"
+    return os.path.join('blog_images/', filename)
+
 class BlogPost(models.Model):
     title = models.CharField(max_length=200)
     content = models.TextField()
+    image = models.ImageField(upload_to=blog_image_upload_path, blank=True, null=True)
+    author = models.ForeignKey(User, on_delete=models.CASCADE, default=7)
     created_at = models.DateTimeField(auto_now_add=True)
     private = models.BooleanField(default=False)  # New field for private posts
 

@@ -6,7 +6,10 @@ from django.contrib.auth.models import User
 class BlogPostForm(forms.ModelForm):
     class Meta:
         model = BlogPost
-        fields = ['title', 'content', 'private']
+        fields = ['title', 'content', 'image', 'private']
+        widgets = {
+            'content': forms.Textarea(attrs={'rows': 10}),
+        }
 
     private = forms.BooleanField(required=False, label="Mark as Private", initial=False)
 

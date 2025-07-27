@@ -120,6 +120,9 @@
             <div class="modal-header">
               <div class="modal-title-section">
                 <h5 class="modal-title" id="postModalLabel{{ post.id }}">{{ post.title }}</h5>
+                <div class="blog-author">
+                  By: <span class="author-name">{{ post.author.first_name }} {{ post.author.last_name }}{% if not post.author.first_name %}{{ post.author.username }}{% endif %}</span>
+                </div>
                 <div class="modal-post-meta">
                   <span class="meta-item">
                     <i class="fas fa-calendar-alt me-1"></i>
@@ -134,6 +137,11 @@
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+              {% if post.image %}
+                <div class="blog-post-image mb-3">
+                  <img src="{{ post.image.url }}" alt="{{ post.title }}" class="img-fluid rounded">
+                </div>
+              {% endif %}
               <div class="blog-post-content">
                 {{ post.content|linebreaks }}
               </div>
@@ -369,6 +377,30 @@
   padding: 1.5rem;
   font-size: 0.9rem;
   color: #6c757d;
+}
+
+.blog-post-image {
+  text-align: center;
+}
+
+.blog-post-image img {
+  max-height: 400px;
+  object-fit: cover;
+  border: 1px solid #DEB887;
+}
+
+.blog-author {
+  font-size: 0.95rem;
+  color: #8B4513;
+  font-weight: 500;
+  margin: 0.5rem 0;
+  font-style: italic;
+}
+
+.author-name {
+  font-weight: 600;
+  color: #D2691E;
+  font-style: normal;
 }
 
 @media (max-width: 768px) {

@@ -7,12 +7,18 @@
   <div class="card shadow-sm">
     <div class="card-body">
       <h2 class="card-title mb-4">Add Blog Post</h2>
-      <form method="post">
+      <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
         
         <div class="mb-3">
           <label for="id_title" class="form-label">Title</label>
           {{ form.title|add_class:"form-control" }}
+        </div>
+        
+        <div class="mb-3">
+          <label for="id_image" class="form-label">Image (optional)</label>
+          {{ form.image|add_class:"form-control" }}
+          <div class="form-text">Upload an image to accompany your blog post</div>
         </div>
         
         <div class="mb-3">

@@ -89,7 +89,7 @@ def manage_users(request):
 @user_passes_test(staff_or_superuser)
 def add_blog_post(request):
     if request.method == 'POST':
-        form = BlogPostForm(request.POST)
+        form = BlogPostForm(request.POST, request.FILES)
         if form.is_valid():
             blog_post = form.save(commit=False)
             blog_post.author = request.user
@@ -396,25 +396,3 @@ def save_word_find_result(request):
             WordFindScore.objects.create(user=request.user, score=score)
             return JsonResponse({'status': 'success'})
         return JsonResponse({'status': 'invalid score'}, status=400)
-
-from django.shortcuts import render, redirect, get_object_or_404
-from .models import BlogPost, Comment
-
-def blog_post(request, slug):
-    post = get_object_or_404(BlogPost, slug=slug)
-    comments = Comment.objects.filter(post=post).order_by('-created_at')
-    
-    if request.method == 'POST' and request.user.is_authenticated:
-        comment_text = request.POST.get('comment', '').strip()
-        if comment_text:
-            Comment.objects.create(
-                post=post,
-                user=request.user,
-                text=comment_text
-            )
-            return redirect('blog_post', slug=slug)
-    
-    return render(request, 'blog_post.html', {
-        'post': post,
-        'comments': comments,
-    })
