@@ -1,5 +1,5 @@
 from django import forms
-from .models import BlogPost, Recipe, RamseyPhoto, Ingredient, Instruction
+from .models import BlogPost, Recipe, RamseyPhoto, Ingredient, Instruction, Review
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 
@@ -84,4 +84,19 @@ class InstructionForm(forms.ModelForm):
                 'class': 'form-control',
                 'rows': 3
             }),
+        }
+
+class ReviewForm(forms.ModelForm):
+    class Meta:
+        model = Review
+        fields = ['place_name', 'location', 'food_rating', 'ambience_rating', 'value_rating', 'service_rating', 'overall_rating', 'content', 'image']  # Added service_rating and overall_rating
+        widgets = {
+            'place_name': forms.TextInput(attrs={'placeholder': 'Name of restaurant, cafe, etc.'}),
+            'location': forms.TextInput(attrs={'placeholder': 'City, neighborhood, etc.'}),
+            'content': forms.Textarea(attrs={'rows': 5, 'placeholder': 'Share your experience...'}),
+            'food_rating': forms.RadioSelect(),
+            'ambience_rating': forms.RadioSelect(),
+            'value_rating': forms.RadioSelect(),
+            'service_rating': forms.RadioSelect(),
+            'overall_rating': forms.RadioSelect(),
         }

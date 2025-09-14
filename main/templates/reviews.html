@@ -1,0 +1,391 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Reviews | Ben's Breads{% endblock %}
+
+{% block content %}
+<!-- Hero Header -->
+<div class="hero-header text-center">
+  <div class="hero-content">
+    <h1 class="hero-title">Reviews</h1>
+    <div class="hero-divider"></div>
+  </div>
+</div>
+
+<div class="container-fluid">
+  <div class="container py-4">
+    <!-- Admin Controls -->
+    {% if user.is_staff or user.is_superuser %}
+      <div class="row">
+        <div class="col-12">
+          <div class="d-flex justify-content-end mb-4">
+            <a href="{% url 'add_review' %}" class="btn btn-outline-primary">
+              <i class="fas fa-plus me-1"></i>Add Review
+            </a>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    <!-- Filter Section -->
+    <div class="filters-section mb-4">
+      <div class="row">
+        <div class="col-12">
+          <div class="filter-card">
+            <h3 class="filter-title">Search Reviews</h3>
+            <form method="get" action="{% url 'reviews' %}" class="filter-form">
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <div class="filter-group">
+                    <label for="tag-filter" class="filter-label">
+                      <i class="fas fa-tag me-1"></i>Filter by Tag
+                    </label>
+                    <select name="tag" id="tag-filter" class="form-select">
+                      <option value="">All Tags</option>
+                      {% for tag in all_tags %}
+                        <option value="{{ tag }}" {% if active_tag == tag %}selected{% endif %}>{{ tag }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                </div>
+                
+                <div class="col-md-4">
+                  <div class="filter-group">
+                    <label for="reviewer-filter" class="filter-label">
+                      <i class="fas fa-user me-1"></i>Filter by Reviewer
+                    </label>
+                    <select name="reviewer" id="reviewer-filter" class="form-select">
+                      <option value="">All Reviewers</option>
+                      {% for reviewer in reviewers %}
+                        <option value="{{ reviewer.id }}" {% if active_reviewer == reviewer.id|stringformat:"i" %}selected{% endif %}>
+                          {% if reviewer.first_name and reviewer.last_name %}
+                            {{ reviewer.first_name }} {{ reviewer.last_name }}
+                          {% else %}
+                            {{ reviewer.username }}
+                          {% endif %}
+                        </option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                </div>
+                
+                <div class="col-md-4">
+                  <div class="filter-group">
+                    <label for="city-filter" class="filter-label">
+                      <i class="fas fa-map-marker-alt me-1"></i>Filter by City
+                    </label>
+                    <select name="city" id="city-filter" class="form-select">
+                      <option value="">All Cities</option>
+                      {% for city in cities %}
+                        <option value="{{ city }}" {% if active_city == city %}selected{% endif %}>{{ city }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                </div>
+                
+                <div class="col-12 text-center">
+                  <button type="submit" class="btn btn-primary filter-btn">
+                    <i class="fas fa-filter me-1"></i>Apply Filters
+                  </button>
+                  <a href="{% url 'reviews' %}" class="btn btn-outline-secondary filter-btn">
+                    <i class="fas fa-undo me-1"></i>Reset Filters
+                  </a>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reviews Grid -->
+    <div class="reviews-grid-section">
+      <div class="row">
+        <div class="col-12">
+          <h2 class="section-title mb-4">
+            {% if active_tag or active_reviewer or active_city %}
+              <i class="fas fa-filter me-2"></i>Reviews
+            {% else %}
+              <i class="fas fa-utensils me-2"></i>Reviews
+            {% endif %}
+          </h2>
+        </div>
+      </div>
+      
+      <div class="row">
+        {% for review in recent_reviews %}
+          <div class="col-lg-4 col-md-6 mb-4">
+            <div class="review-card" onclick="window.location.href='{% url 'review_detail' review.id %}';" style="cursor: pointer;">
+              {% if review.image %}
+                <div class="review-card-image">
+                  <img src="{{ review.image.url }}" alt="{{ review.place_name }}" class="img-fluid">
+                </div>
+              {% elif review.place_photo_url %}
+                <div class="review-card-image">
+                  <img src="{{ review.place_photo_url }}" alt="{{ review.place_name }}" class="img-fluid">
+                </div>
+              {% endif %}
+              
+              <div class="review-card-content">
+                <h3 class="review-card-title">{{ review.place_name }}</h3>
+                
+                <div class="review-meta mb-2">
+                  <span class="review-category">
+                    <i class="fas fa-tag me-1"></i>{{ review.category }}
+                  </span>
+                  {% if review.location %}
+                    <span class="review-location">
+                      <i class="fas fa-map-marker-alt ms-2 me-1"></i>{{ review.location }}
+                    </span>
+                  {% endif %}
+                </div>
+                
+                <div class="review-ratings mb-2">
+                  <div class="overall-rating">
+                    <span class="rating-label">Overall:</span>
+                    <span class="rating-stars">
+                      {% for i in "12345" %}
+                        {% if forloop.counter <= review.overall_rating %}
+                          <i class="fas fa-star"></i>
+                        {% else %}
+                          <i class="far fa-star"></i>
+                        {% endif %}
+                      {% endfor %}
+                    </span>
+                  </div>
+                </div>
+                
+                <div class="review-footer">
+                  <div class="review-author">
+                    <i class="fas fa-user me-1"></i>
+                    <small>by {% if review.author.first_name and review.author.last_name %}{{ review.author.first_name }} {{ review.author.last_name }}{% else %}{{ review.author.username }}{% endif %}</small>
+                  </div>
+                  <div class="review-date">
+                    <i class="far fa-calendar-alt me-1"></i>
+                    <small>{{ review.created_at|date:"M d, Y" }}</small>
+                  </div>
+                </div>
+                
+                <div class="view-review-link">
+                  Read Full Review <i class="fas fa-arrow-right ms-1"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        {% empty %}
+          <!-- Empty State -->
+          <div class="col-12">
+            <div class="empty-reviews-state text-center">
+              <div class="empty-icon">
+                <i class="fas fa-search"></i>
+              </div>
+              <h3>No Reviews Found</h3>
+              <p>Try adjusting your filters or browse all reviews</p>
+              <div class="mt-3">
+                <a href="{% url 'reviews' %}" class="btn btn-outline-primary">
+                  <i class="fas fa-undo me-1"></i>Reset Filters
+                </a>
+                {% if user.is_staff or user.is_superuser %}
+                  <a href="{% url 'add_review' %}" class="btn btn-outline-secondary ms-2">
+                    <i class="fas fa-plus me-1"></i>Add Review
+                  </a>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+/* Filter Styles */
+.filter-card {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  border: 1px solid #f1f3f4;
+  margin-bottom: 2rem;
+}
+
+.filter-title {
+  color: #8B4513;
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid #f1f3f4;
+  padding-bottom: 0.75rem;
+}
+
+.filter-label {
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.filter-btn {
+  min-width: 120px;
+  margin: 0 0.25rem;
+}
+
+.form-select:focus {
+  border-color: #8B4513;
+  box-shadow: 0 0 0 0.2rem rgba(139, 69, 19, 0.25);
+}
+
+/* Review Card Styles */
+.review-card {
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  height: 100%;
+  transition: all 0.3s ease;
+  border: 1px solid #f1f3f4;
+  display: flex;
+  flex-direction: column;
+}
+
+.review-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+}
+
+.review-card-image {
+  height: 180px;
+  overflow: hidden;
+}
+
+.review-card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.review-card:hover .review-card-image img {
+  transform: scale(1.05);
+}
+
+.review-card-content {
+  padding: 1.5rem;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.review-card-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #5d4f41;
+  margin-bottom: 0.5rem;
+}
+
+.review-meta {
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.review-ratings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.overall-rating, .rating-item {
+  display: flex;
+  align-items: center;
+}
+
+.rating-label {
+  font-weight: 600;
+  margin-right: 0.5rem;
+}
+
+.rating-detail {
+  font-size: 0.85rem;
+  color: #6c757d;
+}
+
+.rating-stars {
+  color: #FFD700;
+  letter-spacing: 0.1rem;
+}
+
+.review-preview {
+  color: #6c757d;
+  line-height: 1.6;
+  margin-bottom: 1rem;
+  flex-grow: 1;
+}
+
+.review-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+  color: #8B4513;
+}
+
+.view-review-link {
+  color: #8B4513;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  text-align: right;
+}
+
+.review-card:hover .view-review-link {
+  color: #D2691E;
+}
+
+/* Section Titles */
+.section-title {
+  color: #8B4513;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 3px solid #D2691E;
+  display: inline-block;
+}
+
+/* Empty State */
+.empty-reviews-state {
+  padding: 4rem 2rem;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  margin-top: 2rem;
+  border: 1px solid #f1f3f4;
+}
+
+.empty-reviews-state .empty-icon {
+  font-size: 4rem;
+  color: #8B4513;
+  margin-bottom: 1.5rem;
+  opacity: 0.7;
+}
+
+.empty-reviews-state h3 {
+  color: #212529;
+  margin-bottom: 1rem;
+}
+
+.empty-reviews-state p {
+  color: #6c757d;
+  font-size: 1.125rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .filter-btn {
+    margin-top: 0.5rem;
+    width: 100%;
+  }
+}
+</style>
+{% endblock %}

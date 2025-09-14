@@ -1,0 +1,1023 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load widget_tweaks %}
+{% block title %}Add Review | Ben's Breads{% endblock %}
+
+{% block content %}
+<!-- Hero Header -->
+<div class="hero-header text-center">
+  <div class="hero-content">
+    <h1 class="hero-title">Add Review</h1>
+    <div class="hero-divider"></div>
+  </div>
+</div>
+
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="review-form-card">
+        <!-- Step 1: Search for a place first -->
+        <div id="step-search" class="form-step active">
+          <h3 class="section-title">
+            <i class="fas fa-search me-2"></i>Search for a Place
+          </h3>
+          
+          <div class="form-group">
+            <div class="place-search-wrapper">
+              <input 
+                id="place-search" 
+                type="text" 
+                class="form-control form-control-lg" 
+                placeholder="Search for restaurants, cafes, bakeries, etc."
+              >
+              <div id="loading-indicator" class="loading-indicator">
+                <div class="spinner-border text-primary" role="status">
+                  <span class="visually-hidden">Loading...</span>
+                </div>
+              </div>
+              <div id="place-search-results" class="place-search-results"></div>
+            </div>
+            <small class="form-text text-muted">
+              Start by searching for the place you want to review
+            </small>
+          </div>
+        </div>
+        
+        <!-- Combined step: Place info + Review form (initially hidden) -->
+        <div id="combined-place-review" class="form-step">
+          <form method="post" enctype="multipart/form-data" id="review-form">
+            {% csrf_token %}
+            
+            <!-- Hidden field to store place_id -->
+            <input type="hidden" id="place_id" name="place_id" value="">
+            <input type="hidden" id="place_name_field" name="place_name" value="">
+            <input type="hidden" id="location_field" name="location" value="">
+            <input type="hidden" id="category_field" name="category" value="">
+            <!-- Hidden fields for additional place details -->
+            <input type="hidden" id="place_website_field" name="place_website" value="">
+            <input type="hidden" id="place_phone_field" name="place_phone" value="">
+            <input type="hidden" id="place_tags_field" name="place_tags" value="">
+            <input type="hidden" id="place_photo_url_field" name="place_photo_url" value="">
+            
+            <!-- Place Information Section -->
+            <h3 class="section-title">
+              <i class="fas fa-info-circle me-2"></i>Place Information
+            </h3>
+            
+            <div id="selected-place-card" class="selected-place-card">
+              <div class="place-content-layout">
+                <div id="selected-place-photo-container" class="place-photo-container">
+                  <img id="selected-place-photo" class="place-photo" src="https://via.placeholder.com/400x200?text=No+Image+Available" alt="Place photo">
+                </div>
+                
+                <div class="place-info-content">
+                  <div class="place-header">
+                    <h4 id="selected-place-name" class="place-title"></h4>
+                    <div id="selected-place-rating" class="place-rating-display"></div>
+                  </div>
+                  
+                  <div class="place-details-grid">
+                    <div class="place-detail">
+                      <i class="fas fa-map-marker-alt"></i>
+                      <span id="selected-place-address"></span>
+                    </div>
+                    
+                    <div class="place-detail" id="selected-place-website-container">
+                      <i class="fas fa-globe"></i>
+                      <a id="selected-place-website" href="#" target="_blank"></a>
+                    </div>
+                    
+                    <div class="place-detail" id="selected-place-phone-container">
+                      <i class="fas fa-phone"></i>
+                      <span id="selected-place-phone"></span>
+                    </div>
+                    
+                    <div class="place-detail">
+                      <i class="fas fa-tag"></i>
+                      <div id="selected-place-types" class="place-tags"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Ratings Section -->
+            <h3 class="section-title mt-4">
+              <i class="fas fa-star me-2"></i>Your Ratings
+            </h3>
+            
+            <div class="row d-none">
+              <div class="col-md-12">
+                <div class="form-group">
+                  <label class="form-label">Category</label>
+                  {{ form.category|add_class:"form-control" }}
+                  {% if form.category.errors %}
+                    <div class="form-error">{{ form.category.errors.0 }}</div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            
+            <div class="ratings-container">
+              <div class="rating-form-group">
+                <label class="rating-label">Food</label>
+                <div class="rating-stars">
+                  <div class="star-container" data-rating="1" data-category="food_rating">
+                    <i class="fas fa-star"></i>
+                  </div>
+                  <div class="star-container" data-rating="2" data-category="food_rating">
+                    <i class="fas fa-star"></i>
+                  </div>
+                  <div class="star-container" data-rating="3" data-category="food_rating">
+                    <i class="fas fa-star"></i>
+                  </div>
+                  <div class="star-container" data-rating="4" data-category="food_rating">
+                    <i class="fas fa-star"></i>
+                  </div>
+                  <div class="star-container" data-rating="5" data-category="food_rating">
+                    <i class="fas fa-star"></i>
+                  </div>
+                </div>
+                <input type="hidden" name="food_rating" id="food_rating_input" value="3">
+                {% if form.food_rating.errors %}
+                  <div class="form-error">{{ form.food_rating.errors.0 }}</div>
+                {% endif %}
+              </div>
+              
+              <div class="rating-form-group">
+                <label class="rating-label">Ambience</label>
+                <div class="rating-stars">
+                  <div class="star-container" data-rating="1" data-category="ambience_rating">
+                    <i class="fas fa-star"></i>
+                  </div>
+                  <div class="star-container" data-rating="2" data-category="ambience_rating">
+                    <i class="fas fa-star"></i>
+                  </div>
+                  <div class="star-container" data-rating="3" data-category="ambience_rating">
+                    <i class="fas fa-star"></i>
+                  </div>
+                  <div class="star-container" data-rating="4" data-category="ambience_rating">
+                    <i class="fas fa-star"></i>
+                  </div>
+                  <div class="star-container" data-rating="5" data-category="ambience_rating">
+                    <i class="fas fa-star"></i>
+                  </div>
+                </div>
+                <input type="hidden" name="ambience_rating" id="ambience_rating_input" value="3">
+                {% if form.ambience_rating.errors %}
+                  <div class="form-error">{{ form.ambience_rating.errors.0 }}</div>
+                {% endif %}
+              </div>
+              
+              <div class="rating-form-group">
+                <label class="rating-label">Value</label>
+                <div class="rating-stars">
+                  <div class="star-container" data-rating="1" data-category="value_rating">
+                    <i class="fas fa-star"></i>
+                  </div>
+                  <div class="star-container" data-rating="2" data-category="value_rating">
+                    <i class="fas fa-star"></i>
+                  </div>
+                  <div class="star-container" data-rating="3" data-category="value_rating">
+                    <i class="fas fa-star"></i>
+                  </div>
+                  <div class="star-container" data-rating="4" data-category="value_rating">
+                    <i class="fas fa-star"></i>
+                  </div>
+                  <div class="star-container" data-rating="5" data-category="value_rating">
+                    <i class="fas fa-star"></i>
+                  </div>
+                </div>
+                <input type="hidden" name="value_rating" id="value_rating_input" value="3">
+                {% if form.value_rating.errors %}
+                  <div class="form-error">{{ form.value_rating.errors.0 }}</div>
+                {% endif %}
+              </div>
+
+              <div class="rating-form-group">
+                <label class="rating-label">Service</label>
+                <div class="rating-stars">
+                  <div class="star-container" data-rating="1" data-category="service_rating">
+                    <i class="fas fa-star"></i>
+                  </div>
+                  <div class="star-container" data-rating="2" data-category="service_rating">
+                    <i class="fas fa-star"></i>
+                  </div>
+                  <div class="star-container" data-rating="3" data-category="service_rating">
+                    <i class="fas fa-star"></i>
+                  </div>
+                  <div class="star-container" data-rating="4" data-category="service_rating">
+                    <i class="fas fa-star"></i>
+                  </div>
+                  <div class="star-container" data-rating="5" data-category="service_rating">
+                    <i class="fas fa-star"></i>
+                  </div>
+                </div>
+                <input type="hidden" name="service_rating" id="service_rating_input" value="3">
+                {% if form.service_rating.errors %}
+                  <div class="form-error">{{ form.service_rating.errors.0 }}</div>
+                {% endif %}
+              </div>
+              
+              <div class="rating-form-group overall-rating-group">
+                <label class="rating-label">Overall Rating</label>
+                <div class="rating-stars">
+                  <div class="star-container" data-rating="1" data-category="overall_rating">
+                    <i class="fas fa-star"></i>
+                  </div>
+                  <div class="star-container" data-rating="2" data-category="overall_rating">
+                    <i class="fas fa-star"></i>
+                  </div>
+                  <div class="star-container" data-rating="3" data-category="overall_rating">
+                    <i class="fas fa-star"></i>
+                  </div>
+                  <div class="star-container" data-rating="4" data-category="overall_rating">
+                    <i class="fas fa-star"></i>
+                  </div>
+                  <div class="star-container" data-rating="5" data-category="overall_rating">
+                    <i class="fas fa-star"></i>
+                  </div>
+                </div>
+                <input type="hidden" name="overall_rating" id="overall_rating_input" value="3">
+                {% if form.overall_rating.errors %}
+                  <div class="form-error">{{ form.overall_rating.errors.0 }}</div>
+                {% endif %}
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Review</label>
+              {{ form.content|add_class:"form-control" }}
+              {% if form.content.errors %}
+                <div class="form-error">{{ form.content.errors.0 }}</div>
+              {% endif %}
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Upload Image (Optional)</label>
+              <div class="image-upload-area">
+                <i class="fas fa-camera mb-2"></i>
+                <p class="mb-2">Upload an image</p>
+                {{ form.image|add_class:"form-control" }}
+              </div>
+              {% if form.image.errors %}
+                <div class="form-error">{{ form.image.errors.0 }}</div>
+              {% endif %}
+            </div>
+            
+            <div class="form-group mt-4">
+              <button type="submit" class="btn btn-primary">Submit Review</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.review-form-card {
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  padding: 2.5rem;
+  border: 1px solid #f1f3f4;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.form-section {
+  margin-bottom: 3rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.form-section:last-of-type {
+  border-bottom: none;
+  margin-bottom: 2rem;
+}
+
+.section-title {
+  color: #8B4513;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 3px solid #D2691E;
+  display: inline-block;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-label {
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.form-control {
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.form-control:focus {
+  border-color: #8B4513;
+  box-shadow: 0 0 0 0.2rem rgba(139, 69, 19, 0.25);
+}
+
+.form-error {
+  color: #dc3545;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+.image-upload-area {
+  border: 2px dashed #8B4513;
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  color: #8B4513;
+  background: #f8f9fa;
+  transition: all 0.2s ease;
+}
+
+.image-upload-area:hover {
+  background: #e9ecef;
+}
+
+.image-upload-area i {
+  font-size: 2rem;
+  color: #8B4513;
+}
+
+.ratings-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.rating-form-group {
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.rating-label {
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 1rem;
+  display: block;
+}
+
+.rating-stars {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.star-container {
+  cursor: pointer;
+  font-size: 1.5rem;
+  color: #DEB887;
+  transition: color 0.2s ease;
+}
+
+.star-container:hover,
+.star-container.active {
+  color: #FFD700;
+}
+
+.star-container.hover {
+  color: #FFD700;
+}
+
+/* Fix for star icons - make sure they inherit color from parent */
+.star-container i.fas {
+  color: inherit;
+}
+
+/* When parent is active, ensure the star is gold */
+.star-container.active i.fas {
+  color: #FFD700;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .review-form-card {
+    padding: 1.5rem;
+  }
+  
+  .rating-stars {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+}
+
+.place-search-wrapper {
+  position: relative;
+}
+
+.loading-indicator {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: none;
+  z-index: 5;
+}
+
+.place-search-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 250px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  z-index: 1000; /* Increased z-index */
+  display: none;
+}
+
+.place-result {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e9ecef;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.place-result:last-child {
+  border-bottom: none;
+}
+
+.place-result:hover {
+  background: #f8f9fa;
+}
+
+.place-name {
+  font-weight: 600;
+  color: #212529;
+  margin-bottom: 0.25rem;
+}
+
+.place-address {
+  font-size: 0.875rem;
+  color: #6c757d;
+  margin-bottom: 0.5rem;
+}
+
+/* New styles for the additional place details */
+.place-details {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.8rem;
+}
+
+.place-category {
+  background-color: #e9ecef;
+  color: #495057;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+.place-price {
+  color: #28a745;
+  font-weight: 600;
+}
+
+.place-rating {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #fd7e14;
+}
+
+.place-rating i {
+  font-size: 0.8rem;
+}
+
+/* New styles for the multi-step form structure */
+.form-step {
+  display: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.form-step.active {
+  display: block;
+  opacity: 1;
+}
+
+/* Styles for the place information card */
+.selected-place-card {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid #e9ecef;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.place-content-layout {
+  display: flex;
+  gap: 1rem;
+}
+
+.place-info-content {
+  flex: 1;
+}
+
+.place-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.place-title {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #212529;
+  font-weight: 700;
+}
+
+.place-rating-display {
+  background: #fff3cd;
+  color: #856404;
+  border-radius: 50px;
+  padding: 0.25rem 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-weight: 600;
+}
+
+.place-rating-display i {
+  color: #ffc107;
+}
+
+.place-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.place-detail {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.place-detail i {
+  color: #6c757d;
+  margin-top: 0.25rem;
+}
+
+.place-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.place-tag {
+  background: #e9ecef;
+  color: #495057;
+  border-radius: 50px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.place-photo-container {
+  width: 180px;
+  height: 180px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.place-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+/* Responsive layout for place details */
+@media (max-width: 576px) {
+  .place-content-layout {
+    flex-direction: column;
+  }
+  
+  .place-photo-container {
+    width: 100%;
+    height: auto;
+    max-height: 200px;
+    margin-bottom: 1rem;
+  }
+
+  .place-details-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .place-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .place-rating-display {
+    margin-top: 0.5rem;
+  }
+}
+
+.rating-stars {
+  font-size: 24px;
+  cursor: pointer;
+  color: #ddd;
+}
+
+.rating-stars i:hover ~ i {
+  color: #ddd;
+}
+
+.rating-label {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.category-rating {
+  margin-bottom: 15px;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Step navigation elements
+  const stepSearch = document.getElementById('step-search');
+  const combinedPlaceReview = document.getElementById('combined-place-review');
+  
+  // Place search elements
+  const placeSearchInput = document.getElementById('place-search');
+  const placeSearchResults = document.getElementById('place-search-results');
+  const placeNameInput = document.getElementById('place_name_field');
+  const locationInput = document.getElementById('location_field');
+  const placeIdInput = document.getElementById('place_id');
+  const categoryInput = document.getElementById('category_field');
+  
+  // Set default star ratings to 3
+  const ratingGroups = ['food_rating', 'ambience_rating', 'value_rating', 'service_rating', 'overall_rating'];
+  ratingGroups.forEach(group => {
+    const inputField = document.getElementById(`${group}_input`);
+    if (inputField) {
+      inputField.value = 3;
+      
+      // Set initial star highlighting
+      const stars = document.querySelectorAll(`.star-container[data-category="${group}"]`);
+      stars.forEach(star => {
+        const starRating = parseInt(star.getAttribute('data-rating'));
+        if (starRating <= 3) {
+          star.classList.add('active');
+        }
+      });
+    }
+  });
+
+  // Place info display elements
+  const selectedPlaceName = document.getElementById('selected-place-name');
+  const selectedPlaceRating = document.getElementById('selected-place-rating');
+  const selectedPlaceAddress = document.getElementById('selected-place-address');
+  const selectedPlaceWebsite = document.getElementById('selected-place-website');
+  const selectedPlaceWebsiteContainer = document.getElementById('selected-place-website-container');
+  const selectedPlacePhone = document.getElementById('selected-place-phone');
+  const selectedPlacePhoneContainer = document.getElementById('selected-place-phone-container');
+  const selectedPlaceTypes = document.getElementById('selected-place-types');
+  const selectedPlacePhoto = document.getElementById('selected-place-photo');
+  const loadingIndicator = document.getElementById('loading-indicator');
+  
+  // Function to navigate between steps
+  function showStep(step) {
+    // Hide all steps
+    stepSearch.classList.remove('active');
+    combinedPlaceReview.classList.remove('active');
+    
+    // Show the requested step
+    step.classList.add('active');
+    
+    // Scroll to top of the form
+    window.scrollTo({
+      top: step.offsetTop - 100,
+      behavior: 'smooth'
+    });
+  }
+  
+  // Star rating system - highlight all stars up to and including the selected one
+  const starContainers = document.querySelectorAll('.star-container');
+  
+  starContainers.forEach(container => {
+    const category = container.getAttribute('data-category');
+    const rating = parseInt(container.getAttribute('data-rating'));
+    const inputField = document.getElementById(`${category}_input`);
+    
+    container.addEventListener('mouseenter', function() {
+      const siblings = container.parentNode.querySelectorAll('.star-container');
+      siblings.forEach(sibling => {
+        const siblingRating = parseInt(sibling.getAttribute('data-rating'));
+        if (siblingRating <= rating) {
+          sibling.classList.add('hover');
+        } else {
+          sibling.classList.remove('hover');
+        }
+      });
+    });
+    
+    container.addEventListener('mouseleave', function() {
+      const siblings = container.parentNode.querySelectorAll('.star-container');
+      siblings.forEach(sibling => {
+        sibling.classList.remove('hover');
+      });
+    });
+    
+    container.addEventListener('click', function() {
+      if (inputField) {
+        inputField.value = rating;
+      }
+      const siblings = container.parentNode.querySelectorAll('.star-container');
+      siblings.forEach(sibling => {
+        const siblingRating = parseInt(sibling.getAttribute('data-rating'));
+        if (siblingRating <= rating) {
+          sibling.classList.add('active');
+        } else {
+          sibling.classList.remove('active');
+        }
+      });
+    });
+  });
+  
+  // Show loading indicator
+  function showLoading() {
+    loadingIndicator.style.display = 'flex';
+  }
+  
+  // Hide loading indicator
+  function hideLoading() {
+    loadingIndicator.style.display = 'none';
+  }
+  
+  let timeoutId;
+  
+  placeSearchInput.addEventListener('input', function() {
+    clearTimeout(timeoutId);
+    
+    // Wait for user to stop typing
+    timeoutId = setTimeout(() => {
+      const query = placeSearchInput.value.trim();
+      
+      if (query.length < 3) {
+        placeSearchResults.style.display = 'none';
+        return;
+      }
+      
+      // Show loading indicator while waiting for results
+      showLoading();
+      
+      // Call our backend endpoint that will proxy to Google Places API
+      fetch(`/api/place-search/?query=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(data => {
+          // Hide loading indicator
+          hideLoading();
+          
+          placeSearchResults.innerHTML = '';
+          
+          if (data.results && data.results.length > 0) {
+            // Show the results container
+            placeSearchResults.style.display = 'block';
+            
+            data.results.forEach(place => {
+              const placeElement = document.createElement('div');
+              placeElement.className = 'place-result';
+              placeElement.innerHTML = `
+                <div class="place-result-content">
+                  <div class="place-name">${place.name}</div>
+                  <div class="place-address">${place.formatted_address || place.short_address || place.vicinity || ''}</div>
+                  <div class="place-details">
+                    ${place.primary_type_display ? `<span class="place-category">${place.primary_type_display}</span>` : ''}
+                    ${place.price_level ? `<span class="place-price">${'$'.repeat(place.price_level)}</span>` : ''}
+                    ${place.rating ? `<span class="place-rating"><i class="fas fa-star"></i> ${place.rating.toFixed(1)}</span>` : ''}
+                  </div>
+                </div>
+              `;
+              
+              placeElement.addEventListener('click', function() {
+                // Store the place data in form fields
+                placeNameInput.value = place.name;
+                locationInput.value = place.formatted_address || place.short_address || place.vicinity || '';
+                placeIdInput.value = place.place_id;
+                
+                // Store the primary category in the category field
+                if (place.types && place.types.length > 0) {
+                  categoryInput.value = place.primary_type_display || place.types[0].replace(/_/g, ' ');
+                } else {
+                  categoryInput.value = "Other";
+                }
+                
+                // Populate hidden fields for additional place details
+                document.getElementById('place_website_field').value = place.website || '';
+                document.getElementById('place_phone_field').value = place.formatted_phone_number || '';
+                document.getElementById('place_tags_field').value = JSON.stringify(place.types || []);
+                document.getElementById('place_photo_url_field').value = selectedPlacePhoto.src || '';
+                
+                // Update the search input and hide results
+                placeSearchInput.value = place.name;
+                placeSearchResults.style.display = 'none';
+                
+                // Populate the place info card
+                selectedPlaceName.textContent = place.name;
+                
+                // Display rating if available
+                if (place.rating) {
+                  selectedPlaceRating.innerHTML = `<i class="fas fa-star"></i> ${place.rating.toFixed(1)} (${place.user_ratings_total || 0})`;
+                  selectedPlaceRating.style.display = 'flex';
+                } else {
+                  selectedPlaceRating.style.display = 'none';
+                }
+                
+                // Set address
+                selectedPlaceAddress.textContent = place.formatted_address || place.short_address || place.vicinity || '';
+                
+                // Set website if available
+                if (place.website) {
+                  selectedPlaceWebsite.href = place.website;
+                  selectedPlaceWebsite.textContent = place.website.replace(/^https?:\/\//, '').replace(/\/$/, '');
+                  selectedPlaceWebsiteContainer.style.display = 'flex';
+                } else {
+                  selectedPlaceWebsiteContainer.style.display = 'none';
+                }
+                
+                // Set phone if available
+                if (place.formatted_phone_number) {
+                  selectedPlacePhone.textContent = place.formatted_phone_number;
+                  selectedPlacePhoneContainer.style.display = 'flex';
+                } else {
+                  selectedPlacePhoneContainer.style.display = 'none';
+                }
+                
+                // Set types/categories
+                selectedPlaceTypes.innerHTML = '';
+                if (place.types && place.types.length > 0) {
+                  place.types.forEach(type => {
+                    const typeElement = document.createElement('span');
+                    typeElement.className = 'place-tag';
+                    typeElement.textContent = type.replace(/_/g, ' ');
+                    selectedPlaceTypes.appendChild(typeElement);
+                  });
+                }
+                
+                // Update the logic to handle JSON response from /api/place-photo/
+                if (place.photos && place.photos.length > 0 && place.photos[0].photo_reference) {
+                  const photoReference = place.photos[0].photo_reference;
+                  const timestamp = new Date().getTime(); // Unique timestamp
+                  const photoApiUrl = `/api/place-photo/?reference=${photoReference}&maxwidth=400&_=${timestamp}`;
+                  console.log(`Fetching photo from: ${photoApiUrl}`); // Debug log
+
+                  // Fetch the photo URL from the API
+                  fetch(photoApiUrl)
+                    .then(response => response.json())
+                    .then(data => {
+                      if (data.photo_url) {
+                        console.log(`Photo URL received: ${data.photo_url}`); // Debug log
+                        selectedPlacePhoto.src = data.photo_url;
+                        // Update the hidden field with the actual photo URL
+                        document.getElementById('place_photo_url_field').value = data.photo_url;
+                      } else {
+                        console.log('No photo_url in response. Using placeholder image.');
+                        selectedPlacePhoto.src = 'https://via.placeholder.com/400x200?text=No+Image+Available';
+                      }
+                    })
+                    .catch(error => {
+                      console.error('Error fetching photo:', error);
+                      selectedPlacePhoto.src = 'https://via.placeholder.com/400x200?text=No+Image+Available';
+                    });
+                } else if (place.photo_reference) {
+                  const timestamp = new Date().getTime(); // Unique timestamp
+                  const photoApiUrl = `/api/place-photo/?reference=${encodeURIComponent(place.photo_reference)}&maxwidth=400&_=${timestamp}`;
+                  console.log(`Fetching photo from: ${photoApiUrl}`); // Debug log
+
+                  // Fetch the photo URL from the API
+                  fetch(photoApiUrl)
+                    .then(response => response.json())
+                    .then(data => {
+                      if (data.photo_url) {
+                        console.log(`Photo URL received: ${data.photo_url}`); // Debug log
+                        selectedPlacePhoto.src = data.photo_url;
+                        // Update the hidden field with the actual photo URL
+                        document.getElementById('place_photo_url_field').value = data.photo_url;
+                      } else {
+                        console.log('No photo_url in response. Using placeholder image.');
+                        selectedPlacePhoto.src = 'https://via.placeholder.com/400x200?text=No+Image+Available';
+                      }
+                    })
+                    .catch(error => {
+                      console.error('Error fetching photo:', error);
+                      selectedPlacePhoto.src = 'https://via.placeholder.com/400x200?text=No+Image+Available';
+                    });
+                } else {
+                  console.log('No photo_reference available for this place. Using placeholder image.');
+                  selectedPlacePhoto.src = 'https://via.placeholder.com/400x200?text=No+Image+Available';
+                }
+                
+                // Show the combined place info and review form
+                showStep(combinedPlaceReview);
+              });
+              
+              placeSearchResults.appendChild(placeElement);
+            });
+          } else {
+            // No results found
+            placeSearchResults.style.display = 'block';
+            placeSearchResults.innerHTML = '<div class="place-result">No places found. Try a different search.</div>';
+          }
+        })
+        .catch(error => {
+          console.error('Error fetching place data:', error);
+          hideLoading();
+          placeSearchResults.style.display = 'block';
+          placeSearchResults.innerHTML = '<div class="place-result">Error fetching place data. Please try again.</div>';
+        });
+    }, 500);
+  });
+  
+  // Hide search results when clicking outside
+  document.addEventListener('click', function(e) {
+    if (!placeSearchInput.contains(e.target) && !placeSearchResults.contains(e.target)) {
+      placeSearchResults.style.display = 'none';
+    }
+  });
+  
+  // Handle form submission
+  const reviewForm = document.getElementById('review-form');
+  if (reviewForm) {
+    reviewForm.addEventListener('submit', function(e) {
+      // Prevent default submission
+      e.preventDefault();
+      
+      // Check if place_id is set
+      if (!placeIdInput.value) {
+        alert('Please search and select a place to review first');
+        showStep(stepSearch);
+        return false;
+      }
+      
+      // Check if category is set
+      if (!categoryInput.value) {
+        // If not set, use the first place type or "Other" as fallback
+        if (selectedPlaceTypes.querySelector('.place-tag')) {
+          categoryInput.value = selectedPlaceTypes.querySelector('.place-tag').textContent;
+        } else {
+          categoryInput.value = "Other";
+        }
+      }
+      
+      // Check if ratings are set
+      const foodRating = document.getElementById('food_rating_input').value;
+      const ambienceRating = document.getElementById('ambience_rating_input').value;
+      const valueRating = document.getElementById('value_rating_input').value;
+      const serviceRating = document.getElementById('service_rating_input').value;
+      const overallRating = document.getElementById('overall_rating_input').value;
+      
+      if (!foodRating || !ambienceRating || !valueRating || !serviceRating || !overallRating) {
+        alert('Please provide ratings for all categories');
+        return false;
+      }
+      
+      // Check if review content is provided
+      const content = document.querySelector('textarea[name="content"]').value.trim();
+      if (!content) {
+        alert('Please provide a review');
+        return false;
+      }
+      
+      // Submit the form
+      this.submit();
+    });
+  }
+});
+</script>
+
+{% block scripts %}
+<!-- Removed the duplicate mock search implementation that was overriding the real search results -->
+{% endblock %}
+{% endblock %}

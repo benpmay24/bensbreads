@@ -3,8 +3,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
-from .models import BlogPost, Recipe, Ingredient, Instruction, RamseyPhoto, Connect4Result, WordFindScore, Comment
-from .forms import BlogPostForm, RecipeForm, RamseyPhotoForm, CustomUserCreationForm, IngredientForm, InstructionForm
+from .models import BlogPost, Recipe, Ingredient, Instruction, RamseyPhoto, Connect4Result, WordFindScore, Comment, Review
+from .forms import BlogPostForm, RecipeForm, RamseyPhotoForm, CustomUserCreationForm, IngredientForm, InstructionForm, ReviewForm
 from django.db import transaction
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -14,6 +14,8 @@ from .connect4.generate_default import generateDefault
 from django.http import HttpResponse
 from django.forms import inlineformset_factory
 import requests
+from django.conf import settings
+from django.views.decorators.http import require_GET
 
 # Home, Games, About, Blog, Signup, Manage Users views — same as you wrote
 
@@ -36,7 +38,7 @@ def blog(request):
     if request.method == 'POST' and request.user.is_authenticated:
         post_id = request.POST.get('post_id')
         comment_text = request.POST.get('comment', '').strip()
-        if post_id and comment_text:
+        if (post_id and comment_text):
             try:
                 post = BlogPost.objects.get(id=post_id)
                 Comment.objects.create(
@@ -396,3 +398,360 @@ def save_word_find_result(request):
             WordFindScore.objects.create(user=request.user, score=score)
             return JsonResponse({'status': 'success'})
         return JsonResponse({'status': 'invalid score'}, status=400)
+
+def reviews(request):
+    """Display recent reviews with filter options."""
+    # Get filter parameters from the request
+    tag_filter = request.GET.get('tag', None)
+    reviewer_filter = request.GET.get('reviewer', None)
+    city_filter = request.GET.get('city', None)
+    
+    # Start with all reviews
+    reviews_query = Review.objects.all()
+    
+    # Apply filters if present
+    if tag_filter:
+        # Instead of using contains lookup on JSON field which isn't supported by SQLite,
+        # we'll filter after we get the queryset results
+        pass
+    
+    if reviewer_filter:
+        reviews_query = reviews_query.filter(author_id=reviewer_filter)
+    
+    if city_filter:
+        # Now use the dedicated city field instead of location
+        reviews_query = reviews_query.filter(city=city_filter)
+    
+    # Order by most recent
+    reviews_query = reviews_query.order_by('-created_at')
+    
+    # If we have a tag filter, manually filter the queryset after database retrieval
+    if tag_filter:
+        filtered_reviews = []
+        for review in reviews_query:
+            if review.place_tags and any(tag_filter.lower() in tag.lower().replace('_', ' ') for tag in review.place_tags):
+                filtered_reviews.append(review)
+        recent_reviews = filtered_reviews[:12]  # Limit to 12 results
+    else:
+        recent_reviews = reviews_query[:12]  # Limit to 12 results
+    
+    # Get all unique tags from all reviews for the filter dropdown
+    all_tags = set()
+    for review in Review.objects.all():
+        if review.place_tags:
+            for tag in review.place_tags:
+                all_tags.add(tag.replace('_', ' ').title())
+    
+    # Get all reviewers who have written reviews
+    reviewers = User.objects.filter(reviews__isnull=False).distinct()
+    
+    # Get all cities from the dedicated city field
+    cities = Review.objects.exclude(city__isnull=True).exclude(city='').values_list('city', flat=True).distinct()
+    
+    return render(request, 'reviews.html', {
+        'recent_reviews': recent_reviews,
+        'all_tags': sorted(all_tags),
+        'reviewers': reviewers,
+        'cities': sorted(cities),
+        'active_tag': tag_filter,
+        'active_reviewer': reviewer_filter,
+        'active_city': city_filter,
+    })
+
+def review_detail(request, pk):
+    """Display a specific review."""
+    review = get_object_or_404(Review, pk=pk)
+    return render(request, 'review_detail.html', {'review': review})
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+def add_review(request):
+    """Add a new review."""
+    if request.method == 'POST':
+        form = ReviewForm(request.POST, request.FILES)
+        if form.is_valid():
+            review = form.save(commit=False)
+            review.author = request.user
+
+            # Use the correct key to fetch the category
+            category = request.POST.get('category')
+            review.category = category if category else 'Uncategorized'
+
+            # Parse and store address components
+            location = request.POST.get('location', '')
+            review.location = location  # Keep the full address for backward compatibility
+            
+            # Parse address components (basic implementation)
+            if location:
+                parts = location.split(',')
+                if len(parts) >= 3:  # Format: Street, City, State ZIP
+                    review.street_address = parts[0].strip()
+                    review.city = parts[1].strip()
+                    state_zip = parts[2].strip().split(' ', 1)
+                    review.state = state_zip[0].strip()
+                    if len(state_zip) > 1:
+                        review.zip_code = state_zip[1].strip()
+                elif len(parts) == 2:  # Format: City, State
+                    review.city = parts[0].strip()
+                    review.state = parts[1].strip()
+                elif len(parts) == 1:  # Just a city or location name
+                    review.city = parts[0].strip()
+
+            # Save additional place details
+            review.place_website = request.POST.get('place_website', '')
+            review.place_phone = request.POST.get('place_phone', '')
+            review.place_tags = json.loads(request.POST.get('place_tags', '[]'))  # Expecting JSON array
+            review.place_photo_url = request.POST.get('place_photo_url', '')
+
+            review.save()
+            return redirect('review_detail', pk=review.id)
+    else:
+        form = ReviewForm()
+
+    return render(request, 'add_review.html', {
+        'form': form,
+    })
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+def edit_review(request, pk):
+    """Edit an existing review."""
+    review = get_object_or_404(Review, id=pk)
+    
+    if request.method == 'POST':
+        form = ReviewForm(request.POST, request.FILES, instance=review)
+        if form.is_valid():
+            review = form.save(commit=False)
+            
+            # Use the correct key to fetch the category
+            category = request.POST.get('category')
+            review.category = category if category else 'Uncategorized'
+
+            # Parse and store address components
+            location = request.POST.get('location', '')
+            review.location = location  # Keep the full address for backward compatibility
+            
+            # Parse address components (basic implementation)
+            if location:
+                parts = location.split(',')
+                if len(parts) >= 3:  # Format: Street, City, State ZIP
+                    review.street_address = parts[0].strip()
+                    review.city = parts[1].strip()
+                    state_zip = parts[2].strip().split(' ', 1)
+                    review.state = state_zip[0].strip()
+                    if len(state_zip) > 1:
+                        review.zip_code = state_zip[1].strip()
+                elif len(parts) == 2:  # Format: City, State
+                    review.city = parts[0].strip()
+                    review.state = parts[1].strip()
+                elif len(parts) == 1:  # Just a city or location name
+                    review.city = parts[0].strip()
+
+            # Save additional place details
+            review.place_website = request.POST.get('place_website', '')
+            review.place_phone = request.POST.get('place_phone', '')
+            
+            # Handle place_tags specially - it might be already a JSON string
+            place_tags = request.POST.get('place_tags', '[]')
+            try:
+                # First, try to parse it as JSON
+                json.loads(place_tags)
+                # If it parsed successfully, it's already a JSON string
+                review.place_tags = json.loads(place_tags)
+            except json.JSONDecodeError:
+                # If it's not valid JSON, check if it's already a Python list
+                if isinstance(review.place_tags, list):
+                    # Keep it as is
+                    pass
+                else:
+                    # Set to empty list as fallback
+                    review.place_tags = []
+            
+            review.place_photo_url = request.POST.get('place_photo_url', '')
+
+            review.save()
+            return redirect('review_detail', pk=review.id)
+    else:
+        form = ReviewForm(instance=review)
+    
+    # Serialize place_tags to JSON for the template
+    place_tags_json = json.dumps(review.place_tags) if review.place_tags else '[]'
+    
+    return render(request, 'edit_review.html', {
+        'form': form,
+        'review': review,
+        'place_tags_json': place_tags_json,
+    })
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+def delete_review(request, pk):
+    """Delete a review."""
+    review = get_object_or_404(Review, pk=pk)
+    if request.method == 'POST':
+        review.delete()
+        return redirect('reviews')
+    
+    return redirect('review_detail', pk=review.pk)
+
+@require_GET
+def place_search(request):
+    """
+    Proxy endpoint for Google Places API search (using the new Places API)
+    """
+    query = request.GET.get('query', '')
+    if not query:
+        return JsonResponse({'error': 'Query parameter is required'}, status=400)
+    
+    # Get API key from settings
+    api_key = settings.GOOGLE_PLACES_API_KEY if hasattr(settings, 'GOOGLE_PLACES_API_KEY') else ''
+    
+    if not api_key:
+        # For development, return mock data that includes the search query
+        return JsonResponse({
+            'results': [
+                {
+                    'place_id': 'mock_place_id_1',
+                    'name': f"{query} Restaurant",
+                    'formatted_address': f"123 Main St, San Francisco, CA 94105",
+                    'vicinity': 'San Francisco',
+                    'types': ['restaurant', 'food', 'point_of_interest', 'establishment'],
+                    'price_level': 2,
+                    'rating': 4.3,
+                    'user_ratings_total': 253,
+                    'photo_url': 'https://via.placeholder.com/150',
+                    'website': 'https://example.com',
+                    'phone_number': '+1 (555) 123-4567'
+                },
+                {
+                    'place_id': 'mock_place_id_2',
+                    'name': f"Another {query} Place",
+                    'formatted_address': f"456 Market St, San Francisco, CA 94103",
+                    'vicinity': 'San Francisco',
+                    'types': ['cafe', 'bakery', 'food', 'point_of_interest', 'establishment'],
+                    'price_level': 1,
+                    'rating': 4.7,
+                    'user_ratings_total': 128,
+                    'photo_url': 'https://via.placeholder.com/150',
+                    'website': 'https://example.com/cafe',
+                    'phone_number': '+1 (555) 987-6543'
+                }
+            ]
+        })
+    
+    # Try using the Places API with expanded field mask
+    url = 'https://places.googleapis.com/v1/places:searchText'
+    headers = {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': api_key,
+        'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.id,places.types,places.priceLevel,places.rating,places.userRatingCount,places.photos,places.primaryType,places.shortFormattedAddress,places.internationalPhoneNumber,places.websiteUri,places.primaryTypeDisplayName'
+    }
+    
+    # Just use the textQuery parameter which is required
+    payload = {
+        'textQuery': f"{query} restaurant"  # Add "restaurant" to bias toward food places
+    }
+    
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        data = response.json()
+        
+        # Transform the response to match the format expected by the frontend
+        if 'places' in data:
+            transformed_results = []
+            for place in data['places']:
+                # Get the first photo if available
+                photo_url = None
+                if place.get('photos') and len(place.get('photos', [])) > 0:
+                    # If you want to fetch the actual photo, you'd need another API call
+                    # For now, just note that a photo is available
+                    photo_reference = place.get('photos', [])[0].get('name', '')
+                    if photo_reference:
+                        photo_url = f"Photo available (reference: {photo_reference})"
+                
+                result = {
+                    'place_id': place.get('id', ''),
+                    'name': place.get('displayName', {}).get('text', ''),
+                    'formatted_address': place.get('formattedAddress', ''),
+                    'short_address': place.get('shortFormattedAddress', ''),
+                    'types': place.get('types', []),
+                    'primary_type': place.get('primaryType', ''),
+                    'primary_type_display': place.get('primaryTypeDisplayName', {}).get('text', ''),
+                    'price_level': place.get('priceLevel', 0),
+                    'rating': place.get('rating', 0),
+                    'user_ratings_total': place.get('userRatingCount', 0),
+                    'photo_reference': photo_reference if 'photo_reference' in locals() else None,
+                    'photo_url': photo_url,
+                    'website': place.get('websiteUri', ''),
+                    'phone_number': place.get('internationalPhoneNumber', '')
+                }
+                transformed_results.append(result)
+            
+            return JsonResponse({'results': transformed_results})
+        return JsonResponse(data)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@require_GET
+def place_photo(request):
+    """
+    Proxy endpoint for Google Places API photos
+    """
+    photo_reference = request.GET.get('reference', '')
+    max_width = request.GET.get('maxwidth', 400)
+    max_height = request.GET.get('maxheight', 400)
+
+    if not photo_reference:
+        return JsonResponse({'error': 'Photo reference parameter is required'}, status=400)
+
+    # Get API key from settings
+    api_key = settings.GOOGLE_PLACES_API_KEY if hasattr(settings, 'GOOGLE_PLACES_API_KEY') else ''
+
+    if not api_key:
+        return JsonResponse({'photo_url': 'https://via.placeholder.com/400x200?text=No+API+Key'})
+
+    # Handle both formats of photo references
+    if photo_reference.startswith('places/'):  # New Places API format
+        parts = photo_reference.split('/')
+        if len(parts) >= 4 and parts[2] == 'photos':
+            photo_name = parts[3]
+            url = f'https://places.googleapis.com/v1/places/{parts[1]}/photos/{photo_name}/media'
+            query_params = []
+            if max_width:
+                query_params.append(f'max_width_px={int(max_width)}')
+            if max_height:
+                query_params.append(f'max_height_px={int(max_height)}')
+            if not query_params:
+                query_params.append('max_width_px=400')
+            url = f"{url}?{'&'.join(query_params)}"
+            headers = {'X-Goog-Api-Key': api_key}
+            try:
+                response = requests.get(url, headers=headers, allow_redirects=False)
+                if response.status_code == 302:
+                    photo_url = response.headers.get('Location')
+                    return JsonResponse({'photo_url': photo_url})
+                elif response.status_code == 200:
+                    return JsonResponse({'photo_url': url})
+                else:
+                    return JsonResponse({'error': f'API returned status {response.status_code}'}, status=response.status_code)
+            except Exception as e:
+                return JsonResponse({'error': str(e)}, status=500)
+        else:
+            return JsonResponse({'error': 'Invalid photo reference format'}, status=400)
+    else:  # Legacy Places API format
+        url = 'https://maps.googleapis.com/maps/api/place/photo'
+        params = {
+            'photoreference': photo_reference,
+            'maxwidth': max_width,
+            'maxheight': max_height,
+            'key': api_key
+        }
+        try:
+            response = requests.get(url, params=params, allow_redirects=False)
+            if response.status_code == 302:
+                photo_url = response.headers.get('Location')
+                return JsonResponse({'photo_url': photo_url})
+            else:
+                return JsonResponse({'error': f'API returned status {response.status_code}'}, status=response.status_code)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)

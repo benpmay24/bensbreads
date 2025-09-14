@@ -1,0 +1,585 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load widget_tweaks %}
+{% block title %}Edit Review | Ben's Breads{% endblock %}
+
+{% block content %}
+<!-- Hero Header -->
+<div class="hero-header text-center">
+  <div class="hero-content">
+    <h1 class="hero-title">Edit Review</h1>
+    <div class="hero-divider"></div>
+  </div>
+</div>
+
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <!-- Place Information Card (Read-only) -->
+      <div class="place-info-card mb-4">
+        <h3 class="section-title">
+          <i class="fas fa-info-circle me-2"></i>Place Information
+        </h3>
+        
+        <!-- Place card similar to review_detail -->
+        <div class="selected-place-card">
+          <div class="place-content-layout">
+            <div class="place-photo-container">
+              {% if review.place_photo_url %}
+                <img class="place-photo" src="{{ review.place_photo_url }}" alt="{{ review.place_name }}">
+              {% else %}
+                <img class="place-photo" src="https://via.placeholder.com/400x200?text=No+Image+Available" alt="Place photo">
+              {% endif %}
+            </div>
+            
+            <div class="place-info-content">
+              <div class="place-header">
+                <h4 class="place-title">{{ review.place_name }}</h4>
+                {% if review.place_rating %}
+                <div class="place-rating-display">
+                  <i class="fas fa-star"></i> {{ review.place_rating }}{% if review.place_rating_count %} ({{ review.place_rating_count }}){% endif %}
+                </div>
+                {% endif %}
+              </div>
+              
+              <div class="place-details-grid">
+                <div class="place-detail">
+                  <i class="fas fa-map-marker-alt"></i>
+                  <span>{{ review.location }}</span>
+                </div>
+                
+                {% if review.place_website %}
+                <div class="place-detail">
+                  <i class="fas fa-globe"></i>
+                  <a href="{{ review.place_website }}" target="_blank">{{ review.place_website|cut:'https://'|cut:'http://'|cut:'/' }}</a>
+                </div>
+                {% endif %}
+                
+                {% if review.place_phone %}
+                <div class="place-detail">
+                  <i class="fas fa-phone"></i>
+                  <span>{{ review.place_phone }}</span>
+                </div>
+                {% endif %}
+                
+                <div class="place-detail">
+                  <i class="fas fa-tag"></i>
+                  <div class="place-tags">
+                    {% if review.place_tags %}
+                      {% for tag in review.place_tags %}
+                        <span class="place-tag">{{ tag }}</span>
+                      {% endfor %}
+                    {% else %}
+                      <span class="place-tag">{{ review.category }}</span>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Editable Review Form -->
+      <div class="review-form-card">
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          
+          <!-- Hidden fields to preserve place information -->
+          <input type="hidden" name="place_name" value="{{ review.place_name }}">
+          <input type="hidden" name="location" value="{{ review.location }}">
+          <input type="hidden" name="place_id" value="{{ review.place_id }}">
+          <input type="hidden" name="category" value="{{ review.category }}">
+          <input type="hidden" name="place_website" value="{{ review.place_website }}">
+          <input type="hidden" name="place_phone" value="{{ review.place_phone }}">
+          <input type="hidden" name="place_photo_url" value="{{ review.place_photo_url }}">
+          <!-- Use the pre-serialized JSON from the view -->
+          <input type="hidden" name="place_tags" value="{{ place_tags_json }}">
+          
+          <!-- Ratings Section -->
+          <div class="form-section">
+            <h3 class="section-title">
+              <i class="fas fa-star me-2"></i>Ratings
+            </h3>
+            
+            <div class="ratings-container">
+              <div class="rating-form-group">
+                <label class="rating-label">Food</label>
+                <div class="rating-stars">
+                  {% for i in "12345" %}
+                    <div class="star-container {% if forloop.counter <= review.food_rating %}active{% endif %}" data-rating="{{ forloop.counter }}" data-category="food_rating">
+                      <i class="fas fa-star"></i>
+                    </div>
+                  {% endfor %}
+                </div>
+                <input type="hidden" name="food_rating" id="food_rating_input" value="{{ review.food_rating }}">
+                {% if form.food_rating.errors %}
+                  <div class="form-error">{{ form.food_rating.errors.0 }}</div>
+                {% endif %}
+              </div>
+              
+              <div class="rating-form-group">
+                <label class="rating-label">Ambience</label>
+                <div class="rating-stars">
+                  {% for i in "12345" %}
+                    <div class="star-container {% if forloop.counter <= review.ambience_rating %}active{% endif %}" data-rating="{{ forloop.counter }}" data-category="ambience_rating">
+                      <i class="fas fa-star"></i>
+                    </div>
+                  {% endfor %}
+                </div>
+                <input type="hidden" name="ambience_rating" id="ambience_rating_input" value="{{ review.ambience_rating }}">
+                {% if form.ambience_rating.errors %}
+                  <div class="form-error">{{ form.ambience_rating.errors.0 }}</div>
+                {% endif %}
+              </div>
+              
+              <div class="rating-form-group">
+                <label class="rating-label">Value</label>
+                <div class="rating-stars">
+                  {% for i in "12345" %}
+                    <div class="star-container {% if forloop.counter <= review.value_rating %}active{% endif %}" data-rating="{{ forloop.counter }}" data-category="value_rating">
+                      <i class="fas fa-star"></i>
+                    </div>
+                  {% endfor %}
+                </div>
+                <input type="hidden" name="value_rating" id="value_rating_input" value="{{ review.value_rating }}">
+                {% if form.value_rating.errors %}
+                  <div class="form-error">{{ form.value_rating.errors.0 }}</div>
+                {% endif %}
+              </div>
+              
+              <div class="rating-form-group">
+                <label class="rating-label">Service</label>
+                <div class="rating-stars">
+                  {% for i in "12345" %}
+                    <div class="star-container {% if forloop.counter <= review.service_rating %}active{% endif %}" data-rating="{{ forloop.counter }}" data-category="service_rating">
+                      <i class="fas fa-star"></i>
+                    </div>
+                  {% endfor %}
+                </div>
+                <input type="hidden" name="service_rating" id="service_rating_input" value="{{ review.service_rating }}">
+                {% if form.service_rating.errors %}
+                  <div class="form-error">{{ form.service_rating.errors.0 }}</div>
+                {% endif %}
+              </div>
+              
+              <div class="rating-form-group overall-rating-group">
+                <label class="rating-label">Overall Rating</label>
+                <div class="rating-stars">
+                  {% for i in "12345" %}
+                    <div class="star-container {% if forloop.counter <= review.overall_rating %}active{% endif %}" data-rating="{{ forloop.counter }}" data-category="overall_rating">
+                      <i class="fas fa-star"></i>
+                    </div>
+                  {% endfor %}
+                </div>
+                <input type="hidden" name="overall_rating" id="overall_rating_input" value="{{ review.overall_rating }}">
+                {% if form.overall_rating.errors %}
+                  <div class="form-error">{{ form.overall_rating.errors.0 }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          
+          <!-- Review Content Section -->
+          <div class="form-section">
+            <h3 class="section-title">
+              <i class="fas fa-pen me-2"></i>Review
+            </h3>
+            
+            <div class="form-group">
+              <label class="form-label">Your Review</label>
+              {{ form.content|add_class:"form-control" }}
+              {% if form.content.errors %}
+                <div class="form-error">{{ form.content.errors.0 }}</div>
+              {% endif %}
+            </div>
+          </div>
+          
+          <!-- Photo Upload Section -->
+          <div class="form-section">
+            <h3 class="section-title">
+              <i class="fas fa-camera me-2"></i>Photo
+            </h3>
+            
+            <div class="form-group">
+              {% if review.image %}
+                <div class="current-image-preview mb-3">
+                  <img src="{{ review.image.url }}" alt="Current review image" class="current-image">
+                  <p class="current-image-label">Current Image</p>
+                </div>
+              {% endif %}
+              
+              <label class="form-label">{% if review.image %}Change Photo (Optional){% else %}Upload Photo (Optional){% endif %}</label>
+              <div class="image-upload-area">
+                <i class="fas fa-camera mb-2"></i>
+                <p class="mb-2">{% if review.image %}Replace image{% else %}Upload an image{% endif %}</p>
+                {{ form.image|add_class:"form-control" }}
+              </div>
+              {% if form.image.errors %}
+                <div class="form-error">{{ form.image.errors.0 }}</div>
+              {% endif %}
+            </div>
+          </div>
+          
+          <!-- Form Actions -->
+          <div class="form-actions">
+            <div class="d-flex justify-content-between">
+              <a href="{% url 'review_detail' review.id %}" class="btn btn-outline-secondary">
+                <i class="fas fa-times me-2"></i>Cancel
+              </a>
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save me-2"></i>Update Review
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.place-info-card, .review-form-card {
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  padding: 2rem;
+  border: 1px solid #f1f3f4;
+}
+
+.form-section {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.form-section:last-of-type {
+  border-bottom: none;
+  margin-bottom: 1.5rem;
+}
+
+.section-title {
+  color: #8B4513;
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 3px solid #D2691E;
+  display: inline-block;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-label {
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.form-control {
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.form-control:focus {
+  border-color: #8B4513;
+  box-shadow: 0 0 0 0.2rem rgba(139, 69, 19, 0.25);
+}
+
+.form-error {
+  color: #dc3545;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+.current-image-preview {
+  text-align: center;
+}
+
+.current-image {
+  max-width: 100%;
+  height: auto;
+  max-height: 300px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.current-image-label {
+  font-size: 0.875rem;
+  color: #6c757d;
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+}
+
+.image-upload-area {
+  border: 2px dashed #8B4513;
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  color: #8B4513;
+  background: #f8f9fa;
+  transition: all 0.2s ease;
+}
+
+.image-upload-area:hover {
+  background: #e9ecef;
+}
+
+.image-upload-area i {
+  font-size: 2rem;
+  color: #8B4513;
+}
+
+.ratings-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.rating-form-group {
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.rating-label {
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 0.75rem;
+  display: block;
+}
+
+.rating-stars {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.star-container {
+  cursor: pointer;
+  font-size: 1.5rem;
+  color: #DEB887;
+  transition: color 0.2s ease;
+}
+
+.star-container:hover,
+.star-container.active {
+  color: #FFD700;
+}
+
+.star-container.hover {
+  color: #FFD700;
+}
+
+.star-container i.fas {
+  color: inherit;
+}
+
+.star-container.active i.fas {
+  color: #FFD700;
+}
+
+.overall-rating-group {
+  background-color: #FFF8E1;
+  border-color: #FFE082;
+}
+
+.form-actions {
+  padding-top: 1.5rem;
+  margin-top: 1.5rem;
+  border-top: 1px solid #e9ecef;
+}
+
+.btn {
+  padding: 0.5rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.btn-primary {
+  background-color: #8B4513;
+  border-color: #8B4513;
+}
+
+.btn-primary:hover {
+  background-color: #D2691E;
+  border-color: #D2691E;
+}
+
+/* Place card styles */
+.selected-place-card {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid #e9ecef;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.place-content-layout {
+  display: flex;
+  gap: 1rem;
+}
+
+.place-info-content {
+  flex: 1;
+}
+
+.place-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.place-title {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #212529;
+  font-weight: 700;
+}
+
+.place-rating-display {
+  background: #fff3cd;
+  color: #856404;
+  border-radius: 50px;
+  padding: 0.25rem 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-weight: 600;
+}
+
+.place-rating-display i {
+  color: #ffc107;
+}
+
+.place-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.place-detail {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.place-detail i {
+  color: #6c757d;
+  margin-top: 0.25rem;
+}
+
+.place-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.place-tag {
+  background: #e9ecef;
+  color: #495057;
+  border-radius: 50px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.place-photo-container {
+  width: 180px;
+  height: 180px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.place-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .place-content-layout {
+    flex-direction: column;
+  }
+  
+  .place-photo-container {
+    width: 100%;
+    height: auto;
+    max-height: 200px;
+    margin-bottom: 1rem;
+  }
+
+  .place-details-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .place-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .place-rating-display {
+    margin-top: 0.5rem;
+  }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Star rating system
+  const starContainers = document.querySelectorAll('.star-container');
+  
+  starContainers.forEach(container => {
+    const category = container.getAttribute('data-category');
+    const rating = parseInt(container.getAttribute('data-rating'));
+    const inputField = document.getElementById(`${category}_input`);
+    
+    container.addEventListener('mouseenter', function() {
+      const siblings = container.parentNode.querySelectorAll('.star-container');
+      siblings.forEach(sibling => {
+        const siblingRating = parseInt(sibling.getAttribute('data-rating'));
+        if (siblingRating <= rating) {
+          sibling.classList.add('hover');
+        } else {
+          sibling.classList.remove('hover');
+        }
+      });
+    });
+    
+    container.addEventListener('mouseleave', function() {
+      const siblings = container.parentNode.querySelectorAll('.star-container');
+      siblings.forEach(sibling => {
+        sibling.classList.remove('hover');
+      });
+    });
+    
+    container.addEventListener('click', function() {
+      if (inputField) {
+        inputField.value = rating;
+      }
+      const siblings = container.parentNode.querySelectorAll('.star-container');
+      siblings.forEach(sibling => {
+        const siblingRating = parseInt(sibling.getAttribute('data-rating'));
+        if (siblingRating <= rating) {
+          sibling.classList.add('active');
+        } else {
+          sibling.classList.remove('active');
+        }
+      });
+    });
+  });
+});
+</script>
+{% endblock %}

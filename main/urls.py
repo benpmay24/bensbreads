@@ -35,4 +35,15 @@ urlpatterns = [
     path('api/validate-word/', views.validate_word, name='validate_word'),
     path('api/word-find-leaderboard/', views.word_find_leaderboard, name='word_find_leaderboard'),
     path('api/save-word-find-result/', views.save_word_find_result, name='save_word_find_result'),
+
+    # Reviews URLs
+    path('reviews/', views.reviews, name='reviews'),
+    path('reviews/<int:pk>/', views.review_detail, name='review_detail'),
+    path('reviews/add/', views.add_review, name='add_review'),
+    path('reviews/<int:pk>/edit/', views.edit_review, name='edit_review'),
+    path('reviews/<int:pk>/delete/', views.delete_review, name='delete_review'),
+    
+    # Google Places API proxy
+    path('api/place-search/', views.place_search, name='place_search'),
+    path('api/place-photo/', views.place_photo, name='place_photo'),
 ]

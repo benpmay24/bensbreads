@@ -177,3 +177,7 @@ else:
     AWS_S3_REGION_NAME = 'us-east-2'  # replace if needed
     AWS_QUERYSTRING_AUTH = False  # Makes uploaded files public (can be True for private media)
     MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/'
+
+# Google Places API settings
+GOOGLE_PLACES_API_KEY = os.environ.get('GOOGLE_PLACES_API_KEY', '')
+# Use the same API key for Google Maps
