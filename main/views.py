@@ -445,8 +445,12 @@ def reviews(request):
     # Get all reviewers who have written reviews
     reviewers = User.objects.filter(reviews__isnull=False).distinct()
     
-    # Get all cities from the dedicated city field
-    cities = Review.objects.exclude(city__isnull=True).exclude(city='').values_list('city', flat=True).distinct()
+    # Get all cities from the dedicated city field - use a set to ensure uniqueness
+    cities_raw = Review.objects.exclude(city__isnull=True).exclude(city='').values_list('city', flat=True)
+    cities = set()
+    for city in cities_raw:
+        if city and city.strip():  # Only add non-empty cities after stripping whitespace
+            cities.add(city.strip())
     
     return render(request, 'reviews.html', {
         'recent_reviews': recent_reviews,
