@@ -3,7 +3,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
-from .models import BlogPost, Recipe, Ingredient, Instruction, RamseyPhoto, Connect4Result, WordFindScore, Comment, Review
+from .models import BlogPost, Recipe, Ingredient, Instruction, RamseyPhoto, Connect4Result, WordFindScore, Comment, Review, DailyUpdate
 from .forms import BlogPostForm, RecipeForm, RamseyPhotoForm, CustomUserCreationForm, IngredientForm, InstructionForm, ReviewForm
 from django.db import transaction
 from django.http import JsonResponse
@@ -16,6 +16,8 @@ from django.forms import inlineformset_factory
 import requests
 from django.conf import settings
 from django.views.decorators.http import require_GET
+from datetime import datetime, date
+from django.db.models import Q
 
 # Home, Games, About, Blog, Signup, Manage Users views — same as you wrote
 
@@ -61,6 +63,86 @@ def secrets(request):
         return HttpResponseForbidden('Admin privileges required.')
     posts = BlogPost.objects.filter(private=True).order_by('-created_at')
     return render(request, 'blog.html', {'posts': posts, 'is_secrets': True})
+
+# Daily Update page (only superusers)
+@user_passes_test(lambda u: u.is_superuser)
+def daily_update(request):
+    today = date.today()
+    today_entry = DailyUpdate.objects.filter(date=today).first()
+    
+    if request.method == 'POST':
+        action = request.POST.get('action', 'save')
+        
+        # Handle delete action
+        if action == 'delete' and today_entry:
+            today_entry.delete()
+            return render(request, 'daily_update.html', {
+                'success_delete': True,
+                'today_entry': None,
+                'recent_entries': DailyUpdate.objects.all()[:30],
+                'today': today
+            })
+        
+        # Handle save action
+        entry_text = request.POST.get('entry', '').strip()
+        
+        if not entry_text:
+            return render(request, 'daily_update.html', {
+                'error': 'Please enter something interesting about today!',
+                'today_entry': today_entry,
+                'recent_entries': DailyUpdate.objects.all()[:30],
+                'today': today
+            })
+        
+        # Check if entry already exists for today
+        if today_entry:
+            today_entry.entry = entry_text
+            today_entry.save()
+        else:
+            DailyUpdate.objects.create(
+                author=request.user,
+                entry=entry_text,
+                date=today
+            )
+        
+        return render(request, 'daily_update.html', {
+            'success': True,
+            'today_entry': DailyUpdate.objects.filter(date=today).first(),
+            'recent_entries': DailyUpdate.objects.all()[:30],
+            'today': today
+        })
+    
+    # Get recent entries and prepare for display
+    recent_entries = DailyUpdate.objects.all()[:30]
+    
+    return render(request, 'daily_update.html', {
+        'today_entry': today_entry,
+        'recent_entries': recent_entries,
+        'today': today
+    })
+
+@user_passes_test(lambda u: u.is_superuser)
+def search_daily_update(request):
+    """Search for daily updates by date"""
+    search_date = request.GET.get('search_date', '')
+    results = []
+    error = None
+    
+    if search_date:
+        try:
+            search_date_obj = datetime.strptime(search_date, '%Y-%m-%d').date()
+            results = DailyUpdate.objects.filter(date=search_date_obj)
+        except ValueError:
+            error = 'Invalid date format. Please use YYYY-MM-DD format.'
+    
+    return render(request, 'daily_update.html', {
+        'search_results': results,
+        'search_date': search_date,
+        'search_error': error,
+        'today_entry': DailyUpdate.objects.filter(date=date.today()).first(),
+        'recent_entries': DailyUpdate.objects.all()[:30],
+        'today': date.today()
+    })
 
 def signup(request):
     if request.method == 'POST':

@@ -176,3 +176,16 @@ class Review(models.Model):
         if self.image and os.path.isfile(self.image.path):
             os.remove(self.image.path)
         super().delete(*args, **kwargs)
+
+class DailyUpdate(models.Model):
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='daily_updates')
+    entry = models.TextField()
+    date = models.DateField(unique=True)  # Only one entry per day
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-date']
+
+    def __str__(self):
+        return f"Daily Update - {self.date}"

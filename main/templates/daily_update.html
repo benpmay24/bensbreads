@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+{% block title %}Daily Update{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+  <div class="row">
+    <div class="col-lg-8">
+      <!-- Header Section -->
+      <div class="hero-header">
+        <div class="hero-content" style="text-align: center;">
+          <h1 class="hero-title">
+            <i class="fas fa-calendar-day" style="color: #8B4513;"></i> Daily Update
+          </h1>
+          <div class="hero-divider" style="margin-left: auto; margin-right: auto;"></div>
+        </div>
+      </div>
+
+      <!-- Today's Entry Section -->
+      <div class="card featured-post-card mb-4">
+        <div class="featured-post-content">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+            <h5 class="post-date mb-0">
+              <i class="fas fa-pencil-alt" style="color: #8B4513; margin-right: 0.5rem;"></i> Today's Entry
+            </h5>
+            {% if today_entry %}
+              <span style="background: linear-gradient(135deg, #8B4513, #D2691E); color: white; padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">
+                <i class="fas fa-check-circle"></i> COMPLETED
+              </span>
+            {% else %}
+              <span style="background: #ffc107; color: #333; padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">
+                <i class="fas fa-clock"></i> PENDING
+              </span>
+            {% endif %}
+          </div>
+
+          {% if success_delete %}
+            <div class="alert alert-success alert-dismissible fade show" role="alert" style="border-left: 4px solid #28a745; background: #f0f9f4;">
+              <i class="fas fa-trash-alt"></i> <strong>Deleted!</strong> Your entry has been removed.
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          {% endif %}
+
+          {% if success %}
+            <div class="alert alert-success alert-dismissible fade show" role="alert" style="border-left: 4px solid #28a745; background: #f0f9f4;">
+              <i class="fas fa-check-circle"></i> <strong>Success!</strong> Your entry has been saved.
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          {% endif %}
+
+          {% if error %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert" style="border-left: 4px solid #dc3545; background: #fff5f5;">
+              <i class="fas fa-exclamation-circle"></i> <strong>Error:</strong> {{ error }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          {% endif %}
+
+          <!-- Show form only if no entry exists for today -->
+          {% if not today_entry %}
+            <form id="daily-update-form" method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="save">
+              <div class="mb-4">
+                <label for="entry" class="form-label" style="font-weight: 600; color: #5d4f41;">What's something interesting about today?</label>
+                <textarea
+                  class="form-control"
+                  id="entry"
+                  name="entry"
+                  rows="5"
+                  placeholder="Share something interesting, inspiring, or noteworthy from today..."
+                  required
+                  style="border: 2px solid #e9ecef; border-radius: 12px; padding: 1rem; font-size: 1rem; font-family: 'Roboto', sans-serif; resize: vertical; transition: all 0.3s ease;"
+                ></textarea>
+                <small class="text-muted d-block mt-2">
+                  <i class="fas fa-info-circle"></i> Only one entry allowed per day. You can edit your entry until midnight.
+                </small>
+              </div>
+
+              <div class="d-flex gap-2">
+                <button type="submit" class="btn-game-primary">
+                  <i class="fas fa-save"></i> Save Entry
+                </button>
+                <button type="reset" class="btn-game-secondary" style="background: linear-gradient(135deg, #6c757d, #495057);">
+                  <i class="fas fa-redo"></i> Reset
+                </button>
+              </div>
+            </form>
+          {% else %}
+            <!-- Show completion message if entry exists -->
+            <div style="padding: 2rem; background: linear-gradient(135deg, rgba(139, 69, 19, 0.05), rgba(210, 105, 30, 0.05)); border-radius: 12px; border-left: 4px solid #8B4513;">
+              <div style="margin-bottom: 1.5rem;">
+                <h5 style="color: #5d4f41; font-weight: 600; margin-bottom: 1rem;">
+                  <i class="fas fa-check-circle" style="color: #28a745;"></i> Entry Completed for Today
+                </h5>
+                <p style="color: #212529; line-height: 1.6; margin-bottom: 0; word-break: break-word;">
+                  {{ today_entry.entry }}
+                </p>
+              </div>
+
+              <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid rgba(139, 69, 19, 0.2);">
+
+              <div style="margin-bottom: 1rem;">
+                <small style="color: #6c757d;">
+                  <i class="fas fa-calendar-alt"></i> Date: <strong>{{ today_entry.date|date:"F j, Y" }}</strong>
+                </small>
+              </div>
+              <small style="color: #6c757d;">
+                <i class="fas fa-history"></i> Last updated: <strong>{{ today_entry.updated_at|date:"M d, Y \a\t g:i A" }}</strong>
+              </small>
+
+              <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(139, 69, 19, 0.2);">
+                <button type="button" class="btn" style="background: #dc3545; color: white; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.875rem; border: none; cursor: pointer; transition: all 0.3s ease;" onclick="document.getElementById('delete-modal-btn').click();">
+                  <i class="fas fa-trash-alt"></i> Delete Entry
+                </button>
+              </div>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Search Section -->
+      <div class="all-recipes-section">
+        <h5 class="post-date mb-3">
+          <i class="fas fa-search" style="color: #8B4513; margin-right: 0.5rem;"></i> Search by Date
+        </h5>
+        
+        <form method="get" action="{% url 'search_daily_update' %}" class="mb-4">
+          <div class="input-group" style="border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+            <input
+              type="date"
+              class="form-control"
+              name="search_date"
+              value="{{ search_date }}"
+              required
+              style="border: none; padding: 0.75rem 1rem; font-size: 1rem;"
+            >
+            <button class="btn-game-primary" type="submit" style="border-radius: 0;">
+              <i class="fas fa-search"></i> Search
+            </button>
+          </div>
+        </form>
+
+        {% if search_error %}
+          <div class="alert alert-danger" style="border-left: 4px solid #dc3545; background: #fff5f5;">
+            <i class="fas fa-exclamation-circle"></i> {{ search_error }}
+          </div>
+        {% endif %}
+
+        {% if search_date and search_results %}
+          <div>
+            <h6 style="color: #8B4513; font-weight: 600; margin-bottom: 1rem;">
+              <i class="fas fa-calendar"></i> Results for {{ search_date }}
+            </h6>
+            {% for entry in search_results %}
+              <div style="background: white; border-left: 4px solid #8B4513; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.05); transition: all 0.3s ease;" class="search-result-card">
+                <h6 style="color: #8B4513; font-weight: 600; margin-bottom: 0.75rem;">
+                  <i class="fas fa-calendar-alt"></i> {{ entry.date|date:"F j, Y" }}
+                </h6>
+                <p style="color: #212529; line-height: 1.6; margin-bottom: 0.75rem; word-break: break-word;">{{ entry.entry }}</p>
+                <small style="color: #6c757d;">
+                  <i class="fas fa-clock"></i> Created: {{ entry.created_at|date:"M d, Y \a\t g:i A" }}
+                </small>
+              </div>
+            {% endfor %}
+          </div>
+        {% elif search_date and not search_results %}
+          <div class="alert alert-info" style="border-left: 4px solid #17a2b8; background: #f0f8f9;">
+            <i class="fas fa-info-circle"></i> No entry found for this date.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Recent Entries Sidebar -->
+    <div class="col-lg-4">
+      <div class="all-recipes-section sticky-top" style="top: 80px;">
+        <h5 class="post-date mb-3">
+          <i class="fas fa-list" style="color: #8B4513; margin-right: 0.5rem;"></i> Recent Entries
+        </h5>
+        
+        <div style="max-height: 600px; overflow-y: auto;">
+          {% if recent_entries %}
+            {% for entry in recent_entries %}
+              <a href="{% url 'search_daily_update' %}?search_date={{ entry.date|date:'Y-m-d' }}" style="text-decoration: none; display: block; margin-bottom: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 12px; border-left: 4px solid #d4a574; transition: all 0.3s ease;" class="recent-entry-item">
+                <h6 style="color: #5d4f41; font-weight: 600; margin-bottom: 0.5rem;">
+                  <i class="fas fa-calendar-alt"></i> {{ entry.date|date:"M d, Y" }}
+                </h6>
+                <p style="color: #6c757d; font-size: 0.9rem; margin-bottom: 0; line-height: 1.4;">
+                  {{ entry.entry|truncatewords:12 }}
+                </p>
+              </a>
+            {% endfor %}
+          {% else %}
+            <div style="text-align: center; padding: 2rem 1rem; color: #6c757d;">
+              <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+              <p>No entries yet.</p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+      <div class="modal-header" style="background: linear-gradient(135deg, #8B4513, #D2691E); color: white; border: none; border-radius: 16px 16px 0 0;">
+        <h5 class="modal-title" id="deleteModalLabel">
+          <i class="fas fa-exclamation-triangle"></i> Delete Entry?
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" style="padding: 2rem;">
+        <p style="color: #212529; font-size: 1.1rem; margin-bottom: 0;">
+          Are you sure you want to delete today's entry? This action cannot be undone.
+        </p>
+      </div>
+      <div class="modal-footer" style="border-top: 1px solid #e9ecef; padding: 1.5rem;">
+        <button type="button" class="btn" style="background: #6c757d; color: white; padding: 0.5rem 1.5rem; border-radius: 8px; border: none;" data-bs-dismiss="modal">
+          <i class="fas fa-times"></i> Cancel
+        </button>
+        <form method="post" style="display: inline;">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete">
+          <button type="submit" class="btn" style="background: #dc3545; color: white; padding: 0.5rem 1.5rem; border-radius: 8px; border: none;">
+            <i class="fas fa-trash-alt"></i> Delete
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden button to trigger modal -->
+<button type="button" id="delete-modal-btn" style="display: none;" data-bs-toggle="modal" data-bs-target="#deleteModal"></button>
+
+<style>
+  #entry {
+    transition: all 0.3s ease;
+  }
+
+  #entry:focus {
+    border-color: #8B4513 !important;
+    box-shadow: 0 0 0 0.2rem rgba(139, 69, 19, 0.15) !important;
+  }
+
+  .recent-entry-item:hover {
+    background: white;
+    transform: translateX(4px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+  }
+
+  .search-result-card:hover {
+    transform: translateX(4px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+  }
+
+  /* Custom scrollbar */
+  .all-recipes-section::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .all-recipes-section::-webkit-scrollbar-track {
+    background: #f1f3f4;
+    border-radius: 4px;
+  }
+
+  .all-recipes-section::-webkit-scrollbar-thumb {
+    background: #8B4513;
+    border-radius: 4px;
+  }
+
+  .all-recipes-section::-webkit-scrollbar-thumb:hover {
+    background: #654321;
+  }
+</style>
+{% endblock %}
