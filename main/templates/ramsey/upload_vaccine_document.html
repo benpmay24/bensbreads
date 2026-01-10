@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Upload Vaccine Document{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="card featured-post-card">
+        <div class="featured-post-content">
+          <h2 class="post-date mb-4">
+            <i class="fas fa-file-upload" style="color: #8B4513;"></i> Upload Vaccine Document
+          </h2>
+          
+          <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="mb-3">
+              <label for="{{ form.document_name.id_for_label }}" class="form-label">Document Name *</label>
+              {{ form.document_name }}
+              {% if form.document_name.errors %}
+                <div class="alert alert-danger mt-2">{{ form.document_name.errors }}</div>
+              {% endif %}
+            </div>
+            
+            <div class="mb-3">
+              <label for="{{ form.document.id_for_label }}" class="form-label">Document File *</label>
+              {{ form.document }}
+              {% if form.document.errors %}
+                <div class="alert alert-danger mt-2">{{ form.document.errors }}</div>
+              {% endif %}
+              <small class="form-text text-muted d-block mt-2">Accepted formats: PDF, DOC, DOCX, JPG, PNG</small>
+            </div>
+            
+            <div class="d-flex gap-2">
+              <button type="submit" class="btn-game-primary">
+                <i class="fas fa-upload"></i> Upload Document
+              </button>
+              <a href="{% url 'ramsey_profile' %}" class="btn btn-secondary">Cancel</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

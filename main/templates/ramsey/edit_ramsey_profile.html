@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Edit Ramsey's Profile{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <!-- Header Section -->
+      <div class="hero-header">
+        <div class="hero-content" style="text-align: center;">
+          <h1 class="hero-title">
+            <i class="fas fa-edit" style="color: #8B4513;"></i> Edit Profile
+          </h1>
+          <div class="hero-divider" style="margin-left: auto; margin-right: auto;"></div>
+        </div>
+      </div>
+
+      <!-- Form Card -->
+      <div class="card featured-post-card">
+        <div class="featured-post-content">
+          <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="mb-4">
+              <label for="{{ form.name.id_for_label }}" class="form-label" style="font-weight: 600; color: #5d4f41;">Name</label>
+              {{ form.name }}
+            </div>
+
+            <div class="mb-4">
+              <label for="{{ form.breed.id_for_label }}" class="form-label" style="font-weight: 600; color: #5d4f41;">Breed</label>
+              {{ form.breed }}
+            </div>
+
+            <div class="mb-4">
+              <label for="{{ form.date_of_birth.id_for_label }}" class="form-label" style="font-weight: 600; color: #5d4f41;">Date of Birth</label>
+              {{ form.date_of_birth }}
+            </div>
+
+            <div class="mb-4">
+              <label for="{{ form.bio.id_for_label }}" class="form-label" style="font-weight: 600; color: #5d4f41;">Bio</label>
+              {{ form.bio }}
+              <small class="text-muted d-block mt-2">Tell us about Ramsey's personality, achievements, and interests!</small>
+            </div>
+
+            <div class="mb-4">
+              <label for="{{ form.profile_picture.id_for_label }}" class="form-label" style="font-weight: 600; color: #5d4f41;">Profile Picture</label>
+              {% if profile.profile_picture %}
+                <div style="margin-bottom: 1rem;">
+                  <img src="{{ profile.profile_picture.url }}" alt="Current profile picture" style="max-width: 200px; max-height: 200px; border-radius: 8px; object-fit: cover;">
+                </div>
+              {% endif %}
+              {{ form.profile_picture }}
+              <small class="text-muted d-block mt-2">Upload a new picture to replace the current one</small>
+            </div>
+
+            <div class="d-flex gap-2">
+              <button type="submit" class="btn-game-primary">
+                <i class="fas fa-save"></i> Save Changes
+              </button>
+              <a href="{% url 'ramsey_profile' %}" class="btn-game-secondary">
+                <i class="fas fa-times"></i> Cancel
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

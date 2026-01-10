@@ -3,8 +3,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
-from .models import BlogPost, Recipe, Ingredient, Instruction, RamseyPhoto, Connect4Result, WordFindScore, Comment, Review, DailyUpdate
-from .forms import BlogPostForm, RecipeForm, RamseyPhotoForm, CustomUserCreationForm, IngredientForm, InstructionForm, ReviewForm
+from .models import BlogPost, Recipe, Ingredient, Instruction, RamseyPhoto, Connect4Result, WordFindScore, Comment, Review, DailyUpdate, RamseyProfile, VaccineRecord, BoardingExperience, DietEntry, VaccineDocument, DietDocument, BoardingDocument
+from .forms import BlogPostForm, RecipeForm, RamseyPhotoForm, CustomUserCreationForm, IngredientForm, InstructionForm, ReviewForm, RamseyProfileForm, VaccineRecordForm, BoardingExperienceForm, DietEntryForm, VaccineDocumentForm, DietDocumentForm, BoardingDocumentForm
 from django.db import transaction
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -30,7 +30,7 @@ def home(request):
     return render(request, 'index.html', {'featured_recipes': featured_recipes})
 
 def games(request):
-    return render(request, 'games.html')
+    return render(request, 'games/games.html')
 
 # Home view (showing public posts)
 def blog(request):
@@ -52,7 +52,7 @@ def blog(request):
                 pass
         return redirect('blog')
     
-    return render(request, 'blog.html', {'posts': posts})
+    return render(request, 'blog/blog.html', {'posts': posts})
 
 # views.py
 from django.http import HttpResponseForbidden
@@ -62,7 +62,7 @@ def secrets(request):
     if not request.user.is_superuser:
         return HttpResponseForbidden('Admin privileges required.')
     posts = BlogPost.objects.filter(private=True).order_by('-created_at')
-    return render(request, 'blog.html', {'posts': posts, 'is_secrets': True})
+    return render(request, 'blog/blog.html', {'posts': posts, 'is_secrets': True})
 
 # Daily Update page (only superusers)
 @user_passes_test(lambda u: u.is_superuser)
@@ -76,7 +76,7 @@ def daily_update(request):
         # Handle delete action
         if action == 'delete' and today_entry:
             today_entry.delete()
-            return render(request, 'daily_update.html', {
+            return render(request, 'admin/daily_update.html', {
                 'success_delete': True,
                 'today_entry': None,
                 'recent_entries': DailyUpdate.objects.all()[:30],
@@ -87,7 +87,7 @@ def daily_update(request):
         entry_text = request.POST.get('entry', '').strip()
         
         if not entry_text:
-            return render(request, 'daily_update.html', {
+            return render(request, 'admin/daily_update.html', {
                 'error': 'Please enter something interesting about today!',
                 'today_entry': today_entry,
                 'recent_entries': DailyUpdate.objects.all()[:30],
@@ -105,7 +105,7 @@ def daily_update(request):
                 date=today
             )
         
-        return render(request, 'daily_update.html', {
+        return render(request, 'admin/daily_update.html', {
             'success': True,
             'today_entry': DailyUpdate.objects.filter(date=today).first(),
             'recent_entries': DailyUpdate.objects.all()[:30],
@@ -115,7 +115,7 @@ def daily_update(request):
     # Get recent entries and prepare for display
     recent_entries = DailyUpdate.objects.all()[:30]
     
-    return render(request, 'daily_update.html', {
+    return render(request, 'admin/daily_update.html', {
         'today_entry': today_entry,
         'recent_entries': recent_entries,
         'today': today
@@ -135,7 +135,7 @@ def search_daily_update(request):
         except ValueError:
             error = 'Invalid date format. Please use YYYY-MM-DD format.'
     
-    return render(request, 'daily_update.html', {
+    return render(request, 'admin/daily_update.html', {
         'search_results': results,
         'search_date': search_date,
         'search_error': error,
@@ -168,7 +168,7 @@ def manage_users(request):
             user.is_superuser = request.POST.get(f'superuser_{user_id_str}') == 'on'
             user.save()
         return redirect('manage_users')
-    return render(request, "manage_users.html", {'users': users})
+    return render(request, "admin/manage_users.html", {'users': users})
 
 @user_passes_test(staff_or_superuser)
 def add_blog_post(request):
@@ -181,7 +181,7 @@ def add_blog_post(request):
             return redirect('blog')
     else:
         form = BlogPostForm()
-    return render(request, 'add_blog_post.html', {'form': form})
+    return render(request, 'blog/add_blog_post.html', {'form': form})
 
 @user_passes_test(lambda u: u.is_superuser)
 def delete_blog_post(request, post_id):
@@ -194,7 +194,7 @@ def recipes(request):
     recipes = Recipe.objects.all().order_by('-created_at')
     bread_recipes = recipes.filter(category='bread')
     other_recipes = recipes.filter(category='other')
-    return render(request, 'recipes.html', {
+    return render(request, 'recipes/recipes.html', {
         'recipes': recipes,
         'bread_recipes': bread_recipes,
         'other_recipes': other_recipes
@@ -263,7 +263,7 @@ def add_recipe(request):
         ingredient_formset = IngredientFormSet(prefix='ingredients')
         instruction_formset = InstructionFormSet(prefix='instructions')
 
-    return render(request, 'add_recipe.html', {
+    return render(request, 'recipes/add_recipe.html', {
         'form': form,
         'ingredient_formset': ingredient_formset,
         'instruction_formset': instruction_formset,
@@ -280,11 +280,11 @@ def delete_recipe(request, pk):
     return redirect('recipes')
 
 def ramsey_bio(request):
-    return render(request, 'ramsey_bio.html')
+    return render(request, 'ramsey/ramsey_bio.html')
 
 def ramsey_gallery(request):
     photos = RamseyPhoto.objects.all().order_by('-uploaded_at')  # adjust as needed
-    return render(request, 'ramsey_gallery.html', {'photos': photos})
+    return render(request, 'ramsey/ramsey_gallery.html', {'photos': photos})
 
 @login_required
 @user_passes_test(lambda u: u.is_staff or u.is_superuser)
@@ -296,7 +296,7 @@ def upload_ramsey_photo(request):
             return redirect('ramsey_gallery')
     else:
         form = RamseyPhotoForm()
-    return render(request, 'upload_ramsey_photo.html', {'form': form})
+    return render(request, 'ramsey/upload_ramsey_photo.html', {'form': form})
 
 @login_required
 @user_passes_test(lambda u: u.is_staff or u.is_superuser)
@@ -316,8 +316,256 @@ def toggle_featured_recipe(request, pk):
     recipe.save()
     return redirect('recipes')  # Redirect back to the recipes page after toggling
 
+# Ramsey Profile Views (Superuser Only)
+@user_passes_test(lambda u: u.is_superuser)
+def ramsey_profile(request):
+    """View and edit Ramsey's profile"""
+    profile = RamseyProfile.objects.first()
+    if not profile:
+        profile = RamseyProfile.objects.create(name="Ramsey")
+    
+    vaccines = VaccineRecord.objects.all()
+    boarding_experiences = BoardingExperience.objects.all()
+    diet_entries = DietEntry.objects.all()
+    current_diet = DietEntry.objects.filter(is_current=True).first()
+    
+    vaccine_documents = VaccineDocument.objects.all()
+    diet_documents = DietDocument.objects.all()
+    boarding_documents = BoardingDocument.objects.all()
+    
+    return render(request, 'ramsey/ramsey_profile.html', {
+        'profile': profile,
+        'vaccines': vaccines,
+        'boarding_experiences': boarding_experiences,
+        'diet_entries': diet_entries,
+        'current_diet': current_diet,
+        'vaccine_documents': vaccine_documents,
+        'diet_documents': diet_documents,
+        'boarding_documents': boarding_documents,
+    })
+
+@user_passes_test(lambda u: u.is_superuser)
+def edit_ramsey_profile(request):
+    """Edit Ramsey's profile picture and bio"""
+    profile = RamseyProfile.objects.first()
+    if not profile:
+        profile = RamseyProfile.objects.create(name="Ramsey")
+    
+    if request.method == 'POST':
+        form = RamseyProfileForm(request.POST, request.FILES, instance=profile)
+        if form.is_valid():
+            form.save()
+            return redirect('ramsey_profile')
+    else:
+        form = RamseyProfileForm(instance=profile)
+    
+    return render(request, 'ramsey/edit_ramsey_profile.html', {'form': form, 'profile': profile})
+
+@user_passes_test(lambda u: u.is_superuser)
+def add_vaccine_record(request):
+    """Add a new vaccine record"""
+    if request.method == 'POST':
+        form = VaccineRecordForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            return redirect('ramsey_profile')
+    else:
+        form = VaccineRecordForm()
+    
+    return render(request, 'ramsey/add_vaccine_record.html', {'form': form})
+
+@user_passes_test(lambda u: u.is_superuser)
+def edit_vaccine_record(request, pk):
+    """Edit a vaccine record"""
+    vaccine = get_object_or_404(VaccineRecord, pk=pk)
+    
+    if request.method == 'POST':
+        form = VaccineRecordForm(request.POST, request.FILES, instance=vaccine)
+        if form.is_valid():
+            form.save()
+            return redirect('ramsey_profile')
+    else:
+        form = VaccineRecordForm(instance=vaccine)
+    
+    return render(request, 'ramsey/edit_vaccine_record.html', {'form': form, 'vaccine': vaccine})
+
+@user_passes_test(lambda u: u.is_superuser)
+def add_boarding_experience(request):
+    """Add a new boarding experience"""
+    if request.method == 'POST':
+        form = BoardingExperienceForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('ramsey_profile')
+    else:
+        form = BoardingExperienceForm()
+    
+    return render(request, 'ramsey/add_boarding_experience.html', {'form': form})
+
+@user_passes_test(lambda u: u.is_superuser)
+def edit_boarding_experience(request, pk):
+    """Edit a boarding experience"""
+    experience = get_object_or_404(BoardingExperience, pk=pk)
+    
+    if request.method == 'POST':
+        form = BoardingExperienceForm(request.POST, instance=experience)
+        if form.is_valid():
+            form.save()
+            return redirect('ramsey_profile')
+    else:
+        form = BoardingExperienceForm(instance=experience)
+    
+    return render(request, 'ramsey/edit_boarding_experience.html', {'form': form, 'experience': experience})
+
+@user_passes_test(lambda u: u.is_superuser)
+def add_diet_entry(request):
+    """Add a new diet entry"""
+    if request.method == 'POST':
+        form = DietEntryForm(request.POST)
+        if form.is_valid():
+            diet_entry = form.save(commit=False)
+            # If this is marked as current, unmark all others
+            if diet_entry.is_current:
+                DietEntry.objects.filter(is_current=True).update(is_current=False)
+            diet_entry.save()
+            return redirect('ramsey_profile')
+    else:
+        form = DietEntryForm()
+    
+    return render(request, 'ramsey/add_diet_entry.html', {'form': form})
+
+@user_passes_test(lambda u: u.is_superuser)
+def edit_diet_entry(request, pk):
+    """Edit a diet entry"""
+    diet_entry = get_object_or_404(DietEntry, pk=pk)
+    
+    if request.method == 'POST':
+        form = DietEntryForm(request.POST, instance=diet_entry)
+        if form.is_valid():
+            updated_entry = form.save(commit=False)
+            # If this is marked as current, unmark all others
+            if updated_entry.is_current:
+                DietEntry.objects.filter(is_current=True).exclude(pk=pk).update(is_current=False)
+            updated_entry.save()
+            return redirect('ramsey_profile')
+    else:
+        form = DietEntryForm(instance=diet_entry)
+    
+    return render(request, 'ramsey/edit_diet_entry.html', {'form': form, 'diet_entry': diet_entry})
+
+@user_passes_test(lambda u: u.is_superuser)
+def delete_vaccine_record(request, pk):
+    """Delete a vaccine record"""
+    vaccine = get_object_or_404(VaccineRecord, pk=pk)
+    if request.method == 'POST':
+        if vaccine.document:
+            vaccine.document.delete(save=False)
+        vaccine.delete()
+    return redirect('ramsey_profile')
+
+@user_passes_test(lambda u: u.is_superuser)
+def delete_boarding_experience(request, pk):
+    """Delete a boarding experience"""
+    experience = get_object_or_404(BoardingExperience, pk=pk)
+    if request.method == 'POST':
+        experience.delete()
+    return redirect('ramsey_profile')
+
+@user_passes_test(lambda u: u.is_superuser)
+def delete_diet_entry(request, pk):
+    """Delete a diet entry"""
+    diet_entry = get_object_or_404(DietEntry, pk=pk)
+    if request.method == 'POST':
+        diet_entry.delete()
+    return redirect('ramsey_profile')
+
+@user_passes_test(lambda u: u.is_superuser)
+def upload_vaccine_document(request):
+    """Upload a vaccine document"""
+    if request.method == 'POST':
+        form = VaccineDocumentForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            return redirect('ramsey_profile')
+    else:
+        form = VaccineDocumentForm()
+    
+    return render(request, 'ramsey/upload_vaccine_document.html', {'form': form})
+
+@user_passes_test(lambda u: u.is_superuser)
+def delete_vaccine_document(request, pk):
+    """Delete a vaccine document"""
+    doc = get_object_or_404(VaccineDocument, pk=pk)
+    if request.method == 'POST':
+        doc.delete()
+    return redirect('ramsey_profile')
+
+@user_passes_test(lambda u: u.is_superuser)
+def upload_diet_document(request):
+    """Upload a diet document"""
+    if request.method == 'POST':
+        form = DietDocumentForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            return redirect('ramsey_profile')
+    else:
+        form = DietDocumentForm()
+    
+    return render(request, 'ramsey/upload_diet_document.html', {'form': form})
+
+@user_passes_test(lambda u: u.is_superuser)
+def delete_diet_document(request, pk):
+    """Delete a diet document"""
+    doc = get_object_or_404(DietDocument, pk=pk)
+    if request.method == 'POST':
+        doc.delete()
+    return redirect('ramsey_profile')
+
+@user_passes_test(lambda u: u.is_superuser)
+def upload_boarding_document(request):
+    """Upload a boarding document"""
+    if request.method == 'POST':
+        form = BoardingDocumentForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            return redirect('ramsey_profile')
+    else:
+        form = BoardingDocumentForm()
+    
+    return render(request, 'ramsey/upload_boarding_document.html', {'form': form})
+
+@user_passes_test(lambda u: u.is_superuser)
+def delete_boarding_document(request, pk):
+    """Delete a boarding document"""
+    doc = get_object_or_404(BoardingDocument, pk=pk)
+    if request.method == 'POST':
+        doc.delete()
+    return redirect('ramsey_profile')
+
+@login_required
+def download_document(request, doc_type, doc_id):
+    """Download a document by type"""
+    if not request.user.is_superuser:
+        return HttpResponseForbidden('Admin privileges required.')
+    
+    if doc_type == 'vaccine':
+        doc = get_object_or_404(VaccineDocument, pk=doc_id)
+    elif doc_type == 'diet':
+        doc = get_object_or_404(DietDocument, pk=doc_id)
+    elif doc_type == 'boarding':
+        doc = get_object_or_404(BoardingDocument, pk=doc_id)
+    else:
+        return HttpResponse('Invalid document type', status=400)
+    
+    if doc.document:
+        response = HttpResponse(doc.document.read(), content_type='application/octet-stream')
+        response['Content-Disposition'] = f'attachment; filename="{doc.document_name}"'
+        return response
+    
+    return HttpResponse('Document not found', status=404)
+
 def connect4 (request):
-    return render(request,"connect4.html")
+    return render(request,"games/connect4.html")
 
 # Replace with your logic to determine CPU's move
 def get_cpu_move(cur_board):
@@ -433,7 +681,7 @@ def edit_recipe(request, pk):
         ingredient_formset = IngredientFormSet(instance=recipe, prefix='ingredients')
         instruction_formset = InstructionFormSet(instance=recipe, prefix='instructions')
 
-    return render(request, 'edit_recipe.html', {
+    return render(request, 'recipes/edit_recipe.html', {
         'form': form,
         'recipe': recipe,
         'ingredient_formset': ingredient_formset,
@@ -442,10 +690,10 @@ def edit_recipe(request, pk):
 
 def recipe_detail(request, pk):
     recipe = get_object_or_404(Recipe, pk=pk)
-    return render(request, 'recipe_detail.html', {'recipe': recipe})
+    return render(request, 'recipes/recipe_detail.html', {'recipe': recipe})
 
 def word_find(request):
-    return render(request, 'word_find.html')
+    return render(request, 'games/word_find.html')
 
 def validate_word(request):
     if request.method == 'POST':
@@ -476,7 +724,7 @@ def save_word_find_result(request):
     if request.method == 'POST':
         data = json.loads(request.body)
         score = data.get('score')
-        if score is not None:
+        if score is not none:
             WordFindScore.objects.create(user=request.user, score=score)
             return JsonResponse({'status': 'success'})
         return JsonResponse({'status': 'invalid score'}, status=400)
@@ -534,7 +782,7 @@ def reviews(request):
         if city and city.strip():  # Only add non-empty cities after stripping whitespace
             cities.add(city.strip())
     
-    return render(request, 'reviews.html', {
+    return render(request, 'reviews/reviews.html', {
         'recent_reviews': recent_reviews,
         'all_tags': sorted(all_tags),
         'reviewers': reviewers,
@@ -547,7 +795,7 @@ def reviews(request):
 def review_detail(request, pk):
     """Display a specific review."""
     review = get_object_or_404(Review, pk=pk)
-    return render(request, 'review_detail.html', {'review': review})
+    return render(request, 'reviews/review_detail.html', {'review': review})
 
 @login_required
 @user_passes_test(lambda u: u.is_staff)
@@ -594,7 +842,7 @@ def add_review(request):
     else:
         form = ReviewForm()
 
-    return render(request, 'add_review.html', {
+    return render(request, 'reviews/add_review.html', {
         'form': form,
     })
 
@@ -663,7 +911,7 @@ def edit_review(request, pk):
     # Serialize place_tags to JSON for the template
     place_tags_json = json.dumps(review.place_tags) if review.place_tags else '[]'
     
-    return render(request, 'edit_review.html', {
+    return render(request, 'reviews/edit_review.html', {
         'form': form,
         'review': review,
         'place_tags_json': place_tags_json,

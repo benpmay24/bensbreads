@@ -29,6 +29,39 @@ urlpatterns = [
     path('ramsey/gallery/', views.ramsey_gallery, name='ramsey_gallery'),
     path('ramsey/upload/', views.upload_ramsey_photo, name='upload_ramsey_photo'),
     path('ramsey/photo/<int:pk>/delete/', views.delete_ramsey_photo, name='delete_ramsey_photo'),
+    path('ramsey/profile/', views.ramsey_profile, name='ramsey_profile'),
+    path('ramsey/profile/edit/', views.edit_ramsey_profile, name='edit_ramsey_profile'),
+    
+    # Vaccine Records URLs
+    path('ramsey/vaccines/add/', views.add_vaccine_record, name='add_vaccine_record'),
+    path('ramsey/vaccines/<int:pk>/edit/', views.edit_vaccine_record, name='edit_vaccine_record'),
+    path('ramsey/vaccines/<int:pk>/delete/', views.delete_vaccine_record, name='delete_vaccine_record'),
+    
+    # Boarding Experiences URLs
+    path('ramsey/boarding/add/', views.add_boarding_experience, name='add_boarding_experience'),
+    path('ramsey/boarding/<int:pk>/edit/', views.edit_boarding_experience, name='edit_boarding_experience'),
+    path('ramsey/boarding/<int:pk>/delete/', views.delete_boarding_experience, name='delete_boarding_experience'),
+    
+    # Diet Entries URLs
+    path('ramsey/diet/add/', views.add_diet_entry, name='add_diet_entry'),
+    path('ramsey/diet/<int:pk>/edit/', views.edit_diet_entry, name='edit_diet_entry'),
+    path('ramsey/diet/<int:pk>/delete/', views.delete_diet_entry, name='delete_diet_entry'),
+    
+    # Vaccine Documents URLs
+    path('ramsey/vaccines/documents/upload/', views.upload_vaccine_document, name='upload_vaccine_document'),
+    path('ramsey/vaccines/documents/<int:pk>/delete/', views.delete_vaccine_document, name='delete_vaccine_document'),
+    
+    # Diet Documents URLs
+    path('ramsey/diet/documents/upload/', views.upload_diet_document, name='upload_diet_document'),
+    path('ramsey/diet/documents/<int:pk>/delete/', views.delete_diet_document, name='delete_diet_document'),
+    
+    # Boarding Documents URLs
+    path('ramsey/boarding/documents/upload/', views.upload_boarding_document, name='upload_boarding_document'),
+    path('ramsey/boarding/documents/<int:pk>/delete/', views.delete_boarding_document, name='delete_boarding_document'),
+    
+    # Document Download
+    path('ramsey/documents/download/<str:doc_type>/<int:doc_id>/', views.download_document, name='download_document'),
+
     path('api/cpu-move/', views.cpu_move, name='cpu_move'),
     path('api/save-result/', views.save_connect4_result, name='save_connect4_result'),
     path('api/leaderboard/', views.connect4_leaderboard, name='connect4_leaderboard'),

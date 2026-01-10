@@ -32,6 +32,10 @@
             <ul class="dropdown-menu" aria-labelledby="ramseyDropdown">
               <li><a class="dropdown-item" href="{% url 'ramsey' %}">Bio</a></li>
               <li><a class="dropdown-item" href="{% url 'ramsey_gallery' %}">Photo Gallery</a></li>
+              {% if user.is_superuser %}
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{% url 'ramsey_profile' %}"><i class="fas fa-heart"></i> Profile (Admin)</a></li>
+              {% endif %}
             </ul>
           </li>
 
