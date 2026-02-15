@@ -66,6 +66,7 @@ urlpatterns = [
     path('api/save-result/', views.save_connect4_result, name='save_connect4_result'),
     path('api/leaderboard/', views.connect4_leaderboard, name='connect4_leaderboard'),
     path('health/', views.health, name='health_check'),
+    path('cron/daily-reminder/', views.cron_daily_reminder, name='cron_daily_reminder'),
     path('recipes/<int:pk>/', views.recipe_detail, name='recipe_detail'),
     path('api/validate-word/', views.validate_word, name='validate_word'),
     path('api/word-find-leaderboard/', views.word_find_leaderboard, name='word_find_leaderboard'),
