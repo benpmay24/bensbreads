@@ -18,6 +18,7 @@ from django.conf import settings
 from django.views.decorators.http import require_GET
 from django.core.management import call_command
 from io import StringIO
+import threading
 from datetime import datetime, date
 from django.db.models import Q
 
@@ -636,19 +637,21 @@ def health(request):
 def cron_daily_reminder(request):
     """
     Trigger daily update reminder email. Protected by CRON_SECRET_TOKEN.
-    Use with cron-job.org or Render Cron Jobs: hit this URL at 10 PM Eastern daily.
+    Returns immediately; email is sent in a background thread to avoid cron timeouts.
     Example: https://yoursite.com/cron/daily-reminder/?token=your-secret-token
     """
     token = request.GET.get('token', '')
     if not settings.CRON_SECRET_TOKEN or token != settings.CRON_SECRET_TOKEN:
         return HttpResponse('Unauthorized', status=401)
 
-    out = StringIO()
-    try:
-        call_command('send_daily_update_reminder', stdout=out)
-        return HttpResponse('OK', status=200)
-    except Exception as e:
-        return HttpResponse(str(e), status=500)
+    def send_reminder():
+        try:
+            call_command('send_daily_update_reminder', stdout=StringIO())
+        except Exception:
+            pass  # Logged server-side; cron already got 200
+
+    threading.Thread(target=send_reminder, daemon=True).start()
+    return HttpResponse('OK', status=200)
 
 @login_required
 @user_passes_test(lambda u: u.is_staff)

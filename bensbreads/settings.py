@@ -183,15 +183,22 @@ GOOGLE_PLACES_API_KEY = os.environ.get('GOOGLE_PLACES_API_KEY', '')
 # Use the same API key for Google Maps
 
 # Email Configuration
-EMAIL_BACKEND = 'main.email_backend.EmailBackend'
-EMAIL_HOST = 'mail.privateemail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'admin@bensbreads.com'
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
-DEFAULT_FROM_EMAIL = 'admin@bensbreads.com'
-# Set to False if your mail provider has SSL cert chain issues (e.g. Private Email)
-EMAIL_SSL_VERIFY = os.environ.get('EMAIL_SSL_VERIFY', 'false').lower() == 'true'
+# Resend (HTTP API, works on Render) - set RESEND_API_KEY in production
+# Fall back to SMTP (Private Email) for local dev
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
+if RESEND_API_KEY:
+    EMAIL_BACKEND = 'main.email_backend.ResendBackend'
+    # Use verified domain (admin@bensbreads.com) or onboarding@resend.dev for testing
+    DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'Ben\'s Breads <admin@bensbreads.com>')
+else:
+    EMAIL_BACKEND = 'main.email_backend.SMTPBackend'
+    EMAIL_HOST = 'mail.privateemail.com'
+    EMAIL_PORT = 587
+    EMAIL_USE_TLS = True
+    EMAIL_HOST_USER = 'admin@bensbreads.com'
+    EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+    DEFAULT_FROM_EMAIL = 'admin@bensbreads.com'
+    EMAIL_SSL_VERIFY = os.environ.get('EMAIL_SSL_VERIFY', 'false').lower() == 'true'
 
 # Site URL for email links
 SITE_URL = os.environ.get('SITE_URL', 'http://localhost:8000')

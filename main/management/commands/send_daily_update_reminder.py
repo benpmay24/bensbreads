@@ -27,7 +27,7 @@ Ben's Breads
         self.stdout.write(f"  To: {email}")
         self.stdout.write(f"  Subject: {subject}")
         self.stdout.write(f"  Email Backend: {settings.EMAIL_BACKEND}")
-        self.stdout.write(f"  Email Host: {settings.EMAIL_HOST}")
+        self.stdout.write(f"  Email Host: {getattr(settings, 'EMAIL_HOST', 'Resend API')}")
         
         try:
             num_sent = send_mail(
