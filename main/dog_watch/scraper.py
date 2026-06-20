@@ -1,6 +1,7 @@
 """Scrape USDA licensee data and enrich with APHIS inspection records."""
 import io
 import logging
+import os
 import time
 from datetime import datetime
 
@@ -32,12 +33,14 @@ HEADER_ROW_LABEL = 'Registration Type'
 
 def set_progress(phase: str, current: int, total: int, message: str = '') -> None:
     state = sync_state.get_sync_state()
+    prev = state.progress or {}
     state.progress = {
         'running': True,
         'phase': phase,
         'current': current,
         'total': total,
         'message': message,
+        'worker_pid': prev.get('worker_pid', os.getpid()),
         'updated_at': timezone.now().isoformat(),
     }
     state.save(update_fields=['progress'])
@@ -358,7 +361,10 @@ def _sync_facility(
     return 'updated'
 
 
-def check_all_facilities(fetch_news_articles: bool = False) -> dict:
+def check_all_facilities(
+    fetch_news_articles: bool = False,
+    resume_from: int = 0,
+) -> dict:
     """Check every facility for new APHIS reports; update only when reports are new."""
     summary = {
         'checked': 0,
@@ -372,7 +378,8 @@ def check_all_facilities(fetch_news_articles: bool = False) -> dict:
         PuppyMillFacility.objects.filter(is_dog_facility=True).order_by('id')
     )
     total = len(facilities)
-    resume_from = int((get_progress() or {}).get('resume_from') or 0)
+    if not resume_from:
+        resume_from = int((get_progress() or {}).get('resume_from') or 0)
     if resume_from > 1:
         set_progress(
             'check',
@@ -408,7 +415,7 @@ def check_all_facilities(fetch_news_articles: bool = False) -> dict:
     return summary
 
 
-def geocode_pending_facilities() -> dict:
+def geocode_pending_facilities(resume_from: int = 0, resume_geocode: bool = False) -> dict:
     """Geocode facilities that still lack verified map coordinates."""
     summary = {'geocoded': 0, 'skipped': 0, 'errors': 0}
     facilities = list(
@@ -421,8 +428,12 @@ def geocode_pending_facilities() -> dict:
         .order_by('id')
     )
     total = len(facilities)
+    if resume_geocode and not resume_from:
+        resume_from = int((get_progress() or {}).get('resume_from') or 0)
 
     for i, facility in enumerate(facilities, start=1):
+        if resume_from and i < resume_from:
+            continue
         set_progress('geocode', i, total, f'Locating addresses ({i}/{total})...')
         try:
             if _geocode_facility(facility):
@@ -445,12 +456,17 @@ def run_full_sync(
     Sync: refresh USDA licensee list, check each facility for new reports only.
     Runs when due (every 24 hours) or when forced via Update Now.
     """
-    sync_state.clear_stale_lock()
+    sync_state.recover_sync_lock()
 
-    if get_progress().get('running'):
+    progress = get_progress()
+    resume_from = int(progress.get('resume_from') or 0)
+    resume_geocode = progress.get('resume_phase') == 'geocode'
+    resuming = resume_from > 0 or resume_geocode
+
+    if progress.get('running'):
         return {'skipped': True, 'reason': 'sync already in progress'}
 
-    if not force and not sync_state.is_sync_due():
+    if not force and not resuming and not sync_state.is_sync_due():
         return {
             'skipped': True,
             'reason': 'sync not due yet',
@@ -461,32 +477,48 @@ def run_full_sync(
     if lock is None:
         return {'skipped': True, 'reason': 'sync already running on another worker'}
 
-    summary = {'skipped': False, 'status': 'complete'}
+    summary = {'skipped': False, 'status': 'complete', 'resumed': resuming}
 
     try:
-        set_progress('scheduled', 0, 0, 'Checking for new inspection reports...')
+        if resuming:
+            set_progress(
+                'check' if not resume_geocode else 'geocode',
+                resume_from,
+                progress.get('total') or 0,
+                f'Resuming interrupted sync from step {resume_from}...',
+            )
+        else:
+            set_progress('scheduled', 0, 0, 'Checking for new inspection reports...')
 
-        import_summary = import_usda_facilities()
-        summary.update({
-            'created': import_summary.get('created', 0),
-            'usda_updated': import_summary.get('updated', 0),
-            'total_usda': import_summary.get('total_usda', 0),
-        })
-        if import_summary.get('error'):
-            summary['error'] = import_summary['error']
-            summary['status'] = 'error'
-            sync_state.release_lock(lock, summary)
-            return summary
+        if not resuming:
+            import_summary = import_usda_facilities()
+            summary.update({
+                'created': import_summary.get('created', 0),
+                'usda_updated': import_summary.get('updated', 0),
+                'total_usda': import_summary.get('total_usda', 0),
+            })
+            if import_summary.get('error'):
+                summary['error'] = import_summary['error']
+                summary['status'] = 'error'
+                sync_state.release_lock(lock, summary)
+                return summary
 
-        check_summary = check_all_facilities(fetch_news_articles=fetch_news_articles)
-        summary['checked'] = check_summary.get('checked', 0)
-        summary['unchanged'] = check_summary.get('unchanged', 0)
-        summary['initialized'] = check_summary.get('initialized', 0)
-        summary['new_reports'] = check_summary.get('updated', 0)
-        summary['skipped'] = check_summary.get('skipped', 0)
-        summary['errors'] = check_summary.get('errors', 0)
+        if not resume_geocode:
+            check_summary = check_all_facilities(
+                fetch_news_articles=fetch_news_articles,
+                resume_from=resume_from,
+            )
+            summary['checked'] = check_summary.get('checked', 0)
+            summary['unchanged'] = check_summary.get('unchanged', 0)
+            summary['initialized'] = check_summary.get('initialized', 0)
+            summary['new_reports'] = check_summary.get('updated', 0)
+            summary['skipped'] = check_summary.get('skipped', 0)
+            summary['errors'] = check_summary.get('errors', 0)
 
-        geocode_summary = geocode_pending_facilities()
+        geocode_summary = geocode_pending_facilities(
+            resume_from=resume_from if resume_geocode else 0,
+            resume_geocode=resume_geocode,
+        )
         summary['geocoded'] = geocode_summary.get('geocoded', 0)
         summary['errors'] += geocode_summary.get('errors', 0)
 

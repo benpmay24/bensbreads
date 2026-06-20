@@ -33,7 +33,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self.stdout.write('Starting Dog Watch full sync...')
-        from main.dog_watch.scraper import scrape_puppy_mills, run_full_sync, clear_progress
+        from main.dog_watch.scraper import scrape_puppy_mills, run_full_sync
         from main.models import PuppyMillFacility
 
         if options.get('reset_enriched'):
@@ -62,8 +62,8 @@ class Command(BaseCommand):
                     force=True,
                     fetch_news_articles=not options.get('no_news', False),
                 )
-        finally:
-            clear_progress()
+        except Exception:
+            raise
 
         if summary.get('skipped'):
             self.stdout.write(self.style.WARNING(

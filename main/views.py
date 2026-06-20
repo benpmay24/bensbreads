@@ -625,20 +625,26 @@ def dog_watch(request):
     """Map visualization of USDA-licensed dog breeding facilities."""
     from main.dog_watch.scraper import get_progress, run_full_sync
     from main.dog_watch.sync_state import (
-        clear_stale_lock,
         get_last_sync_summary,
         get_sync_state,
+        has_pending_resume,
         is_sync_due,
         next_sync_at,
+        recover_sync_lock,
         sync_interval_hours,
         sync_status_label,
     )
 
-    clear_stale_lock()
+    recover_sync_lock()
     progress = get_progress()
     sync_state_obj = get_sync_state()
 
-    if is_sync_due() and not progress.get('running') and not sync_state_obj.is_running:
+    should_sync = (
+        not progress.get('running')
+        and not sync_state_obj.is_running
+        and (is_sync_due() or has_pending_resume())
+    )
+    if should_sync:
         def start_sync():
             try:
                 run_full_sync()
@@ -698,16 +704,16 @@ def dog_watch(request):
 def dog_watch_refresh(request):
     """Trigger a full background sync of USDA/APHIS data."""
     from main.dog_watch.scraper import get_progress, run_full_sync
-    from main.dog_watch.sync_state import clear_stale_lock, get_sync_state
+    from main.dog_watch.sync_state import get_sync_state, has_pending_resume, recover_sync_lock
 
-    clear_stale_lock()
+    recover_sync_lock()
     progress = get_progress()
     if progress.get('running') or get_sync_state().is_running:
         return redirect('dog_watch')
 
     def run_scrape():
         try:
-            run_full_sync(force=True)
+            run_full_sync(force=not has_pending_resume())
         except Exception:
             logger.exception('Manual Dog Watch sync failed')
 
@@ -721,16 +727,16 @@ def dog_watch_status(request):
     """JSON endpoint for sync progress and status polling."""
     from main.dog_watch.scraper import get_progress
     from main.dog_watch.sync_state import (
-        clear_stale_lock,
         get_last_sync_summary,
         get_sync_state,
         is_sync_due,
         next_sync_at,
+        recover_sync_lock,
         sync_interval_hours,
         sync_status_label,
     )
 
-    clear_stale_lock()
+    recover_sync_lock()
     progress = get_progress()
     state = get_sync_state()
     last_sync = get_last_sync_summary()

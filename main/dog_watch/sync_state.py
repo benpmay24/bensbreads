@@ -1,5 +1,9 @@
 """Database-backed lock and timing for Dog Watch sync."""
 import logging
+import os
+import sys
+import threading
+import time
 from datetime import timedelta
 
 from django.conf import settings
@@ -57,64 +61,155 @@ def get_progress() -> dict:
     return state.progress or {'running': False}
 
 
-def _resume_from_progress(progress: dict) -> int:
-    """1-based facility index to resume from after an interrupted check phase."""
-    if progress.get('phase') != 'check':
-        return 0
-    return int(progress.get('current') or 0)
+def current_worker_pid() -> int:
+    return os.getpid()
+
+
+def is_process_alive(pid: int | None) -> bool:
+    if not pid:
+        return False
+    try:
+        os.kill(int(pid), 0)
+    except (OSError, ValueError, TypeError):
+        return False
+    return True
+
+
+def has_pending_resume() -> bool:
+    progress = get_progress()
+    return bool(progress.get('resume_from')) or progress.get('resume_phase') == 'geocode'
 
 
 def _progress_after_clear(progress: dict) -> dict:
-    resume_from = _resume_from_progress(progress)
-    if resume_from:
-        return {'running': False, 'resume_from': resume_from}
-    return {'running': False}
+    cleared: dict = {'running': False}
+    phase = progress.get('phase', '')
+    current = int(progress.get('current') or 0)
+    if phase == 'geocode' and current > 0:
+        cleared['resume_phase'] = 'geocode'
+        cleared['resume_from'] = current
+    elif phase == 'check' and current > 0:
+        cleared['resume_from'] = current
+    return cleared
+
+
+def _heartbeat_is_fresh(progress: dict) -> bool:
+    updated_at = progress.get('updated_at')
+    if not updated_at:
+        return False
+    updated = parse_datetime(updated_at)
+    if not updated:
+        return False
+    return timezone.now() - updated < timedelta(minutes=STALE_LOCK_MINUTES)
+
+
+def _sync_lock_is_active(progress: dict) -> bool:
+    """True when another live worker is actively syncing."""
+    worker_pid = progress.get('worker_pid')
+    if worker_pid and worker_pid != current_worker_pid():
+        if is_process_alive(worker_pid) and _heartbeat_is_fresh(progress):
+            return True
+        return False
+    if worker_pid == current_worker_pid():
+        return _heartbeat_is_fresh(progress)
+    return _heartbeat_is_fresh(progress)
+
+
+def recover_sync_lock(force: bool = False) -> bool:
+    """
+    Release a sync lock held by a dead worker or with a stale heartbeat.
+    Preserves resume_from so interrupted syncs can continue.
+    """
+    state = get_sync_state()
+    if not state.is_running:
+        return False
+
+    progress = state.progress or {}
+    if not force and _sync_lock_is_active(progress):
+        return False
+
+    state.is_running = False
+    state.progress = _progress_after_clear(progress)
+    state.save(update_fields=['is_running', 'progress'])
+    logger.warning(
+        'Recovered Dog Watch sync lock (worker_pid=%s, phase=%s, current=%s)',
+        progress.get('worker_pid'),
+        progress.get('phase'),
+        progress.get('current'),
+    )
+    return True
 
 
 def clear_stale_lock() -> bool:
-    """
-    Release a sync lock left behind by a crashed or interrupted sync.
-    Returns True if a stale lock was cleared.
-    """
-    state = get_sync_state()
-    if not state.is_running:
-        return False
-
-    progress = state.progress or {}
-    if progress.get('running'):
-        updated_at = progress.get('updated_at')
-        if updated_at:
-            updated = parse_datetime(updated_at)
-            if updated and timezone.now() - updated < timedelta(minutes=STALE_LOCK_MINUTES):
-                return False
-
-    state.is_running = False
-    state.progress = _progress_after_clear(progress)
-    state.save(update_fields=['is_running', 'progress'])
-    logger.warning('Cleared stale Dog Watch sync lock')
-    return True
+    """Backward-compatible alias for recover_sync_lock."""
+    return recover_sync_lock()
 
 
 def clear_orphaned_lock_on_startup() -> bool:
-    """
-    Clear a sync lock left by a previous process (e.g. runserver restart).
-    Daemon sync threads do not survive process restarts.
-    """
+    """Clear a lock left by a previous process after deploy or restart."""
     state = get_sync_state()
     if not state.is_running:
         return False
 
     progress = state.progress or {}
-    state.is_running = False
-    state.progress = _progress_after_clear(progress)
-    state.save(update_fields=['is_running', 'progress'])
-    logger.warning('Cleared orphaned Dog Watch sync lock from previous process')
+    worker_pid = progress.get('worker_pid')
+    if worker_pid == current_worker_pid() and _heartbeat_is_fresh(progress):
+        return False
+
+    if worker_pid and worker_pid != current_worker_pid() and is_process_alive(worker_pid):
+        if _heartbeat_is_fresh(progress):
+            return False
+
+    return recover_sync_lock(force=True)
+
+
+def _should_auto_resume_on_startup() -> bool:
+    if os.environ.get('DJANGO_SKIP_DOG_WATCH_SCHEDULER', '').lower() == 'true':
+        return False
+    if len(sys.argv) > 1 and sys.argv[1] in {
+        'migrate', 'makemigrations', 'shell', 'test', 'collectstatic',
+        'dog_watch_recover_sync',
+    }:
+        return False
+    if 'runserver' in sys.argv and os.environ.get('RUN_MAIN') != 'true':
+        return False
     return True
+
+
+def _auto_resume_sync() -> None:
+    time.sleep(1)
+    from main.dog_watch.scraper import run_full_sync
+
+    try:
+        result = run_full_sync(force=True)
+        if result.get('skipped'):
+            logger.info('Dog Watch auto-resume skipped: %s', result.get('reason'))
+        else:
+            logger.info('Dog Watch auto-resume finished: %s', result.get('status'))
+    except Exception:
+        logger.exception('Dog Watch auto-resume failed')
+
+
+def recover_on_startup(auto_resume: bool = True) -> None:
+    """
+    Called on process start: clear locks from dead workers and optionally
+    resume an interrupted sync (e.g. after a production deploy).
+    """
+    cleared = clear_orphaned_lock_on_startup()
+    if not auto_resume or not _should_auto_resume_on_startup():
+        return
+    if cleared or has_pending_resume():
+        thread = threading.Thread(
+            target=_auto_resume_sync,
+            daemon=True,
+            name='dog-watch-auto-resume',
+        )
+        thread.start()
+        logger.info('Scheduled Dog Watch sync auto-resume after recovery')
 
 
 def sync_status_label() -> str:
     """Human-readable sync state for the UI."""
-    clear_stale_lock()
+    recover_sync_lock()
     state = get_sync_state()
     progress = get_progress()
 
@@ -128,7 +223,7 @@ def sync_status_label() -> str:
 
 
 def try_acquire_lock() -> DogWatchSyncState | None:
-    clear_stale_lock()
+    recover_sync_lock()
     DogWatchSyncState.load()
     with transaction.atomic():
         state = DogWatchSyncState.objects.select_for_update().get(pk=1)
@@ -141,6 +236,7 @@ def try_acquire_lock() -> DogWatchSyncState | None:
             'current': 0,
             'total': 0,
             'message': 'Starting full Dog Watch update...',
+            'worker_pid': current_worker_pid(),
             'updated_at': timezone.now().isoformat(),
         }
         state.save(update_fields=['is_running', 'progress'])
