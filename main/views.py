@@ -1,9 +1,10 @@
 import json
+import logging
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
-from .models import BlogPost, Recipe, Ingredient, Instruction, RamseyPhoto, Connect4Result, WordFindScore, Comment, Review, DailyUpdate, RamseyProfile, VaccineRecord, BoardingExperience, DietEntry, VaccineDocument, DietDocument, BoardingDocument
+from .models import BlogPost, Recipe, Ingredient, Instruction, RamseyPhoto, Connect4Result, WordFindScore, Comment, Review, DailyUpdate, RamseyProfile, VaccineRecord, BoardingExperience, DietEntry, VaccineDocument, DietDocument, BoardingDocument, PuppyMillFacility
 from .forms import BlogPostForm, RecipeForm, RamseyPhotoForm, CustomUserCreationForm, IngredientForm, InstructionForm, ReviewForm, RamseyProfileForm, VaccineRecordForm, BoardingExperienceForm, DietEntryForm, VaccineDocumentForm, DietDocumentForm, BoardingDocumentForm
 from django.db import transaction
 from django.http import JsonResponse
@@ -15,12 +16,15 @@ from django.http import HttpResponse
 from django.forms import inlineformset_factory
 import requests
 from django.conf import settings
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_POST
+from django.core.cache import cache
 from django.core.management import call_command
 from io import StringIO
 import threading
 from datetime import datetime, date
 from django.db.models import Q
+
+logger = logging.getLogger(__name__)
 
 # Home, Games, About, Blog, Signup, Manage Users views — same as you wrote
 
@@ -567,6 +571,190 @@ def download_document(request, doc_type, doc_id):
     
     return HttpResponse('Document not found', status=404)
 
+
+# Dog Watch (Superuser Only)
+def _facility_to_json(facility):
+    reports = facility.inspection_reports or []
+    non_critical = sum(r.get('non_critical', 0) for r in reports)
+    license_type = facility.license_type or ''
+    if 'Class A' in license_type:
+        license_class = 'A'
+    elif 'Class B' in license_type:
+        license_class = 'B'
+    else:
+        license_class = ''
+
+    direct = facility.direct_violations or 0
+    # Legacy rows stored critical + direct in critical_violations
+    stored_critical = facility.critical_violations or 0
+    critical = stored_critical if stored_critical <= direct else max(0, stored_critical - direct)
+    if reports and sum(r.get('critical', 0) for r in reports) > 0:
+        critical = sum(r.get('critical', 0) for r in reports)
+    if reports and sum(r.get('direct', 0) for r in reports) > 0:
+        direct = sum(r.get('direct', 0) for r in reports)
+    if reports and non_critical == 0:
+        non_critical = sum(r.get('non_critical', 0) for r in reports)
+
+    return {
+        'id': facility.id,
+        'name': facility.name,
+        'dba': facility.dba_name,
+        'license': facility.license_number,
+        'license_type': license_type,
+        'license_class': license_class,
+        'address': facility.full_address,
+        'city': facility.city,
+        'state': facility.state,
+        'lat': float(facility.latitude) if facility.latitude else None,
+        'lng': float(facility.longitude) if facility.longitude else None,
+        'owners': facility.owners,
+        'suppliers': facility.suppliers,
+        'breeds': facility.dog_breeds,
+        'news': facility.news_articles,
+        'reports': reports,
+        'violations': facility.violation_count,
+        'direct': direct,
+        'critical': critical,
+        'non_critical': non_critical,
+        'usda_url': facility.usda_profile_url,
+    }
+
+
+@user_passes_test(lambda u: u.is_superuser)
+def dog_watch(request):
+    """Map visualization of USDA-licensed dog breeding facilities."""
+    from main.dog_watch.scraper import get_progress, run_full_sync
+    from main.dog_watch.sync_state import (
+        clear_stale_lock,
+        get_last_sync_summary,
+        get_sync_state,
+        is_sync_due,
+        next_sync_at,
+        sync_interval_hours,
+        sync_status_label,
+    )
+
+    clear_stale_lock()
+    progress = get_progress()
+    sync_state_obj = get_sync_state()
+
+    if is_sync_due() and not progress.get('running') and not sync_state_obj.is_running:
+        def start_sync():
+            try:
+                run_full_sync()
+            except Exception:
+                logger.exception('Dog Watch sync on page load failed')
+
+        threading.Thread(target=start_sync, daemon=True).start()
+        progress = get_progress()
+        sync_state_obj = get_sync_state()
+
+    facilities = PuppyMillFacility.objects.filter(is_dog_facility=True, coordinates_geocoded=True)
+    facilities_json = json.dumps([_facility_to_json(f) for f in facilities if f.has_coordinates])
+
+    last_scraped = (
+        PuppyMillFacility.objects.filter(last_scraped_at__isnull=False)
+        .order_by('-last_scraped_at')
+        .values_list('last_scraped_at', flat=True)
+        .first()
+    )
+    states = (
+        PuppyMillFacility.objects.filter(is_dog_facility=True)
+        .exclude(state='')
+        .values_list('state', flat=True)
+        .distinct()
+        .order_by('state')
+    )
+    license_classes = (
+        PuppyMillFacility.objects.filter(is_dog_facility=True)
+        .exclude(license_type='')
+        .values_list('license_type', flat=True)
+        .distinct()
+        .order_by('license_type')
+    )
+    last_sync = get_last_sync_summary()
+    running = progress.get('running', False)
+
+    return render(request, 'ramsey/dog_watch.html', {
+        'facilities_json': facilities_json,
+        'total_count': PuppyMillFacility.objects.filter(is_dog_facility=True).count(),
+        'mapped_count': facilities.count(),
+        'violation_count': facilities.filter(violation_count__gt=0).count(),
+        'last_scraped': last_scraped,
+        'states': states,
+        'license_classes': license_classes,
+        'scrape_running': running,
+        'scrape_message': progress.get('message', ''),
+        'sync_interval_hours': sync_interval_hours(),
+        'last_sync': last_sync,
+        'last_sync_at': sync_state_obj.last_sync_at,
+        'next_sync_at': next_sync_at(),
+        'sync_status': 'syncing' if running else sync_status_label(),
+    })
+
+
+@require_POST
+@user_passes_test(lambda u: u.is_superuser)
+def dog_watch_refresh(request):
+    """Trigger a full background sync of USDA/APHIS data."""
+    from main.dog_watch.scraper import get_progress, run_full_sync
+
+    progress = get_progress()
+    if progress.get('running'):
+        return redirect('dog_watch')
+
+    def run_scrape():
+        try:
+            run_full_sync(force=True)
+        except Exception:
+            logger.exception('Manual Dog Watch sync failed')
+
+    threading.Thread(target=run_scrape, daemon=True).start()
+    return redirect('dog_watch')
+
+
+@require_GET
+@user_passes_test(lambda u: u.is_superuser)
+def dog_watch_status(request):
+    """JSON endpoint for sync progress and status polling."""
+    from main.dog_watch.scraper import get_progress
+    from main.dog_watch.sync_state import (
+        clear_stale_lock,
+        get_last_sync_summary,
+        get_sync_state,
+        is_sync_due,
+        next_sync_at,
+        sync_interval_hours,
+        sync_status_label,
+    )
+
+    clear_stale_lock()
+    progress = get_progress()
+    state = get_sync_state()
+    last_sync = get_last_sync_summary()
+    running = progress.get('running', False)
+    mapped_count = PuppyMillFacility.objects.filter(
+        is_dog_facility=True,
+        coordinates_geocoded=True,
+    ).count()
+
+    return JsonResponse({
+        'running': running,
+        'phase': progress.get('phase', ''),
+        'current': progress.get('current', 0),
+        'total': progress.get('total', 0),
+        'message': progress.get('message', ''),
+        'status': 'syncing' if running else sync_status_label(),
+        'sync_due': is_sync_due(),
+        'sync_interval_hours': sync_interval_hours(),
+        'last_sync_at': state.last_sync_at.isoformat() if state.last_sync_at else None,
+        'next_sync_at': next_sync_at().isoformat(),
+        'last_summary': last_sync,
+        'facility_count': PuppyMillFacility.objects.filter(is_dog_facility=True).count(),
+        'mapped_count': mapped_count,
+    })
+
+
 def connect4 (request):
     return render(request,"games/connect4.html")
 
@@ -651,6 +839,28 @@ def cron_daily_reminder(request):
             pass  # Logged server-side; cron already got 200
 
     threading.Thread(target=send_reminder, daemon=True).start()
+    return HttpResponse('OK', status=200)
+
+
+@require_GET
+def cron_dog_watch_sync(request):
+    """
+    Trigger Dog Watch data sync. Protected by CRON_SECRET_TOKEN.
+    Useful as a backup to the in-process scheduler (e.g. cron-job.org once daily).
+    Example: https://yoursite.com/cron/dog-watch-sync/?token=your-secret-token
+    """
+    token = request.GET.get('token', '')
+    if not settings.CRON_SECRET_TOKEN or token != settings.CRON_SECRET_TOKEN:
+        return HttpResponse('Unauthorized', status=401)
+
+    def run_sync():
+        try:
+            from main.dog_watch.scraper import run_full_sync
+            run_full_sync()
+        except Exception:
+            logger.exception('Cron Dog Watch sync failed')
+
+    threading.Thread(target=run_sync, daemon=True).start()
     return HttpResponse('OK', status=200)
 
 @login_required

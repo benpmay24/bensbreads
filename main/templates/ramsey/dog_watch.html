@@ -1,0 +1,777 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Dog Watch{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  .dog-watch-layout {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 0;
+    height: calc(100vh - 120px);
+    min-height: 600px;
+  }
+  .dog-watch-sidebar {
+    background: #faf8f5;
+    border-right: 1px solid #e8e0d4;
+    overflow-y: auto;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+  }
+  .dog-watch-map {
+    height: 100%;
+    min-height: 600px;
+  }
+  #detailPanel {
+    background: white;
+    border: 2px solid #8B4513;
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    flex-shrink: 0;
+    display: none;
+  }
+  #detailPanel.visible { display: block; }
+  .detail-close {
+    float: right;
+    background: none;
+    border: none;
+    color: #6c757d;
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+  }
+  .detail-close:hover { color: #8B4513; }
+  .violation-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  .violation-stat {
+    border-radius: 8px;
+    padding: 0.5rem;
+    text-align: center;
+    font-size: 0.8rem;
+  }
+  .violation-stat .count { font-size: 1.25rem; font-weight: 700; display: block; }
+  .violation-stat.direct { background: #fde8e8; color: #c0392b; }
+  .violation-stat.critical { background: #fef3e2; color: #d35400; }
+  .violation-stat.non-critical { background: #fff8e1; color: #b7950b; }
+  .report-row {
+    border: 1px solid #e8e0d4;
+    border-radius: 8px;
+    padding: 0.65rem 0.75rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.82rem;
+  }
+  .report-row.has-violations { border-left: 3px solid #c0392b; }
+  .report-badges { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.35rem 0; }
+  .report-badge {
+    font-size: 0.68rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    font-weight: 600;
+  }
+  .report-badge.direct { background: #fde8e8; color: #c0392b; }
+  .report-badge.critical { background: #fef3e2; color: #d35400; }
+  .report-badge.non-critical { background: #fff8e1; color: #b7950b; }
+  .report-badge.clean { background: #e8f5e9; color: #27ae60; }
+  .report-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.8rem;
+    color: #8B4513;
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .report-link:hover { text-decoration: underline; }
+  .license-class-badge {
+    display: inline-block;
+    font-size: 0.72rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    background: #f0ebe3;
+    color: #5d4f41;
+    font-weight: 600;
+    margin-left: 0.35rem;
+  }
+  #facilityList { flex: 1; overflow-y: auto; min-height: 0; }
+  .facility-card {
+    background: white;
+    border: 1px solid #e8e0d4;
+    border-radius: 10px;
+    padding: 0.875rem;
+    margin-bottom: 0.75rem;
+    cursor: pointer;
+    transition: box-shadow 0.15s, border-color 0.15s;
+  }
+  .facility-card:hover, .facility-card.active {
+    border-color: #8B4513;
+    box-shadow: 0 2px 8px rgba(139, 69, 19, 0.15);
+  }
+  .facility-card h6 {
+    margin: 0 0 0.25rem;
+    color: #5d4f41;
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  .facility-card .meta {
+    font-size: 0.8rem;
+    color: #6c757d;
+  }
+  .violation-badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    font-weight: 600;
+  }
+  .violation-high { background: #fde8e8; color: #c0392b; }
+  .violation-med { background: #fef3e2; color: #d35400; }
+  .violation-low { background: #e8f5e9; color: #27ae60; }
+  .detail-panel h5 { color: #5d4f41; margin-bottom: 0.75rem; }
+  .detail-section { margin-bottom: 1rem; }
+  .detail-section h6 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #8B4513;
+    margin-bottom: 0.35rem;
+  }
+  .detail-section ul { margin: 0; padding-left: 1.1rem; font-size: 0.875rem; }
+  .stats-row {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+  .stat-box {
+    background: white;
+    border: 1px solid #e8e0d4;
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    text-align: center;
+    flex: 1;
+    min-width: 70px;
+  }
+  .stat-box .num { font-size: 1.25rem; font-weight: 700; color: #8B4513; }
+  .stat-box .lbl { font-size: 0.7rem; color: #6c757d; text-transform: uppercase; }
+  .filter-bar { margin-bottom: 1rem; }
+  .filter-bar input[type="text"] {
+    font-size: 0.85rem;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    padding: 0.35rem 0.5rem;
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+  .filter-multiselect { margin-bottom: 0.5rem; }
+  .filter-multiselect-btn {
+    font-size: 0.85rem;
+    text-align: left;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    border-color: #ddd;
+    color: #5d4f41;
+  }
+  .filter-multiselect-btn:hover, .filter-multiselect-btn:focus {
+    background: #faf8f5;
+    border-color: #8B4513;
+    color: #5d4f41;
+  }
+  .filter-multiselect-menu {
+    max-height: 220px;
+    overflow-y: auto;
+    font-size: 0.85rem;
+  }
+  .filter-multiselect-menu .form-check {
+    padding: 0.2rem 0.5rem 0.2rem 1.75rem;
+    margin: 0;
+  }
+  .filter-multiselect-menu .form-check:hover { background: #faf8f5; }
+  .filter-multiselect-actions {
+    border-top: 1px solid #e8e0d4;
+    padding: 0.35rem 0.5rem;
+    display: flex;
+    gap: 0.5rem;
+  }
+  .filter-multiselect-actions button {
+    font-size: 0.75rem;
+    padding: 0;
+    border: none;
+    background: none;
+    color: #8B4513;
+    text-decoration: underline;
+  }
+  .sync-banner {
+    margin: 0 1rem 1rem;
+    padding: 0.875rem 1.25rem;
+    border-radius: 10px;
+    border: 1px solid #e8e0d4;
+    background: #faf8f5;
+  }
+  .sync-banner--syncing { border-color: #8B4513; background: #fff9f5; }
+  .sync-banner--up_to_date { border-color: #b7dfc8; background: #f0faf3; }
+  .sync-banner--due, .sync-banner--never_synced { border-color: #f0d9a8; background: #fffbf0; }
+  .sync-banner-main {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.92rem;
+    color: #5d4f41;
+  }
+  .sync-banner-main i { width: 1.1rem; text-align: center; }
+  .sync-banner--syncing .sync-banner-main i { color: #8B4513; }
+  .sync-banner--up_to_date .sync-banner-main i { color: #27ae60; }
+  .sync-banner--due .sync-banner-main i,
+  .sync-banner--never_synced .sync-banner-main i { color: #d68910; }
+  .sync-progress-wrap { margin-top: 0.65rem; }
+  .sync-progress-wrap .progress { height: 6px; background: #e8e0d4; }
+  .sync-progress-wrap .progress-bar { background: #8B4513; transition: width 0.3s; }
+  .sync-progress-wrap .progress-bar.indeterminate {
+    width: 40% !important;
+    animation: sync-indeterminate 1.5s ease-in-out infinite;
+  }
+  @keyframes sync-indeterminate {
+    0% { margin-left: 0; }
+    50% { margin-left: 60%; }
+    100% { margin-left: 0; }
+  }
+  .sync-progress-detail { display: block; margin-top: 0.35rem; font-size: 0.78rem; color: #6c757d; }
+  @media (max-width: 768px) {
+    .dog-watch-layout { grid-template-columns: 1fr; height: auto; }
+    .dog-watch-map { height: 400px; }
+  }
+</style>
+
+<div class="container-fluid px-0">
+  <div class="hero-header px-4 pt-4 pb-2">
+    <div class="hero-content">
+      <h1 class="hero-title">
+        <i class="fas fa-map-marked-alt" style="color: #8B4513;"></i> Dog Watch
+      </h1>
+      <p class="hero-subtitle">Mapping USDA-licensed dog breeders &amp; dealers across the United States</p>
+      <div class="hero-divider"></div>
+    </div>
+  </div>
+
+  <div id="syncBanner" class="sync-banner sync-banner--{{ sync_status }}">
+    <div class="sync-banner-main">
+      <i class="fas {% if sync_status == 'syncing' %}fa-sync-alt fa-spin{% elif sync_status == 'up_to_date' %}fa-check-circle{% else %}fa-clock{% endif %}" id="syncStatusIcon"></i>
+      <span id="syncStatusLabel">
+        {% if sync_status == 'syncing' %}
+          Updating all facilities…
+        {% elif sync_status == 'up_to_date' and last_sync_at %}
+          Up to date — last updated {{ last_sync_at|date:"M j, Y g:i A" }}
+        {% elif sync_status == 'never_synced' %}
+          Preparing first update…
+        {% else %}
+          Update due — syncing shortly
+        {% endif %}
+      </span>
+    </div>
+    <div class="sync-progress-wrap{% if not scrape_running %} d-none{% endif %}" id="syncProgressWrap">
+      <div class="progress">
+        <div class="progress-bar" id="syncProgressBar" role="progressbar" style="width: 0%"></div>
+      </div>
+      <small class="sync-progress-detail" id="syncProgressDetail">{{ scrape_message }}</small>
+    </div>
+    <small class="sync-progress-detail{% if scrape_running %} d-none{% endif %}" id="syncNextLabel">
+      {% if last_sync_at and sync_status == 'up_to_date' %}
+        Next automatic update: {{ next_sync_at|date:"M j, Y g:i A" }} (every {{ sync_interval_hours|floatformat:0 }} hours)
+      {% elif sync_status != 'syncing' and sync_status != 'never_synced' %}
+        Full update runs automatically every {{ sync_interval_hours|floatformat:0 }} hours
+      {% endif %}
+    </small>
+  </div>
+
+  <div class="px-4 pb-3 d-flex align-items-center gap-3 flex-wrap">
+    <div class="stats-row mb-0">
+      <div class="stat-box"><div class="num">{{ total_count }}</div><div class="lbl">Facilities</div></div>
+      <div class="stat-box"><div class="num">{{ mapped_count }}</div><div class="lbl">On Map</div></div>
+      <div class="stat-box"><div class="num">{{ violation_count }}</div><div class="lbl">w/ Violations</div></div>
+    </div>
+    <form method="post" action="{% url 'dog_watch_refresh' %}" class="ms-auto">
+      {% csrf_token %}
+      <button type="submit" class="btn-game-primary" id="refreshBtn" {% if scrape_running %}disabled{% endif %}>
+        <i class="fas fa-sync-alt{% if scrape_running %} fa-spin{% endif %}" id="refreshIcon"></i>
+        <span id="refreshLabel">{% if scrape_running %}Updating...{% else %}Update Now{% endif %}</span>
+      </button>
+    </form>
+  </div>
+
+  <div class="dog-watch-layout">
+    <div class="dog-watch-sidebar">
+      <div class="filter-bar">
+        <input type="text" id="searchInput" placeholder="Search by name, city, license...">
+
+        <div class="dropdown filter-multiselect w-100">
+          <button class="btn filter-multiselect-btn dropdown-toggle w-100" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+            <span>States</span><span class="filter-summary" data-group="state">All</span>
+          </button>
+          <div class="dropdown-menu filter-multiselect-menu w-100">
+            {% for st in states %}
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" data-filter="state" value="{{ st }}" id="state-{{ st }}" checked>
+              <label class="form-check-label" for="state-{{ st }}">{{ st }}</label>
+            </div>
+            {% endfor %}
+            <div class="filter-multiselect-actions">
+              <button type="button" data-action="all" data-group="state">Select all</button>
+              <button type="button" data-action="none" data-group="state">Clear all</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="dropdown filter-multiselect w-100">
+          <button class="btn filter-multiselect-btn dropdown-toggle w-100" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+            <span>Violation Count</span><span class="filter-summary" data-group="count">All</span>
+          </button>
+          <div class="dropdown-menu filter-multiselect-menu w-100">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" data-filter="count" value="high" id="count-high" checked>
+              <label class="form-check-label" for="count-high">High (10+ total)</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" data-filter="count" value="med" id="count-med" checked>
+              <label class="form-check-label" for="count-med">Medium (1–9 total)</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" data-filter="count" value="none" id="count-none" checked>
+              <label class="form-check-label" for="count-none">No violations</label>
+            </div>
+            <div class="filter-multiselect-actions">
+              <button type="button" data-action="all" data-group="count">Select all</button>
+              <button type="button" data-action="none" data-group="count">Clear all</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="dropdown filter-multiselect w-100">
+          <button class="btn filter-multiselect-btn dropdown-toggle w-100" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+            <span>Violation Type</span><span class="filter-summary" data-group="type">All</span>
+          </button>
+          <div class="dropdown-menu filter-multiselect-menu w-100">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" data-filter="type" value="direct" id="type-direct" checked>
+              <label class="form-check-label" for="type-direct">Direct</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" data-filter="type" value="critical" id="type-critical" checked>
+              <label class="form-check-label" for="type-critical">Critical</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" data-filter="type" value="non_critical" id="type-nc" checked>
+              <label class="form-check-label" for="type-nc">Non-critical</label>
+            </div>
+            <div class="filter-multiselect-actions">
+              <button type="button" data-action="all" data-group="type">Select all</button>
+              <button type="button" data-action="none" data-group="type">Clear all</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="dropdown filter-multiselect w-100">
+          <button class="btn filter-multiselect-btn dropdown-toggle w-100" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+            <span>License Class</span><span class="filter-summary" data-group="class">All</span>
+          </button>
+          <div class="dropdown-menu filter-multiselect-menu w-100">
+            {% for cls in license_classes %}
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" data-filter="class" value="{{ cls }}" id="class-{{ forloop.counter }}" checked>
+              <label class="form-check-label" for="class-{{ forloop.counter }}">{{ cls }}</label>
+            </div>
+            {% endfor %}
+            <div class="filter-multiselect-actions">
+              <button type="button" data-action="all" data-group="class">Select all</button>
+              <button type="button" data-action="none" data-group="class">Clear all</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="detailPanel"></div>
+      <div id="facilityList"></div>
+    </div>
+    <div id="map" class="dog-watch-map"></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const facilities = {{ facilities_json|safe }};
+let map, markers = {}, activeId = null, markerLayer;
+
+function escapeHtml(text) {
+  const d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
+}
+
+function violationClass(count) {
+  if (count >= 10) return 'violation-high';
+  if (count >= 1) return 'violation-med';
+  return 'violation-low';
+}
+
+function violationLabel(count) {
+  if (count >= 10) return count + ' violations';
+  if (count >= 1) return count + ' violation' + (count > 1 ? 's' : '');
+  return 'No violations';
+}
+
+function initMap() {
+  map = L.map('map').setView([39.8283, -98.5795], 4);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 18,
+  }).addTo(map);
+
+  markerLayer = L.layerGroup().addTo(map);
+
+  facilities.forEach(f => {
+    if (!f.lat || !f.lng) return;
+    const color = f.violations >= 10 ? '#c0392b' : f.violations >= 1 ? '#d35400' : '#27ae60';
+    const marker = L.circleMarker([f.lat, f.lng], {
+      radius: 7,
+      fillColor: color,
+      color: '#fff',
+      weight: 2,
+      opacity: 1,
+      fillOpacity: 0.85,
+    });
+    marker.bindPopup(`<strong>${escapeHtml(f.name)}</strong><br>${escapeHtml(f.city || '')}, ${escapeHtml(f.state || '')}<br>${violationLabel(f.violations)}<br><em style="font-size:0.85em">Click for details</em>`);
+    marker.on('click', () => showDetail(f.id));
+    markers[f.id] = marker;
+    markerLayer.addLayer(marker);
+  });
+}
+
+function renderList(filtered) {
+  const list = document.getElementById('facilityList');
+  if (!filtered.length) {
+    list.innerHTML = '<p class="text-muted small">No facilities match your filters.</p>';
+    return;
+  }
+  list.innerHTML = filtered.slice(0, 100).map(f => `
+    <div class="facility-card${activeId === f.id ? ' active' : ''}" data-id="${f.id}" onclick="showDetail(${f.id})">
+      <h6>${escapeHtml(f.name)}${f.license_class ? `<span class="license-class-badge">${escapeHtml(f.license_class)}</span>` : ''}</h6>
+      <div class="meta">${escapeHtml(f.city || '')}${f.city && f.state ? ', ' : ''}${escapeHtml(f.state || '')} &middot; ${escapeHtml(f.license)}</div>
+      <span class="violation-badge ${violationClass(f.violations)}">${violationLabel(f.violations)}</span>
+    </div>
+  `).join('');
+  if (filtered.length > 100) {
+    list.innerHTML += `<p class="text-muted small mt-2">Showing 100 of ${filtered.length} results. Refine filters to see more.</p>`;
+  }
+}
+
+function renderReportBadges(r) {
+  const badges = [];
+  if (r.direct > 0) badges.push(`<span class="report-badge direct">${r.direct} direct</span>`);
+  if (r.critical > 0) badges.push(`<span class="report-badge critical">${r.critical} critical</span>`);
+  if (r.non_critical > 0) badges.push(`<span class="report-badge non-critical">${r.non_critical} non-critical</span>`);
+  if (r.teachable > 0) badges.push(`<span class="report-badge non-critical">${r.teachable} teachable</span>`);
+  if (!badges.length) badges.push('<span class="report-badge clean">No violations</span>');
+  return badges.join('');
+}
+
+function showDetail(id) {
+  activeId = id;
+  const f = facilities.find(x => x.id === id);
+  if (!f) return;
+
+  document.querySelectorAll('.facility-card').forEach(el => {
+    el.classList.toggle('active', parseInt(el.dataset.id) === id);
+  });
+
+  const panel = document.getElementById('detailPanel');
+  panel.classList.add('visible');
+
+  const owners = (f.owners || []).map(o => `<li>${escapeHtml(o)}</li>`).join('') || '<li class="text-muted">Unknown</li>';
+  const breeds = (f.breeds || []).map(b => `<li>${escapeHtml(b)}</li>`).join('') || '<li class="text-muted">Not recorded</li>';
+  const suppliers = (f.suppliers || []).map(s => `<li>${escapeHtml(s)}</li>`).join('') || '<li class="text-muted">Not recorded</li>';
+  const news = (f.news || []).map(n =>
+    `<li><a href="${escapeHtml(n.url)}" target="_blank" rel="noopener">${escapeHtml(n.title)}</a>${n.source ? ' <small>(' + escapeHtml(n.source) + ')</small>' : ''}</li>`
+  ).join('') || '<li class="text-muted">No news articles found</li>';
+
+  const reports = (f.reports || []);
+  const reportsHtml = reports.length ? reports.map(r => {
+    const hasViol = (r.direct || 0) + (r.critical || 0) + (r.non_critical || 0) > 0;
+    const reportUrl = r.url || f.usda_url || '#';
+    return `
+      <div class="report-row${hasViol ? ' has-violations' : ''}">
+        <strong>${escapeHtml(r.date || 'Inspection report')}</strong>
+        <div class="report-badges">${renderReportBadges(r)}</div>
+        <a class="report-link" href="${escapeHtml(reportUrl)}" target="_blank" rel="noopener">
+          <i class="fas fa-file-pdf"></i> View USDA inspection report
+        </a>
+      </div>`;
+  }).join('') : '<p class="text-muted small mb-0">No inspection reports on file yet.</p>';
+
+  const direct = f.direct || 0;
+  const critical = f.critical || 0;
+  const nonCritical = f.non_critical || 0;
+  const violatingReportCount = reports.filter(r =>
+    (r.direct || 0) + (r.critical || 0) + (r.non_critical || 0) > 0
+  ).length;
+
+  panel.innerHTML = `
+    <button class="detail-close" onclick="closeDetail()" title="Close">&times;</button>
+    <h5>${escapeHtml(f.name)}${f.dba ? ` <small class="text-muted">(${escapeHtml(f.dba)})</small>` : ''}</h5>
+    <p class="text-muted small mb-2">
+      ${escapeHtml(f.address || [f.city, f.state].filter(Boolean).join(', '))}<br>
+      License: <strong>${escapeHtml(f.license)}</strong>
+      <span class="license-class-badge">${escapeHtml(f.license_type || 'Unknown class')}</span>
+    </p>
+
+    <div class="detail-section">
+      <h6>Violation Summary</h6>
+      <div class="violation-summary">
+        <div class="violation-stat direct"><span class="count">${direct}</span>Direct</div>
+        <div class="violation-stat critical"><span class="count">${critical}</span>Critical</div>
+        <div class="violation-stat non-critical"><span class="count">${nonCritical}</span>Non-critical</div>
+      </div>
+      <p class="text-muted" style="font-size:0.78rem;margin:0;">
+        <strong>Direct</strong> — most severe; immediate threat to animal health.
+        <strong>Critical</strong> — significant welfare concerns.
+        <strong>Non-critical</strong> — lesser compliance issues.
+      </p>
+    </div>
+
+    <div class="detail-section">
+      <h6>Inspection Reports (${reports.length}${violatingReportCount ? `, ${violatingReportCount} with violations` : ''})</h6>
+      ${violatingReportCount === 0 && direct + critical + nonCritical > 0
+        ? '<p class="text-muted small">Violation history exists but detailed reports need a re-sync. Use Sync Now to refresh.</p>'
+        : reportsHtml}
+    </div>
+
+    <div class="detail-section"><h6>Owners</h6><ul>${owners}</ul></div>
+    <div class="detail-section"><h6>Dog Breeds / Species</h6><ul>${breeds}</ul></div>
+    <div class="detail-section"><h6>Suppliers / Buyers</h6><ul>${suppliers}</ul></div>
+    <div class="detail-section"><h6>News Articles</h6><ul>${news}</ul></div>
+    ${f.usda_url ? `<a href="${escapeHtml(f.usda_url)}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary"><i class="fas fa-external-link-alt"></i> USDA Profile</a>` : ''}
+  `;
+
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  document.querySelector('.dog-watch-sidebar').scrollTop = 0;
+
+  if (markers[id]) {
+    map.setView(markers[id].getLatLng(), Math.max(map.getZoom(), 10));
+    markers[id].openPopup();
+  }
+}
+
+function closeDetail() {
+  activeId = null;
+  document.getElementById('detailPanel').classList.remove('visible');
+  document.querySelectorAll('.facility-card').forEach(el => el.classList.remove('active'));
+  map.closePopup();
+}
+
+function updateMapMarkers(filtered) {
+  const visibleIds = new Set(filtered.map(f => f.id));
+  markerLayer.clearLayers();
+  facilities.forEach(f => {
+    if (!f.lat || !f.lng || !visibleIds.has(f.id)) return;
+    markerLayer.addLayer(markers[f.id]);
+  });
+}
+
+function getViolationCounts(f) {
+  const direct = f.direct || 0;
+  const criticalOnly = f.critical || 0;
+  const nonCritical = f.non_critical || 0;
+  return { direct, criticalOnly, nonCritical };
+}
+
+function getCheckedValues(group) {
+  return [...document.querySelectorAll(`input[data-filter="${group}"]:checked`)].map(el => el.value);
+}
+
+function isAllSelected(group) {
+  const all = document.querySelectorAll(`input[data-filter="${group}"]`);
+  const checked = document.querySelectorAll(`input[data-filter="${group}"]:checked`);
+  return all.length > 0 && all.length === checked.length;
+}
+
+function updateFilterSummaries() {
+  ['state', 'count', 'type', 'class'].forEach(group => {
+    const el = document.querySelector(`.filter-summary[data-group="${group}"]`);
+    if (!el) return;
+    const total = document.querySelectorAll(`input[data-filter="${group}"]`).length;
+    const checked = getCheckedValues(group).length;
+    if (checked === 0) el.textContent = 'None';
+    else if (checked === total) el.textContent = 'All';
+    else el.textContent = `${checked} of ${total}`;
+  });
+}
+
+function getViolationCountBucket(f) {
+  if (f.violations >= 10) return 'high';
+  if (f.violations >= 1) return 'med';
+  return 'none';
+}
+
+function getFacilityViolationTypes(f) {
+  const { direct, criticalOnly, nonCritical } = getViolationCounts(f);
+  const types = new Set();
+  if (direct > 0) types.add('direct');
+  if (criticalOnly > 0) types.add('critical');
+  if (nonCritical > 0) types.add('non_critical');
+  return types;
+}
+
+function applyFilters() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const states = getCheckedValues('state');
+  const counts = getCheckedValues('count');
+  const types = getCheckedValues('type');
+  const classes = getCheckedValues('class');
+
+  updateFilterSummaries();
+
+  const filtered = facilities.filter(f => {
+    if (!isAllSelected('state') && states.length && !states.includes(f.state)) return false;
+    if (!isAllSelected('class') && classes.length && !classes.includes(f.license_type)) return false;
+
+    if (!isAllSelected('count') && counts.length) {
+      if (!counts.includes(getViolationCountBucket(f))) return false;
+    }
+    if (!isAllSelected('count') && counts.length === 0) return false;
+
+    if (!isAllSelected('type') && types.length) {
+      const facilityTypes = getFacilityViolationTypes(f);
+      if (facilityTypes.size === 0) return false;
+      if (!types.some(t => facilityTypes.has(t))) return false;
+    }
+    if (!isAllSelected('type') && types.length === 0) return false;
+
+    if (!isAllSelected('class') && classes.length === 0) return false;
+
+    if (q) {
+      const hay = `${f.name} ${f.dba} ${f.city} ${f.state} ${f.license} ${f.license_type}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  renderList(filtered);
+  updateMapMarkers(filtered);
+}
+
+document.getElementById('searchInput').addEventListener('input', applyFilters);
+document.querySelectorAll('input[data-filter]').forEach(el => {
+  el.addEventListener('change', applyFilters);
+});
+document.querySelectorAll('[data-action][data-group]').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    const group = btn.dataset.group;
+    const select = btn.dataset.action === 'all';
+    document.querySelectorAll(`input[data-filter="${group}"]`).forEach(cb => {
+      cb.checked = select;
+    });
+    applyFilters();
+  });
+});
+
+initMap();
+updateFilterSummaries();
+applyFilters();
+
+(function pollSyncStatus() {
+  const banner = document.getElementById('syncBanner');
+  const statusLabel = document.getElementById('syncStatusLabel');
+  const statusIcon = document.getElementById('syncStatusIcon');
+  const progressWrap = document.getElementById('syncProgressWrap');
+  const progressBar = document.getElementById('syncProgressBar');
+  const progressDetail = document.getElementById('syncProgressDetail');
+  const nextLabel = document.getElementById('syncNextLabel');
+  const btn = document.getElementById('refreshBtn');
+  const icon = document.getElementById('refreshIcon');
+  const label = document.getElementById('refreshLabel');
+  let wasRunning = {{ scrape_running|yesno:"true,false" }};
+
+  function formatDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return d.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+  }
+
+  function setBannerStatus(status) {
+    banner.className = 'sync-banner sync-banner--' + status;
+  }
+
+  function pollSyncStatus() {
+    fetch('{% url "dog_watch_status" %}')
+      .then(r => r.json())
+      .then(data => {
+        if (data.running) {
+          setBannerStatus('syncing');
+          statusIcon.className = 'fas fa-sync-alt fa-spin';
+          statusLabel.textContent = 'Updating all facilities…';
+          progressWrap.classList.remove('d-none');
+          nextLabel.classList.add('d-none');
+          btn.disabled = true;
+          icon.classList.add('fa-spin');
+          label.textContent = 'Updating...';
+          if (data.total > 0) {
+            const pct = Math.round((data.current / data.total) * 100);
+            progressBar.classList.remove('indeterminate');
+            progressBar.style.width = pct + '%';
+            progressDetail.textContent = data.message || ('Step ' + data.current + ' of ' + data.total);
+          } else {
+            progressBar.classList.add('indeterminate');
+            progressBar.style.width = '40%';
+            progressDetail.textContent = data.message || 'Starting update…';
+          }
+          wasRunning = true;
+          setTimeout(pollSyncStatus, 3000);
+          return;
+        }
+
+        if (wasRunning) {
+          window.location.reload();
+          return;
+        }
+
+        if (data.status === 'up_to_date') {
+          setBannerStatus('up_to_date');
+          statusIcon.className = 'fas fa-check-circle';
+          statusLabel.textContent = data.last_sync_at
+            ? 'Up to date — last updated ' + formatDate(data.last_sync_at)
+            : 'Up to date';
+          progressWrap.classList.add('d-none');
+          nextLabel.classList.remove('d-none');
+          nextLabel.textContent = data.next_sync_at
+            ? 'Next automatic update: ' + formatDate(data.next_sync_at) + ' (every ' + Math.round(data.sync_interval_hours) + ' hours)'
+            : '';
+          setTimeout(pollSyncStatus, 30000);
+          return;
+        }
+
+        if (data.status === 'never_synced' || data.status === 'due') {
+          setBannerStatus(data.status);
+          statusIcon.className = 'fas fa-clock';
+          statusLabel.textContent = data.status === 'never_synced'
+            ? 'Preparing first update…'
+            : 'Update due — syncing shortly';
+          progressWrap.classList.add('d-none');
+          setTimeout(pollSyncStatus, 3000);
+          return;
+        }
+
+        setTimeout(pollSyncStatus, 30000);
+      })
+      .catch(() => setTimeout(pollSyncStatus, 5000));
+  }
+
+  pollSyncStatus();
+})();
+</script>
+{% endblock %}

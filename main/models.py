@@ -346,3 +346,70 @@ class BoardingDocument(models.Model):
         if self.document and os.path.isfile(self.document.path):
             os.remove(self.document.path)
         super().delete(*args, **kwargs)
+
+
+class PuppyMillFacility(models.Model):
+    """USDA-licensed dog breeding/dealing facility tracked on Dog Watch."""
+    license_number = models.CharField(max_length=20, unique=True)
+    name = models.CharField(max_length=300)
+    dba_name = models.CharField(max_length=300, blank=True)
+    license_type = models.CharField(max_length=100, blank=True)
+    street_address = models.CharField(max_length=300, blank=True)
+    city = models.CharField(max_length=100, blank=True)
+    state = models.CharField(max_length=2, blank=True)
+    zip_code = models.CharField(max_length=10, blank=True)
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    coordinates_geocoded = models.BooleanField(default=False)
+    owners = models.JSONField(default=list, blank=True)
+    suppliers = models.JSONField(default=list, blank=True)
+    dog_breeds = models.JSONField(default=list, blank=True)
+    news_articles = models.JSONField(default=list, blank=True)
+    violation_count = models.PositiveIntegerField(default=0)
+    direct_violations = models.PositiveIntegerField(default=0)
+    critical_violations = models.PositiveIntegerField(default=0)
+    inspection_reports = models.JSONField(default=list, blank=True)
+    usda_profile_url = models.URLField(blank=True)
+    source_notes = models.TextField(blank=True)
+    is_dog_facility = models.BooleanField(default=True)
+    license_expiration = models.DateField(null=True, blank=True)
+    last_scraped_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['state', 'city', 'name']
+        verbose_name_plural = 'puppy mill facilities'
+
+    def __str__(self):
+        return f"{self.name} ({self.license_number})"
+
+    @property
+    def full_address(self):
+        parts = [self.street_address, self.city, self.state, self.zip_code]
+        return ', '.join(p for p in parts if p)
+
+    @property
+    def has_coordinates(self):
+        return self.latitude is not None and self.longitude is not None
+
+
+class DogWatchSyncState(models.Model):
+    """Singleton tracking Dog Watch background sync state."""
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
+    is_running = models.BooleanField(default=False)
+    last_sync_at = models.DateTimeField(null=True, blank=True)
+    last_usda_import_at = models.DateTimeField(null=True, blank=True)
+    last_summary = models.JSONField(default=dict, blank=True)
+    progress = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        verbose_name = 'Dog Watch sync state'
+
+    @classmethod
+    def load(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return f'Dog Watch sync (running={self.is_running})'

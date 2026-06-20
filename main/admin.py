@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 # Register your models here.
-from .models import BlogPost, Recipe, Comment, Review, DailyUpdate, RamseyProfile, VaccineRecord, BoardingExperience, DietEntry, VaccineDocument, DietDocument, BoardingDocument
+from .models import BlogPost, Recipe, Comment, Review, DailyUpdate, RamseyProfile, VaccineRecord, BoardingExperience, DietEntry, VaccineDocument, DietDocument, BoardingDocument, PuppyMillFacility
 
 admin.site.register(BlogPost)
 admin.site.register(Recipe)
@@ -100,3 +100,11 @@ class BoardingDocumentAdmin(admin.ModelAdmin):
     search_fields = ['document_name']
     readonly_fields = ['uploaded_at']
     ordering = ['-uploaded_at']
+
+@admin.register(PuppyMillFacility)
+class PuppyMillFacilityAdmin(admin.ModelAdmin):
+    list_display = ['name', 'license_number', 'state', 'city', 'violation_count', 'last_scraped_at']
+    list_filter = ['state', 'license_type', 'is_dog_facility']
+    search_fields = ['name', 'dba_name', 'license_number', 'city']
+    readonly_fields = ['created_at', 'updated_at', 'last_scraped_at']
+    ordering = ['-violation_count', 'state', 'name']

@@ -18,6 +18,8 @@ psycopg2-binary==2.9.10
 pyenchant==3.2.2
 python-dateutil==2.9.0.post0
 python-dotenv==1.1.0
+openpyxl==3.1.5
+pypdf==5.6.0
 requests==2.32.4
 s3transfer==0.12.0
 six==1.17.0
