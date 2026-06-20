@@ -11,7 +11,8 @@ from main.models import DogWatchSyncState
 
 logger = logging.getLogger(__name__)
 
-STALE_LOCK_HOURS = 2
+STALE_LOCK_MINUTES = 10
+FACILITY_TIMEOUT_SECONDS = 120
 
 
 def get_sync_state() -> DogWatchSyncState:
@@ -57,12 +58,29 @@ def clear_stale_lock() -> None:
     updated_at = progress.get('updated_at')
     if updated_at:
         updated = parse_datetime(updated_at)
-        if updated and timezone.now() - updated < timedelta(hours=STALE_LOCK_HOURS):
+        if updated and timezone.now() - updated < timedelta(minutes=STALE_LOCK_MINUTES):
             return
+    current = int(progress.get('current') or 0)
+    cleared: dict = {'running': False}
+    if current:
+        cleared['resume_from'] = current
     state.is_running = False
-    state.progress = {'running': False}
+    state.progress = cleared
     state.save(update_fields=['is_running', 'progress'])
-    logger.warning('Cleared stale Dog Watch sync lock')
+    logger.warning('Cleared stale Dog Watch sync lock at facility %s', current)
+
+
+def force_clear_lock() -> None:
+    """Immediately release a stuck sync lock (for manual recovery)."""
+    state = get_sync_state()
+    progress = state.progress or {}
+    current = int(progress.get('current') or 0)
+    cleared: dict = {'running': False}
+    if current:
+        cleared['resume_from'] = current
+    state.is_running = False
+    state.progress = cleared
+    state.save(update_fields=['is_running', 'progress'])
 
 
 def set_progress(current: int, total: int, message: str = '') -> None:
@@ -83,12 +101,14 @@ def try_acquire_lock() -> DogWatchSyncState | None:
         state = DogWatchSyncState.objects.select_for_update().get(pk=1)
         if state.is_running:
             return None
+        prev = state.progress or {}
         state.is_running = True
         state.progress = {
             'running': True,
-            'current': 0,
+            'current': prev.get('resume_from', 0),
             'total': 0,
             'message': 'Starting…',
+            'resume_from': prev.get('resume_from'),
             'updated_at': timezone.now().isoformat(),
         }
         state.save(update_fields=['is_running', 'progress'])

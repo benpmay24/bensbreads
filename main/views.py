@@ -625,6 +625,7 @@ def dog_watch(request):
     """Map visualization of USDA-licensed dog breeding facilities."""
     from main.dog_watch.scraper import start_sync_background
     from main.dog_watch.sync_state import (
+        clear_stale_lock,
         get_last_sync_summary,
         get_progress,
         get_sync_state,
@@ -634,6 +635,7 @@ def dog_watch(request):
         sync_status_label,
     )
 
+    clear_stale_lock()
     sync_state_obj = get_sync_state()
     if not sync_state_obj.is_running and is_sync_due():
         start_sync_background()
@@ -702,6 +704,7 @@ def dog_watch_refresh(request):
 def dog_watch_status(request):
     """JSON endpoint for sync progress polling."""
     from main.dog_watch.sync_state import (
+        clear_stale_lock,
         get_last_sync_summary,
         get_progress,
         get_sync_state,
@@ -711,6 +714,10 @@ def dog_watch_status(request):
         sync_status_label,
     )
 
+    clear_stale_lock()
+    progress = get_progress()
+    state = get_sync_state()
+    sync_state.clear_stale_lock()
     progress = get_progress()
     state = get_sync_state()
     last_sync = get_last_sync_summary()

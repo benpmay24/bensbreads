@@ -6,7 +6,8 @@ import subprocess
 import sys
 import threading
 import time
-from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
+from datetime import datetime, timedelta
 
 import openpyxl
 import requests
@@ -236,12 +237,6 @@ def import_usda_facilities() -> dict:
 
 
 def _sync_facility(facility: PuppyMillFacility) -> str:
-    """
-    Check APHIS for new inspection reports. Only downloads/analyzes PDFs when
-    a report URL we have not seen before appears.
-
-    Returns: 'unchanged', 'initialized', 'updated', or 'skipped'.
-    """
     try:
         inspections = list(search_inspections({'certNumber': facility.license_number}))
     except Exception as exc:
@@ -304,6 +299,23 @@ def _sync_facility(facility: PuppyMillFacility) -> str:
     return 'initialized' if is_initial else 'updated'
 
 
+def _sync_facility_timed(facility: PuppyMillFacility) -> str:
+    """Run _sync_facility with a hard timeout so one breeder cannot block the run."""
+    timeout = sync_state.FACILITY_TIMEOUT_SECONDS
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(_sync_facility, facility)
+        try:
+            return future.result(timeout=timeout)
+        except FuturesTimeout:
+            logger.warning(
+                'Timed out checking %s (%s) after %ss',
+                facility.name, facility.license_number, timeout,
+            )
+            facility.last_checked_at = timezone.now()
+            facility.save(update_fields=['last_checked_at'])
+            raise
+
+
 def check_for_new_reports(force: bool = False) -> dict:
     """
     Check every dog breeder in the DB for new APHIS reports.
@@ -324,7 +336,8 @@ def check_for_new_reports(force: bool = False) -> dict:
     if lock is None:
         return {'skipped': True, 'reason': 'sync already in progress'}
 
-    summary = {'checked': 0, 'updated': 0, 'unchanged': 0, 'skipped': 0, 'errors': 0}
+    summary = {'checked': 0, 'updated': 0, 'unchanged': 0, 'skipped': 0, 'errors': 0, 'timed_out': 0}
+    resume_from = int((sync_state.get_progress() or {}).get('resume_from') or 0)
 
     try:
         facilities = list(
@@ -333,17 +346,26 @@ def check_for_new_reports(force: bool = False) -> dict:
             ).order_by('id')
         )
         total = len(facilities)
+        check_cutoff = timezone.now() - timedelta(hours=sync_state.sync_interval_hours())
 
         for i, facility in enumerate(facilities, start=1):
+            if resume_from and i < resume_from:
+                continue
+            if not force and facility.last_checked_at and facility.last_checked_at >= check_cutoff:
+                continue
+
             sync_state.set_progress(
                 i, total, f'Checking {facility.name} ({i}/{total})…',
             )
             try:
-                result = _sync_facility(facility)
+                result = _sync_facility_timed(facility)
                 summary['checked'] += 1
                 summary[result] = summary.get(result, 0) + 1
                 if result == 'updated':
                     time.sleep(sync_state.aphis_delay())
+            except FuturesTimeout:
+                summary['errors'] += 1
+                summary['timed_out'] += 1
             except Exception:
                 logger.exception('Error checking %s', facility.license_number)
                 summary['errors'] += 1
