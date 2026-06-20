@@ -1,12 +1,17 @@
-"""Scrape USDA licensee data and enrich with APHIS inspection records."""
+"""Dog Watch: static DB storage with incremental APHIS report checks."""
 import io
 import logging
 import os
+import subprocess
+import sys
+import threading
 import time
 from datetime import datetime
 
 import openpyxl
 import requests
+from django.conf import settings
+from django.db.models import Q
 from django.utils import timezone
 
 from main.models import PuppyMillFacility
@@ -18,7 +23,6 @@ from main.dog_watch.aphis_client import (
 )
 from main.dog_watch.geocoder import geocode, normalize_state
 from main.dog_watch.report_address import fetch_address_from_report_url
-from main.dog_watch.news import fetch_news
 from main.dog_watch import sync_state
 
 logger = logging.getLogger(__name__)
@@ -29,31 +33,6 @@ USDA_LICENSEE_URL = (
 )
 TARGET_LICENSE_TYPES = {'Class A - Breeder', 'Class B - Dealer'}
 HEADER_ROW_LABEL = 'Registration Type'
-
-
-def set_progress(phase: str, current: int, total: int, message: str = '') -> None:
-    state = sync_state.get_sync_state()
-    prev = state.progress or {}
-    state.progress = {
-        'running': True,
-        'phase': phase,
-        'current': current,
-        'total': total,
-        'message': message,
-        'worker_pid': prev.get('worker_pid', os.getpid()),
-        'updated_at': timezone.now().isoformat(),
-    }
-    state.save(update_fields=['progress'])
-
-
-def clear_progress() -> None:
-    state = sync_state.get_sync_state()
-    state.progress = {'running': False}
-    state.save(update_fields=['progress'])
-
-
-def get_progress() -> dict:
-    return sync_state.get_progress()
 
 
 def _parse_expiration(value) -> datetime | None:
@@ -69,7 +48,6 @@ def _parse_expiration(value) -> datetime | None:
 
 def fetch_usda_licensees() -> list[dict]:
     """Download and parse the USDA active licensees spreadsheet."""
-    set_progress('download', 0, 1, 'Downloading USDA licensee data...')
     res = requests.get(USDA_LICENSEE_URL, timeout=60)
     res.raise_for_status()
     wb = openpyxl.load_workbook(io.BytesIO(res.content), read_only=True)
@@ -107,21 +85,14 @@ def fetch_usda_licensees() -> list[dict]:
 
 
 def _geocode_facility(facility: PuppyMillFacility) -> bool:
-    """Update facility coordinates from its address fields. Returns True if geocoded."""
     state = normalize_state(facility.state)
     if not facility.city or not state:
         return False
-
     lat, lng, geocoded = geocode(
-        facility.name,
-        facility.city,
-        state,
-        facility.street_address,
-        facility.zip_code,
+        facility.name, facility.city, state, facility.street_address, facility.zip_code,
     )
     if not geocoded or lat is None or lng is None:
         return False
-
     facility.latitude = lat
     facility.longitude = lng
     facility.coordinates_geocoded = True
@@ -140,7 +111,6 @@ def _known_report_urls(facility: PuppyMillFacility) -> set[str]:
 
 
 def _apply_pdf_address(facility: PuppyMillFacility, pdf_address: dict) -> bool:
-    """Apply address from a report PDF. Returns True if any field changed."""
     changed = False
     if pdf_address.get('street_address') and pdf_address['street_address'] != facility.street_address:
         facility.street_address = pdf_address['street_address']
@@ -159,7 +129,6 @@ def _apply_pdf_address(facility: PuppyMillFacility, pdf_address: dict) -> bool:
 
 
 def _apply_aphis_metadata(facility: PuppyMillFacility, inspections: list[dict]) -> None:
-    """Update violation totals and display reports from APHIS inspection metadata."""
     latest = inspections[0]
     direct = sum(_int_field(i, 'direct', 'directViolations') for i in inspections)
     critical = sum(_int_field(i, 'critical', 'criticalViolations') for i in inspections)
@@ -243,9 +212,8 @@ def _upsert_base_record(data: dict) -> tuple[PuppyMillFacility, bool]:
 
 
 def import_usda_facilities() -> dict:
-    """Import or update all facilities from the USDA spreadsheet."""
+    """One-time / rare: import breeder list from USDA spreadsheet into DB."""
     summary = {'created': 0, 'updated': 0, 'errors': 0, 'total_usda': 0}
-
     try:
         usda_facilities = fetch_usda_licensees()
     except Exception as exc:
@@ -254,11 +222,7 @@ def import_usda_facilities() -> dict:
         return summary
 
     summary['total_usda'] = len(usda_facilities)
-    total = len(usda_facilities)
-
-    for i, data in enumerate(usda_facilities, start=1):
-        if i % 50 == 0 or i == total:
-            set_progress('import', i, total, f'Importing USDA records ({i}/{total})...')
+    for data in usda_facilities:
         try:
             _, created = _upsert_base_record(data)
             if created:
@@ -268,18 +232,13 @@ def import_usda_facilities() -> dict:
         except Exception:
             logger.exception('Error importing %s', data.get('license_number'))
             summary['errors'] += 1
-
     return summary
 
 
-def _sync_facility(
-    facility: PuppyMillFacility,
-    fetch_news_articles: bool = False,
-    progress_index: int | None = None,
-    progress_total: int | None = None,
-) -> str:
+def _sync_facility(facility: PuppyMillFacility) -> str:
     """
-    Check APHIS for new inspection reports and update only when needed.
+    Check APHIS for new inspection reports. Only downloads/analyzes PDFs when
+    a report URL we have not seen before appears.
 
     Returns: 'unchanged', 'initialized', 'updated', or 'skipped'.
     """
@@ -329,20 +288,9 @@ def _sync_facility(
 
     _apply_aphis_metadata(facility, inspections)
 
-    if is_initial:
-        pdf_url = _newest_report_url(api_reports)
-    else:
-        pdf_url = _newest_report_url(new_reports)
-
+    pdf_url = _newest_report_url(new_reports if not is_initial else api_reports)
     address_changed = False
     if pdf_url:
-        if progress_index is not None and progress_total is not None:
-            set_progress(
-                'check',
-                progress_index,
-                progress_total,
-                f'Reading report PDF for {facility.name} ({progress_index}/{progress_total})...',
-            )
         pdf_address = fetch_address_from_report_url(pdf_url)
         if pdf_address:
             address_changed = _apply_pdf_address(facility, pdf_address)
@@ -350,123 +298,22 @@ def _sync_facility(
     if is_initial or address_changed or not facility.coordinates_geocoded:
         _geocode_facility(facility)
 
-    if fetch_news_articles and facility.violation_count > 0 and not facility.news_articles:
-        facility.news_articles = fetch_news(facility.name, facility.city, facility.state)
-
     facility.last_scraped_at = timezone.now()
     facility.save()
 
-    if is_initial:
-        return 'initialized'
-    return 'updated'
+    return 'initialized' if is_initial else 'updated'
 
 
-def check_all_facilities(
-    fetch_news_articles: bool = False,
-    resume_from: int = 0,
-) -> dict:
-    """Check every facility for new APHIS reports; update only when reports are new."""
-    summary = {
-        'checked': 0,
-        'unchanged': 0,
-        'initialized': 0,
-        'updated': 0,
-        'skipped': 0,
-        'errors': 0,
-    }
-    facilities = list(
-        PuppyMillFacility.objects.filter(is_dog_facility=True).order_by('id')
-    )
-    total = len(facilities)
-    if not resume_from:
-        resume_from = int((get_progress() or {}).get('resume_from') or 0)
-    if resume_from > 1:
-        set_progress(
-            'check',
-            resume_from,
-            total,
-            f'Resuming from facility {resume_from}/{total}...',
-        )
-
-    for i, facility in enumerate(facilities, start=1):
-        if resume_from and i < resume_from:
-            continue
-        set_progress(
-            'check',
-            i,
-            total,
-            f'Checking {facility.name} ({i}/{total})...',
-        )
-        try:
-            result = _sync_facility(
-                facility,
-                fetch_news_articles=fetch_news_articles,
-                progress_index=i,
-                progress_total=total,
-            )
-            summary['checked'] += 1
-            summary[result] = summary.get(result, 0) + 1
-            if result in ('initialized', 'updated'):
-                time.sleep(sync_state.aphis_delay())
-        except Exception:
-            logger.exception('Error checking %s', facility.license_number)
-            summary['errors'] += 1
-
-    return summary
-
-
-def geocode_pending_facilities(resume_from: int = 0, resume_geocode: bool = False) -> dict:
-    """Geocode facilities that still lack verified map coordinates."""
-    summary = {'geocoded': 0, 'skipped': 0, 'errors': 0}
-    facilities = list(
-        PuppyMillFacility.objects.filter(
-            is_dog_facility=True,
-            coordinates_geocoded=False,
-        )
-        .exclude(city='')
-        .exclude(state='')
-        .order_by('id')
-    )
-    total = len(facilities)
-    if resume_geocode and not resume_from:
-        resume_from = int((get_progress() or {}).get('resume_from') or 0)
-
-    for i, facility in enumerate(facilities, start=1):
-        if resume_from and i < resume_from:
-            continue
-        set_progress('geocode', i, total, f'Locating addresses ({i}/{total})...')
-        try:
-            if _geocode_facility(facility):
-                facility.save(update_fields=['latitude', 'longitude', 'coordinates_geocoded', 'state'])
-                summary['geocoded'] += 1
-            else:
-                summary['skipped'] += 1
-        except Exception:
-            logger.exception('Error geocoding %s', facility.license_number)
-            summary['errors'] += 1
-
-    return summary
-
-
-def run_full_sync(
-    force: bool = False,
-    fetch_news_articles: bool = False,
-) -> dict:
+def check_for_new_reports(force: bool = False) -> dict:
     """
-    Sync: refresh USDA licensee list, check each facility for new reports only.
-    Runs when due (every 24 hours) or when forced via Update Now.
+    Check every dog breeder in the DB for new APHIS reports.
+    Stored data is left untouched unless a new report is found.
     """
-    sync_state.recover_sync_lock()
-
-    progress = get_progress()
-    resume_from = int(progress.get('resume_from') or 0)
-    resume_geocode = progress.get('resume_phase') == 'geocode'
-    resuming = resume_from > 0 or resume_geocode
-
-    if progress.get('running'):
+    sync_state.clear_stale_lock()
+    if sync_state.get_sync_state().is_running:
         return {'skipped': True, 'reason': 'sync already in progress'}
 
-    if not force and not resuming and not sync_state.is_sync_due():
+    if not force and not sync_state.is_sync_due():
         return {
             'skipped': True,
             'reason': 'sync not due yet',
@@ -475,65 +322,36 @@ def run_full_sync(
 
     lock = sync_state.try_acquire_lock()
     if lock is None:
-        return {'skipped': True, 'reason': 'sync already running on another worker'}
+        return {'skipped': True, 'reason': 'sync already in progress'}
 
-    summary = {'skipped': False, 'status': 'complete', 'resumed': resuming}
+    summary = {'checked': 0, 'updated': 0, 'unchanged': 0, 'skipped': 0, 'errors': 0}
 
     try:
-        if resuming:
-            set_progress(
-                'check' if not resume_geocode else 'geocode',
-                resume_from,
-                progress.get('total') or 0,
-                f'Resuming interrupted sync from step {resume_from}...',
-            )
-        else:
-            set_progress('scheduled', 0, 0, 'Checking for new inspection reports...')
-
-        if not resuming:
-            import_summary = import_usda_facilities()
-            summary.update({
-                'created': import_summary.get('created', 0),
-                'usda_updated': import_summary.get('updated', 0),
-                'total_usda': import_summary.get('total_usda', 0),
-            })
-            if import_summary.get('error'):
-                summary['error'] = import_summary['error']
-                summary['status'] = 'error'
-                sync_state.release_lock(lock, summary)
-                return summary
-
-        if not resume_geocode:
-            check_summary = check_all_facilities(
-                fetch_news_articles=fetch_news_articles,
-                resume_from=resume_from,
-            )
-            summary['checked'] = check_summary.get('checked', 0)
-            summary['unchanged'] = check_summary.get('unchanged', 0)
-            summary['initialized'] = check_summary.get('initialized', 0)
-            summary['new_reports'] = check_summary.get('updated', 0)
-            summary['skipped'] = check_summary.get('skipped', 0)
-            summary['errors'] = check_summary.get('errors', 0)
-
-        geocode_summary = geocode_pending_facilities(
-            resume_from=resume_from if resume_geocode else 0,
-            resume_geocode=resume_geocode,
+        facilities = list(
+            PuppyMillFacility.objects.filter(
+                Q(is_dog_facility=True) | Q(last_scraped_at__isnull=True)
+            ).order_by('id')
         )
-        summary['geocoded'] = geocode_summary.get('geocoded', 0)
-        summary['errors'] += geocode_summary.get('errors', 0)
+        total = len(facilities)
 
-        summary['mapped_count'] = PuppyMillFacility.objects.filter(
-            is_dog_facility=True,
-            coordinates_geocoded=True,
-        ).count()
-        summary['total_facilities'] = PuppyMillFacility.objects.filter(
-            is_dog_facility=True,
-        ).count()
+        for i, facility in enumerate(facilities, start=1):
+            sync_state.set_progress(
+                i, total, f'Checking {facility.name} ({i}/{total})…',
+            )
+            try:
+                result = _sync_facility(facility)
+                summary['checked'] += 1
+                summary[result] = summary.get(result, 0) + 1
+                if result == 'updated':
+                    time.sleep(sync_state.aphis_delay())
+            except Exception:
+                logger.exception('Error checking %s', facility.license_number)
+                summary['errors'] += 1
+
+        summary['status'] = 'complete'
         summary['completed_at'] = timezone.now().isoformat()
-        summary['next_sync_at'] = sync_state.next_sync_at().isoformat()
-
-        logger.info('Dog Watch sync complete: %s', summary)
         sync_state.release_lock(lock, summary)
+        logger.info('Dog Watch sync complete: %s', summary)
         return summary
     except Exception as exc:
         summary['status'] = 'error'
@@ -542,30 +360,35 @@ def run_full_sync(
         raise
 
 
-run_scheduled_sync = run_full_sync
+def _use_sync_thread() -> bool:
+    return 'runserver' in sys.argv and os.environ.get('RUN_MAIN') == 'true'
 
 
-def scrape_puppy_mills(
-    enrich: bool = True,
-    fetch_news_articles: bool = False,
-    force_import: bool = False,
-) -> dict:
-    """CLI entry point: import USDA data and optionally run a sync."""
-    summary = {'created': 0, 'updated': 0, 'errors': 0, 'total_usda': 0}
+def start_sync_background(force: bool = False) -> bool:
+    """Start a sync without blocking the web worker (subprocess on gunicorn)."""
+    sync_state.clear_stale_lock()
+    if sync_state.get_sync_state().is_running:
+        return False
 
-    if force_import or PuppyMillFacility.objects.count() == 0:
-        import_summary = import_usda_facilities()
-        summary.update(import_summary)
-        if import_summary.get('error'):
-            return summary
+    if _use_sync_thread():
+        def run():
+            try:
+                check_for_new_reports(force=force)
+            except Exception:
+                logger.exception('Dog Watch background sync failed')
 
-    if enrich:
-        check_summary = check_all_facilities(fetch_news_articles=fetch_news_articles)
-        summary['checked'] = check_summary.get('checked', 0)
-        summary['new_reports'] = check_summary.get('updated', 0)
-        summary['errors'] += check_summary.get('errors', 0)
-        geocode_summary = geocode_pending_facilities()
-        summary['geocoded'] = geocode_summary.get('geocoded', 0)
-        summary['errors'] += geocode_summary.get('errors', 0)
+        threading.Thread(target=run, daemon=True, name='dog-watch-sync').start()
+        return True
 
-    return summary
+    cmd = [sys.executable, 'manage.py', 'dog_watch_sync']
+    if force:
+        cmd.append('--force')
+    subprocess.Popen(
+        cmd,
+        cwd=str(settings.BASE_DIR),
+        start_new_session=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        close_fds=True,
+    )
+    return True

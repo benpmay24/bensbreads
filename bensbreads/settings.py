@@ -206,7 +206,7 @@ SITE_URL = os.environ.get('SITE_URL', 'http://localhost:8000')
 # Secret token for cron endpoints (e.g. daily reminder trigger from cron-job.org)
 CRON_SECRET_TOKEN = os.environ.get('CRON_SECRET_TOKEN', 'yeet')
 
-# Dog Watch automatic sync (full update on page load when due, then every 24 hours)
+# Dog Watch: data stored in DB; checks for new APHIS reports every 24h + on page load.
 DOG_WATCH_SYNC_ENABLED = os.environ.get('DOG_WATCH_SYNC_ENABLED', 'true').lower() == 'true'
 DOG_WATCH_SYNC_INTERVAL_HOURS = int(os.environ.get('DOG_WATCH_SYNC_INTERVAL_HOURS', '24'))
 DOG_WATCH_APHIS_DELAY_SECONDS = float(os.environ.get('DOG_WATCH_APHIS_DELAY_SECONDS', '1.5'))

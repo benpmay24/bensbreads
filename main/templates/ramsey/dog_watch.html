@@ -309,7 +309,7 @@
       <i class="fas {% if sync_status == 'syncing' %}fa-sync-alt fa-spin{% elif sync_status == 'up_to_date' %}fa-check-circle{% else %}fa-clock{% endif %}" id="syncStatusIcon"></i>
       <span id="syncStatusLabel">
         {% if sync_status == 'syncing' %}
-          Updating all facilities…
+          Checking for new reports…
         {% elif sync_status == 'up_to_date' and last_sync_at %}
           Up to date — last updated {{ last_sync_at|date:"M j, Y g:i A" }}
         {% elif sync_status == 'never_synced' %}
@@ -329,7 +329,7 @@
       {% if last_sync_at and sync_status == 'up_to_date' %}
         Next automatic update: {{ next_sync_at|date:"M j, Y g:i A" }} (every {{ sync_interval_hours|floatformat:0 }} hours)
       {% elif sync_status != 'syncing' and sync_status != 'never_synced' %}
-        Full update runs automatically every {{ sync_interval_hours|floatformat:0 }} hours
+        Full check runs every {{ sync_interval_hours|floatformat:0 }} hours (on page load when due)
       {% endif %}
     </small>
   </div>
@@ -344,7 +344,7 @@
       {% csrf_token %}
       <button type="submit" class="btn-game-primary" id="refreshBtn" {% if scrape_running %}disabled{% endif %}>
         <i class="fas fa-sync-alt{% if scrape_running %} fa-spin{% endif %}" id="refreshIcon"></i>
-        <span id="refreshLabel">{% if scrape_running %}Updating...{% else %}Update Now{% endif %}</span>
+        <span id="refreshLabel">{% if scrape_running %}Checking...{% else %}Check Now{% endif %}</span>
       </button>
     </form>
   </div>
@@ -792,14 +792,12 @@ applyFilters();
         if (data.running) {
           setBannerStatus('syncing');
           statusIcon.className = 'fas fa-sync-alt fa-spin';
-          statusLabel.textContent = data.phase === 'check'
-            ? 'Checking for new reports…'
-            : 'Processing updates…';
+          statusLabel.textContent = 'Checking for new reports…';
           progressWrap.classList.remove('d-none');
           nextLabel.classList.add('d-none');
           btn.disabled = true;
           icon.classList.add('fa-spin');
-          label.textContent = 'Updating...';
+          label.textContent = 'Checking...';
           if (data.total > 0) {
             const pct = Math.round((data.current / data.total) * 100);
             progressBar.classList.remove('indeterminate');
