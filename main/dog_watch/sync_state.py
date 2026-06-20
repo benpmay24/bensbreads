@@ -11,7 +11,7 @@ from main.models import DogWatchSyncState
 
 logger = logging.getLogger(__name__)
 
-STALE_LOCK_MINUTES = 30
+STALE_LOCK_MINUTES = 2
 
 
 def get_sync_state() -> DogWatchSyncState:
@@ -57,6 +57,20 @@ def get_progress() -> dict:
     return state.progress or {'running': False}
 
 
+def _resume_from_progress(progress: dict) -> int:
+    """1-based facility index to resume from after an interrupted check phase."""
+    if progress.get('phase') != 'check':
+        return 0
+    return int(progress.get('current') or 0)
+
+
+def _progress_after_clear(progress: dict) -> dict:
+    resume_from = _resume_from_progress(progress)
+    if resume_from:
+        return {'running': False, 'resume_from': resume_from}
+    return {'running': False}
+
+
 def clear_stale_lock() -> bool:
     """
     Release a sync lock left behind by a crashed or interrupted sync.
@@ -75,9 +89,26 @@ def clear_stale_lock() -> bool:
                 return False
 
     state.is_running = False
-    state.progress = {'running': False}
+    state.progress = _progress_after_clear(progress)
     state.save(update_fields=['is_running', 'progress'])
     logger.warning('Cleared stale Dog Watch sync lock')
+    return True
+
+
+def clear_orphaned_lock_on_startup() -> bool:
+    """
+    Clear a sync lock left by a previous process (e.g. runserver restart).
+    Daemon sync threads do not survive process restarts.
+    """
+    state = get_sync_state()
+    if not state.is_running:
+        return False
+
+    progress = state.progress or {}
+    state.is_running = False
+    state.progress = _progress_after_clear(progress)
+    state.save(update_fields=['is_running', 'progress'])
+    logger.warning('Cleared orphaned Dog Watch sync lock from previous process')
     return True
 
 

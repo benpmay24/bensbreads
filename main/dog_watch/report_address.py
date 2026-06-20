@@ -55,7 +55,7 @@ def fetch_address_from_report_url(url: str) -> dict[str, str]:
         return {}
 
     try:
-        response = requests.get(url, headers=HEADERS, timeout=45)
+        response = requests.get(url, headers=HEADERS, timeout=(10, 30))
         response.raise_for_status()
     except requests.RequestException as exc:
         logger.warning('Failed to download inspection report %s: %s', url[:80], exc)

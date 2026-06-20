@@ -369,11 +369,13 @@ class PuppyMillFacility(models.Model):
     direct_violations = models.PositiveIntegerField(default=0)
     critical_violations = models.PositiveIntegerField(default=0)
     inspection_reports = models.JSONField(default=list, blank=True)
+    processed_report_urls = models.JSONField(default=list, blank=True)
     usda_profile_url = models.URLField(blank=True)
     source_notes = models.TextField(blank=True)
     is_dog_facility = models.BooleanField(default=True)
     license_expiration = models.DateField(null=True, blank=True)
     last_scraped_at = models.DateTimeField(null=True, blank=True)
+    last_checked_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

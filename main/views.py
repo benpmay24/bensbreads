@@ -698,9 +698,11 @@ def dog_watch(request):
 def dog_watch_refresh(request):
     """Trigger a full background sync of USDA/APHIS data."""
     from main.dog_watch.scraper import get_progress, run_full_sync
+    from main.dog_watch.sync_state import clear_stale_lock, get_sync_state
 
+    clear_stale_lock()
     progress = get_progress()
-    if progress.get('running'):
+    if progress.get('running') or get_sync_state().is_running:
         return redirect('dog_watch')
 
     def run_scrape():

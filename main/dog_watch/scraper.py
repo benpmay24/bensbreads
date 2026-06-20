@@ -9,7 +9,12 @@ import requests
 from django.utils import timezone
 
 from main.models import PuppyMillFacility
-from main.dog_watch.aphis_client import enrich_facility
+from main.dog_watch.aphis_client import (
+    _build_inspection_reports,
+    _inspection_report,
+    _int_field,
+    search_inspections,
+)
 from main.dog_watch.geocoder import geocode, normalize_state
 from main.dog_watch.report_address import fetch_address_from_report_url
 from main.dog_watch.news import fetch_news
@@ -122,23 +127,116 @@ def _geocode_facility(facility: PuppyMillFacility) -> bool:
     return True
 
 
+def _known_report_urls(facility: PuppyMillFacility) -> set[str]:
+    urls = set(facility.processed_report_urls or [])
+    for report in facility.inspection_reports or []:
+        url = report.get('url')
+        if url:
+            urls.add(url)
+    return urls
+
+
+def _apply_pdf_address(facility: PuppyMillFacility, pdf_address: dict) -> bool:
+    """Apply address from a report PDF. Returns True if any field changed."""
+    changed = False
+    if pdf_address.get('street_address') and pdf_address['street_address'] != facility.street_address:
+        facility.street_address = pdf_address['street_address']
+        changed = True
+    if pdf_address.get('city') and pdf_address['city'] != facility.city:
+        facility.city = pdf_address['city']
+        changed = True
+    new_state = normalize_state(pdf_address.get('state', ''))
+    if new_state and new_state != facility.state:
+        facility.state = new_state
+        changed = True
+    if pdf_address.get('zip_code') and pdf_address['zip_code'] != facility.zip_code:
+        facility.zip_code = pdf_address['zip_code']
+        changed = True
+    return changed
+
+
+def _apply_aphis_metadata(facility: PuppyMillFacility, inspections: list[dict]) -> None:
+    """Update violation totals and display reports from APHIS inspection metadata."""
+    latest = inspections[0]
+    direct = sum(_int_field(i, 'direct', 'directViolations') for i in inspections)
+    critical = sum(_int_field(i, 'critical', 'criticalViolations') for i in inspections)
+    non_critical = sum(_int_field(i, 'nonCritical', 'nonCriticalViolations') for i in inspections)
+
+    species = set()
+    for insp in inspections:
+        for field in ('species', 'speciesInspected', 'animalType'):
+            val = insp.get(field)
+            if val:
+                for part in str(val).replace(';', ',').replace('/', ',').split(','):
+                    part = part.strip()
+                    if part:
+                        species.add(part)
+
+    owners = []
+    for field in ('legalName', 'customerName', 'ownerName'):
+        val = latest.get(field)
+        if val and val not in owners:
+            owners.append(val)
+
+    if not facility.city and latest.get('city'):
+        facility.city = latest.get('city')
+    if not facility.state and latest.get('state'):
+        facility.state = normalize_state(latest.get('state'))
+    if not facility.zip_code:
+        facility.zip_code = latest.get('zip') or latest.get('zipCode') or ''
+
+    dog_keywords = ('dog', 'canine', 'puppy', 'puppies')
+    species_text = ' '.join(species).lower()
+    if species:
+        facility.is_dog_facility = any(kw in species_text for kw in dog_keywords)
+    if owners:
+        facility.owners = owners
+    if species:
+        facility.dog_breeds = sorted(species)
+
+    facility.violation_count = direct + critical + non_critical
+    facility.direct_violations = direct
+    facility.critical_violations = critical
+    facility.inspection_reports = _build_inspection_reports(inspections)
+    facility.processed_report_urls = [
+        insp.get('reportLink') for insp in inspections if insp.get('reportLink')
+    ]
+
+
+def _newest_report_url(reports: list[dict]) -> str:
+    if not reports:
+        return ''
+    return max(reports, key=lambda r: r.get('date') or '').get('url') or ''
+
+
 def _upsert_base_record(data: dict) -> tuple[PuppyMillFacility, bool]:
-    owners = [data['name']] if data.get('name') else []
-    defaults = {
-        'name': data['name'],
-        'dba_name': data.get('dba_name', ''),
-        'license_type': data['license_type'],
-        'city': data.get('city', ''),
-        'state': normalize_state(data.get('state', '')),
-        'license_expiration': data.get('license_expiration'),
-        'usda_profile_url': data.get('usda_profile_url', ''),
-        'owners': owners,
-    }
-    facility, created = PuppyMillFacility.objects.update_or_create(
-        license_number=data['license_number'],
-        defaults=defaults,
+    license_number = data['license_number']
+    profile_url = data.get('usda_profile_url', '')
+    facility = PuppyMillFacility.objects.filter(license_number=license_number).first()
+    if facility:
+        facility.name = data['name']
+        facility.dba_name = data.get('dba_name', '')
+        facility.license_type = data['license_type']
+        facility.license_expiration = data.get('license_expiration')
+        if profile_url:
+            facility.usda_profile_url = profile_url
+        facility.save(update_fields=[
+            'name', 'dba_name', 'license_type', 'license_expiration', 'usda_profile_url',
+        ])
+        return facility, False
+
+    facility = PuppyMillFacility.objects.create(
+        license_number=license_number,
+        name=data['name'],
+        dba_name=data.get('dba_name', ''),
+        license_type=data['license_type'],
+        city=data.get('city', ''),
+        state=normalize_state(data.get('state', '')),
+        license_expiration=data.get('license_expiration'),
+        usda_profile_url=profile_url,
+        owners=[data['name']] if data.get('name') else [],
     )
-    return facility, created
+    return facility, True
 
 
 def import_usda_facilities() -> dict:
@@ -171,52 +269,83 @@ def import_usda_facilities() -> dict:
     return summary
 
 
-def _enrich_record(
+def _sync_facility(
     facility: PuppyMillFacility,
     fetch_news_articles: bool = False,
-) -> None:
+    progress_index: int | None = None,
+    progress_total: int | None = None,
+) -> str:
+    """
+    Check APHIS for new inspection reports and update only when needed.
+
+    Returns: 'unchanged', 'initialized', 'updated', or 'skipped'.
+    """
     try:
-        aphis_data = enrich_facility(facility.license_number)
+        inspections = list(search_inspections({'certNumber': facility.license_number}))
     except Exception as exc:
-        logger.warning('APHIS enrichment failed for %s: %s', facility.license_number, exc)
-        aphis_data = {}
+        logger.warning('APHIS check failed for %s: %s', facility.license_number, exc)
+        facility.last_checked_at = timezone.now()
+        facility.save(update_fields=['last_checked_at'])
+        raise
 
-    if aphis_data:
-        if aphis_data.get('street_address'):
-            facility.street_address = aphis_data['street_address']
-        if aphis_data.get('city'):
-            facility.city = aphis_data['city']
-        if aphis_data.get('state'):
-            facility.state = normalize_state(aphis_data['state'])
-        if aphis_data.get('zip_code'):
-            facility.zip_code = aphis_data['zip_code']
-        if aphis_data.get('owners'):
-            facility.owners = aphis_data['owners']
-        if aphis_data.get('dog_breeds'):
-            facility.dog_breeds = aphis_data['dog_breeds']
-        facility.is_dog_facility = aphis_data.get('is_dog_facility', True)
-        facility.violation_count = aphis_data.get('violation_count', 0)
-        facility.direct_violations = aphis_data.get('direct_violations', 0)
-        facility.critical_violations = aphis_data.get('critical_violations', 0)
-        facility.inspection_reports = aphis_data.get('inspection_reports', [])
-        if aphis_data.get('usda_profile_url'):
-            facility.usda_profile_url = aphis_data['usda_profile_url']
+    facility.last_checked_at = timezone.now()
+    is_initial = facility.last_scraped_at is None
 
-        report_url = aphis_data.get('latest_report_url') or ''
-        if not report_url and facility.inspection_reports:
-            report_url = facility.inspection_reports[0].get('url') or ''
-        if report_url:
-            pdf_address = fetch_address_from_report_url(report_url)
-            if pdf_address.get('street_address'):
-                facility.street_address = pdf_address['street_address']
-            if pdf_address.get('city'):
-                facility.city = pdf_address['city']
-            if pdf_address.get('state'):
-                facility.state = normalize_state(pdf_address['state'])
-            if pdf_address.get('zip_code'):
-                facility.zip_code = pdf_address['zip_code']
+    if not inspections:
+        facility.save(update_fields=['last_checked_at'])
+        if is_initial and not facility.coordinates_geocoded:
+            if _geocode_facility(facility):
+                facility.last_scraped_at = timezone.now()
+                facility.save()
+                return 'initialized'
+        return 'skipped'
 
-    _geocode_facility(facility)
+    api_reports = [_inspection_report(insp) for insp in inspections]
+    known_urls = _known_report_urls(facility)
+
+    if is_initial:
+        new_reports = [r for r in api_reports if r.get('url') and r['url'] not in known_urls]
+    else:
+        latest_known_date = max(
+            (r.get('date') or '' for r in (facility.inspection_reports or [])),
+            default='',
+        )
+        new_reports = [
+            r for r in api_reports
+            if r.get('url')
+            and r['url'] not in known_urls
+            and (r.get('date') or '') > latest_known_date
+        ]
+
+    if not is_initial and not new_reports:
+        facility.processed_report_urls = [
+            insp.get('reportLink') for insp in inspections if insp.get('reportLink')
+        ]
+        facility.save(update_fields=['last_checked_at', 'processed_report_urls'])
+        return 'unchanged'
+
+    _apply_aphis_metadata(facility, inspections)
+
+    if is_initial:
+        pdf_url = _newest_report_url(api_reports)
+    else:
+        pdf_url = _newest_report_url(new_reports)
+
+    address_changed = False
+    if pdf_url:
+        if progress_index is not None and progress_total is not None:
+            set_progress(
+                'check',
+                progress_index,
+                progress_total,
+                f'Reading report PDF for {facility.name} ({progress_index}/{progress_total})...',
+            )
+        pdf_address = fetch_address_from_report_url(pdf_url)
+        if pdf_address:
+            address_changed = _apply_pdf_address(facility, pdf_address)
+
+    if is_initial or address_changed or not facility.coordinates_geocoded:
+        _geocode_facility(facility)
 
     if fetch_news_articles and facility.violation_count > 0 and not facility.news_articles:
         facility.news_articles = fetch_news(facility.name, facility.city, facility.state)
@@ -224,35 +353,63 @@ def _enrich_record(
     facility.last_scraped_at = timezone.now()
     facility.save()
 
+    if is_initial:
+        return 'initialized'
+    return 'updated'
 
-def enrich_all_facilities(fetch_news_articles: bool = False) -> dict:
-    """Enrich every dog facility from APHIS and update map coordinates."""
-    summary = {'enriched': 0, 'errors': 0}
+
+def check_all_facilities(fetch_news_articles: bool = False) -> dict:
+    """Check every facility for new APHIS reports; update only when reports are new."""
+    summary = {
+        'checked': 0,
+        'unchanged': 0,
+        'initialized': 0,
+        'updated': 0,
+        'skipped': 0,
+        'errors': 0,
+    }
     facilities = list(
         PuppyMillFacility.objects.filter(is_dog_facility=True).order_by('id')
     )
     total = len(facilities)
+    resume_from = int((get_progress() or {}).get('resume_from') or 0)
+    if resume_from > 1:
+        set_progress(
+            'check',
+            resume_from,
+            total,
+            f'Resuming from facility {resume_from}/{total}...',
+        )
 
     for i, facility in enumerate(facilities, start=1):
+        if resume_from and i < resume_from:
+            continue
         set_progress(
-            'enrich',
+            'check',
             i,
             total,
-            f'Updating {facility.name} ({i}/{total})...',
+            f'Checking {facility.name} ({i}/{total})...',
         )
         try:
-            _enrich_record(facility, fetch_news_articles=fetch_news_articles)
-            summary['enriched'] += 1
-            time.sleep(sync_state.aphis_delay())
+            result = _sync_facility(
+                facility,
+                fetch_news_articles=fetch_news_articles,
+                progress_index=i,
+                progress_total=total,
+            )
+            summary['checked'] += 1
+            summary[result] = summary.get(result, 0) + 1
+            if result in ('initialized', 'updated'):
+                time.sleep(sync_state.aphis_delay())
         except Exception:
-            logger.exception('Error enriching %s', facility.license_number)
+            logger.exception('Error checking %s', facility.license_number)
             summary['errors'] += 1
 
     return summary
 
 
-def geocode_all_facilities() -> dict:
-    """Geocode every facility that still lacks verified map coordinates."""
+def geocode_pending_facilities() -> dict:
+    """Geocode facilities that still lack verified map coordinates."""
     summary = {'geocoded': 0, 'skipped': 0, 'errors': 0}
     facilities = list(
         PuppyMillFacility.objects.filter(
@@ -285,8 +442,8 @@ def run_full_sync(
     fetch_news_articles: bool = False,
 ) -> dict:
     """
-    Full sync: import USDA list, enrich every facility, geocode any stragglers.
-    Runs when due (every 24 hours) or when forced via Sync Now.
+    Sync: refresh USDA licensee list, check each facility for new reports only.
+    Runs when due (every 24 hours) or when forced via Update Now.
     """
     sync_state.clear_stale_lock()
 
@@ -307,12 +464,12 @@ def run_full_sync(
     summary = {'skipped': False, 'status': 'complete'}
 
     try:
-        set_progress('scheduled', 0, 0, 'Starting full Dog Watch update...')
+        set_progress('scheduled', 0, 0, 'Checking for new inspection reports...')
 
         import_summary = import_usda_facilities()
         summary.update({
             'created': import_summary.get('created', 0),
-            'updated': import_summary.get('updated', 0),
+            'usda_updated': import_summary.get('updated', 0),
             'total_usda': import_summary.get('total_usda', 0),
         })
         if import_summary.get('error'):
@@ -321,11 +478,15 @@ def run_full_sync(
             sync_state.release_lock(lock, summary)
             return summary
 
-        enrich_summary = enrich_all_facilities(fetch_news_articles=fetch_news_articles)
-        summary['enriched'] = enrich_summary.get('enriched', 0)
-        summary['errors'] = enrich_summary.get('errors', 0)
+        check_summary = check_all_facilities(fetch_news_articles=fetch_news_articles)
+        summary['checked'] = check_summary.get('checked', 0)
+        summary['unchanged'] = check_summary.get('unchanged', 0)
+        summary['initialized'] = check_summary.get('initialized', 0)
+        summary['new_reports'] = check_summary.get('updated', 0)
+        summary['skipped'] = check_summary.get('skipped', 0)
+        summary['errors'] = check_summary.get('errors', 0)
 
-        geocode_summary = geocode_all_facilities()
+        geocode_summary = geocode_pending_facilities()
         summary['geocoded'] = geocode_summary.get('geocoded', 0)
         summary['errors'] += geocode_summary.get('errors', 0)
 
@@ -339,7 +500,7 @@ def run_full_sync(
         summary['completed_at'] = timezone.now().isoformat()
         summary['next_sync_at'] = sync_state.next_sync_at().isoformat()
 
-        logger.info('Dog Watch full sync complete: %s', summary)
+        logger.info('Dog Watch sync complete: %s', summary)
         sync_state.release_lock(lock, summary)
         return summary
     except Exception as exc:
@@ -347,8 +508,6 @@ def run_full_sync(
         summary['error'] = str(exc)
         sync_state.release_lock(lock, summary)
         raise
-    finally:
-        pass
 
 
 run_scheduled_sync = run_full_sync
@@ -359,8 +518,8 @@ def scrape_puppy_mills(
     fetch_news_articles: bool = False,
     force_import: bool = False,
 ) -> dict:
-    """CLI entry point: import USDA data and optionally run a full sync."""
-    summary = {'created': 0, 'updated': 0, 'enriched': 0, 'errors': 0, 'total_usda': 0}
+    """CLI entry point: import USDA data and optionally run a sync."""
+    summary = {'created': 0, 'updated': 0, 'errors': 0, 'total_usda': 0}
 
     if force_import or PuppyMillFacility.objects.count() == 0:
         import_summary = import_usda_facilities()
@@ -369,10 +528,11 @@ def scrape_puppy_mills(
             return summary
 
     if enrich:
-        enrich_summary = enrich_all_facilities(fetch_news_articles=fetch_news_articles)
-        summary['enriched'] = enrich_summary.get('enriched', 0)
-        summary['errors'] += enrich_summary.get('errors', 0)
-        geocode_summary = geocode_all_facilities()
+        check_summary = check_all_facilities(fetch_news_articles=fetch_news_articles)
+        summary['checked'] = check_summary.get('checked', 0)
+        summary['new_reports'] = check_summary.get('updated', 0)
+        summary['errors'] += check_summary.get('errors', 0)
+        geocode_summary = geocode_pending_facilities()
         summary['geocoded'] = geocode_summary.get('geocoded', 0)
         summary['errors'] += geocode_summary.get('errors', 0)
 

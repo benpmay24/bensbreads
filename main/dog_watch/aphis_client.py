@@ -132,23 +132,9 @@ def _inspection_report(insp: dict[str, Any]) -> dict[str, Any]:
 
 
 def _build_inspection_reports(inspections: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Include every report with violations plus the 5 most recent clean reports."""
+    """All inspection reports, most recent first."""
     reports = [_inspection_report(insp) for insp in inspections]
-
-    def has_violation(r: dict[str, Any]) -> bool:
-        return (r['direct'] + r['critical'] + r['non_critical'] + r['teachable']) > 0
-
-    violating = sorted(
-        [r for r in reports if has_violation(r)],
-        key=lambda r: r['date'],
-        reverse=True,
-    )
-    clean = sorted(
-        [r for r in reports if not has_violation(r)],
-        key=lambda r: r['date'],
-        reverse=True,
-    )
-    return (violating + clean[:5])[:50]
+    return sorted(reports, key=lambda r: r['date'], reverse=True)
 
 
 def enrich_facility(license_number: str) -> dict[str, Any]:

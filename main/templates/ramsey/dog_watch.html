@@ -12,6 +12,88 @@
     height: calc(100vh - 120px);
     min-height: 600px;
   }
+  .dog-watch-detail-wrap {
+    margin: 0 1rem 1rem;
+    display: none;
+  }
+  .dog-watch-detail-wrap.visible { display: block; }
+  #detailPanel {
+    background: white;
+    border: 2px solid #8B4513;
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+  }
+  .detail-close {
+    float: right;
+    background: none;
+    border: none;
+    color: #6c757d;
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+  }
+  .detail-close:hover { color: #8B4513; }
+  .detail-header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem 2rem;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+    padding-right: 2rem;
+  }
+  .detail-header-main { flex: 1; min-width: 220px; }
+  .detail-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+    font-size: 0.875rem;
+  }
+  .detail-meta-grid h6 {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #8B4513;
+    margin-bottom: 0.35rem;
+  }
+  .detail-meta-grid ul { margin: 0; padding-left: 1.1rem; }
+  .reports-table-wrap {
+    overflow-x: auto;
+    margin-top: 0.5rem;
+    border: 1px solid #e8e0d4;
+    border-radius: 8px;
+  }
+  .reports-table {
+    width: 100%;
+    min-width: 640px;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  .reports-table th,
+  .reports-table td {
+    padding: 0.55rem 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #e8e0d4;
+    white-space: nowrap;
+  }
+  .reports-table th {
+    background: #faf8f5;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #5d4f41;
+    font-weight: 600;
+  }
+  .reports-table tbody tr:last-child td { border-bottom: none; }
+  .reports-table tbody tr:hover { background: #fdfbf8; }
+  .reports-table .col-count { text-align: center; width: 4.5rem; }
+  .reports-table .count-direct { color: #c0392b; font-weight: 600; }
+  .reports-table .count-critical { color: #d35400; font-weight: 600; }
+  .reports-table .count-non-critical { color: #b7950b; font-weight: 600; }
+  .reports-table .count-zero { color: #adb5bd; font-weight: 400; }
+  .reports-table .col-date { min-width: 7rem; font-weight: 500; }
+  .reports-table .col-link { text-align: center; width: 5rem; }
   .dog-watch-sidebar {
     background: #faf8f5;
     border-right: 1px solid #e8e0d4;
@@ -24,27 +106,6 @@
     height: 100%;
     min-height: 600px;
   }
-  #detailPanel {
-    background: white;
-    border: 2px solid #8B4513;
-    border-radius: 12px;
-    padding: 1.25rem;
-    margin-bottom: 1rem;
-    flex-shrink: 0;
-    display: none;
-  }
-  #detailPanel.visible { display: block; }
-  .detail-close {
-    float: right;
-    background: none;
-    border: none;
-    color: #6c757d;
-    font-size: 1.1rem;
-    cursor: pointer;
-    padding: 0;
-    line-height: 1;
-  }
-  .detail-close:hover { color: #8B4513; }
   .violation-summary {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -61,25 +122,6 @@
   .violation-stat.direct { background: #fde8e8; color: #c0392b; }
   .violation-stat.critical { background: #fef3e2; color: #d35400; }
   .violation-stat.non-critical { background: #fff8e1; color: #b7950b; }
-  .report-row {
-    border: 1px solid #e8e0d4;
-    border-radius: 8px;
-    padding: 0.65rem 0.75rem;
-    margin-bottom: 0.5rem;
-    font-size: 0.82rem;
-  }
-  .report-row.has-violations { border-left: 3px solid #c0392b; }
-  .report-badges { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.35rem 0; }
-  .report-badge {
-    font-size: 0.68rem;
-    padding: 0.1rem 0.45rem;
-    border-radius: 999px;
-    font-weight: 600;
-  }
-  .report-badge.direct { background: #fde8e8; color: #c0392b; }
-  .report-badge.critical { background: #fef3e2; color: #d35400; }
-  .report-badge.non-critical { background: #fff8e1; color: #b7950b; }
-  .report-badge.clean { background: #e8f5e9; color: #27ae60; }
   .report-link {
     display: inline-flex;
     align-items: center;
@@ -307,6 +349,10 @@
     </form>
   </div>
 
+  <div class="dog-watch-detail-wrap" id="detailPanelWrap">
+    <div id="detailPanel"></div>
+  </div>
+
   <div class="dog-watch-layout">
     <div class="dog-watch-sidebar">
       <div class="filter-bar">
@@ -396,7 +442,6 @@
           </div>
         </div>
       </div>
-      <div id="detailPanel"></div>
       <div id="facilityList"></div>
     </div>
     <div id="map" class="dog-watch-map"></div>
@@ -471,14 +516,67 @@ function renderList(filtered) {
   }
 }
 
-function renderReportBadges(r) {
-  const badges = [];
-  if (r.direct > 0) badges.push(`<span class="report-badge direct">${r.direct} direct</span>`);
-  if (r.critical > 0) badges.push(`<span class="report-badge critical">${r.critical} critical</span>`);
-  if (r.non_critical > 0) badges.push(`<span class="report-badge non-critical">${r.non_critical} non-critical</span>`);
-  if (r.teachable > 0) badges.push(`<span class="report-badge non-critical">${r.teachable} teachable</span>`);
-  if (!badges.length) badges.push('<span class="report-badge clean">No violations</span>');
-  return badges.join('');
+function parseReportDate(dateStr) {
+  if (!dateStr) return 0;
+  const parsed = Date.parse(dateStr);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function formatReportDate(dateStr) {
+  if (!dateStr) return '—';
+  const parsed = parseReportDate(dateStr);
+  if (!parsed) return escapeHtml(dateStr);
+  return new Date(parsed).toLocaleDateString(undefined, {
+    year: 'numeric', month: 'short', day: 'numeric',
+  });
+}
+
+function renderCountCell(count, typeClass) {
+  const n = count || 0;
+  const cls = n > 0 ? typeClass : 'count-zero';
+  return `<td class="col-count ${cls}">${n}</td>`;
+}
+
+function renderReportsTable(reports, usdaUrl) {
+  if (!reports.length) {
+    return '<p class="text-muted small mb-0">No inspection reports on file yet.</p>';
+  }
+
+  const sorted = [...reports].sort((a, b) => parseReportDate(b.date) - parseReportDate(a.date));
+  const rows = sorted.map(r => {
+    const reportUrl = r.url || usdaUrl || '#';
+    const hasLink = r.url || usdaUrl;
+    return `
+      <tr>
+        <td class="col-date">${formatReportDate(r.date)}</td>
+        ${renderCountCell(r.direct, 'count-direct')}
+        ${renderCountCell(r.critical, 'count-critical')}
+        ${renderCountCell(r.non_critical, 'count-non-critical')}
+        ${renderCountCell(r.teachable, 'count-non-critical')}
+        <td class="col-link">
+          ${hasLink
+            ? `<a class="report-link" href="${escapeHtml(reportUrl)}" target="_blank" rel="noopener" title="View report"><i class="fas fa-file-pdf"></i></a>`
+            : '—'}
+        </td>
+      </tr>`;
+  }).join('');
+
+  return `
+    <div class="reports-table-wrap">
+      <table class="reports-table">
+        <thead>
+          <tr>
+            <th class="col-date">Date</th>
+            <th class="col-count">Direct</th>
+            <th class="col-count">Critical</th>
+            <th class="col-count">Non-critical</th>
+            <th class="col-count">Teachable</th>
+            <th class="col-link">Report</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
 }
 
 function showDetail(id) {
@@ -491,75 +589,54 @@ function showDetail(id) {
   });
 
   const panel = document.getElementById('detailPanel');
-  panel.classList.add('visible');
+  const panelWrap = document.getElementById('detailPanelWrap');
+  panelWrap.classList.add('visible');
 
   const owners = (f.owners || []).map(o => `<li>${escapeHtml(o)}</li>`).join('') || '<li class="text-muted">Unknown</li>';
   const breeds = (f.breeds || []).map(b => `<li>${escapeHtml(b)}</li>`).join('') || '<li class="text-muted">Not recorded</li>';
   const suppliers = (f.suppliers || []).map(s => `<li>${escapeHtml(s)}</li>`).join('') || '<li class="text-muted">Not recorded</li>';
   const news = (f.news || []).map(n =>
-    `<li><a href="${escapeHtml(n.url)}" target="_blank" rel="noopener">${escapeHtml(n.title)}</a>${n.source ? ' <small>(' + escapeHtml(n.source) + ')</small>' : ''}</li>`
-  ).join('') || '<li class="text-muted">No news articles found</li>';
+    `<li><a href="${escapeHtml(n.url)}" target="_blank" rel="noopener">${escapeHtml(n.title)}</a></li>`
+  ).join('') || '<li class="text-muted">None</li>';
 
-  const reports = (f.reports || []);
-  const reportsHtml = reports.length ? reports.map(r => {
-    const hasViol = (r.direct || 0) + (r.critical || 0) + (r.non_critical || 0) > 0;
-    const reportUrl = r.url || f.usda_url || '#';
-    return `
-      <div class="report-row${hasViol ? ' has-violations' : ''}">
-        <strong>${escapeHtml(r.date || 'Inspection report')}</strong>
-        <div class="report-badges">${renderReportBadges(r)}</div>
-        <a class="report-link" href="${escapeHtml(reportUrl)}" target="_blank" rel="noopener">
-          <i class="fas fa-file-pdf"></i> View USDA inspection report
-        </a>
-      </div>`;
-  }).join('') : '<p class="text-muted small mb-0">No inspection reports on file yet.</p>';
-
+  const reports = f.reports || [];
   const direct = f.direct || 0;
   const critical = f.critical || 0;
   const nonCritical = f.non_critical || 0;
-  const violatingReportCount = reports.filter(r =>
-    (r.direct || 0) + (r.critical || 0) + (r.non_critical || 0) > 0
-  ).length;
 
   panel.innerHTML = `
     <button class="detail-close" onclick="closeDetail()" title="Close">&times;</button>
-    <h5>${escapeHtml(f.name)}${f.dba ? ` <small class="text-muted">(${escapeHtml(f.dba)})</small>` : ''}</h5>
-    <p class="text-muted small mb-2">
-      ${escapeHtml(f.address || [f.city, f.state].filter(Boolean).join(', '))}<br>
-      License: <strong>${escapeHtml(f.license)}</strong>
-      <span class="license-class-badge">${escapeHtml(f.license_type || 'Unknown class')}</span>
-    </p>
-
-    <div class="detail-section">
-      <h6>Violation Summary</h6>
-      <div class="violation-summary">
+    <div class="detail-header">
+      <div class="detail-header-main">
+        <h5 class="mb-1">${escapeHtml(f.name)}${f.dba ? ` <small class="text-muted">(${escapeHtml(f.dba)})</small>` : ''}</h5>
+        <p class="text-muted small mb-0">
+          ${escapeHtml(f.address || [f.city, f.state].filter(Boolean).join(', '))}<br>
+          License: <strong>${escapeHtml(f.license)}</strong>
+          <span class="license-class-badge">${escapeHtml(f.license_type || 'Unknown class')}</span>
+        </p>
+      </div>
+      <div class="violation-summary" style="margin:0;min-width:280px;">
         <div class="violation-stat direct"><span class="count">${direct}</span>Direct</div>
         <div class="violation-stat critical"><span class="count">${critical}</span>Critical</div>
         <div class="violation-stat non-critical"><span class="count">${nonCritical}</span>Non-critical</div>
       </div>
-      <p class="text-muted" style="font-size:0.78rem;margin:0;">
-        <strong>Direct</strong> — most severe; immediate threat to animal health.
-        <strong>Critical</strong> — significant welfare concerns.
-        <strong>Non-critical</strong> — lesser compliance issues.
-      </p>
     </div>
 
     <div class="detail-section">
-      <h6>Inspection Reports (${reports.length}${violatingReportCount ? `, ${violatingReportCount} with violations` : ''})</h6>
-      ${violatingReportCount === 0 && direct + critical + nonCritical > 0
-        ? '<p class="text-muted small">Violation history exists but detailed reports need a re-sync. Use Sync Now to refresh.</p>'
-        : reportsHtml}
+      <h6>Inspection Reports (${reports.length})</h6>
+      ${renderReportsTable(reports, f.usda_url)}
     </div>
 
-    <div class="detail-section"><h6>Owners</h6><ul>${owners}</ul></div>
-    <div class="detail-section"><h6>Dog Breeds / Species</h6><ul>${breeds}</ul></div>
-    <div class="detail-section"><h6>Suppliers / Buyers</h6><ul>${suppliers}</ul></div>
-    <div class="detail-section"><h6>News Articles</h6><ul>${news}</ul></div>
-    ${f.usda_url ? `<a href="${escapeHtml(f.usda_url)}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary"><i class="fas fa-external-link-alt"></i> USDA Profile</a>` : ''}
+    <div class="detail-meta-grid">
+      <div><h6>Owners</h6><ul>${owners}</ul></div>
+      <div><h6>Dog Breeds / Species</h6><ul>${breeds}</ul></div>
+      <div><h6>Suppliers / Buyers</h6><ul>${suppliers}</ul></div>
+      <div><h6>News</h6><ul>${news}</ul></div>
+    </div>
+    ${f.usda_url ? `<div class="mt-3"><a href="${escapeHtml(f.usda_url)}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary"><i class="fas fa-external-link-alt"></i> USDA Profile</a></div>` : ''}
   `;
 
-  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  document.querySelector('.dog-watch-sidebar').scrollTop = 0;
+  panelWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
   if (markers[id]) {
     map.setView(markers[id].getLatLng(), Math.max(map.getZoom(), 10));
@@ -569,7 +646,8 @@ function showDetail(id) {
 
 function closeDetail() {
   activeId = null;
-  document.getElementById('detailPanel').classList.remove('visible');
+  document.getElementById('detailPanelWrap').classList.remove('visible');
+  document.getElementById('detailPanel').innerHTML = '';
   document.querySelectorAll('.facility-card').forEach(el => el.classList.remove('active'));
   map.closePopup();
 }
@@ -714,7 +792,9 @@ applyFilters();
         if (data.running) {
           setBannerStatus('syncing');
           statusIcon.className = 'fas fa-sync-alt fa-spin';
-          statusLabel.textContent = 'Updating all facilities…';
+          statusLabel.textContent = data.phase === 'check'
+            ? 'Checking for new reports…'
+            : 'Processing updates…';
           progressWrap.classList.remove('d-none');
           nextLabel.classList.add('d-none');
           btn.disabled = true;

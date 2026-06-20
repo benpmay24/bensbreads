@@ -64,5 +64,6 @@ def _scheduler_loop():
 def start_scheduler():
     if not _should_start_scheduler():
         return
+    sync_state.clear_orphaned_lock_on_startup()
     thread = threading.Thread(target=_scheduler_loop, daemon=True, name='dog-watch-scheduler')
     thread.start()

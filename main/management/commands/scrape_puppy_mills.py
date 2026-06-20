@@ -39,10 +39,12 @@ class Command(BaseCommand):
         if options.get('reset_enriched'):
             reset_count = PuppyMillFacility.objects.update(
                 last_scraped_at=None,
+                last_checked_at=None,
                 violation_count=0,
                 direct_violations=0,
                 critical_violations=0,
                 inspection_reports=[],
+                processed_report_urls=[],
                 coordinates_geocoded=False,
                 latitude=None,
                 longitude=None,
@@ -74,7 +76,8 @@ class Command(BaseCommand):
             return
 
         self.stdout.write(self.style.SUCCESS(
-            f"Created: {summary.get('created', 0)}, Updated: {summary.get('updated', 0)}, "
-            f"Enriched: {summary.get('enriched', 0)}, Geocoded: {summary.get('geocoded', 0)}, "
-            f"On map: {summary.get('mapped_count', '—')}, Errors: {summary.get('errors', 0)}"
+            f"Created: {summary.get('created', 0)}, USDA updated: {summary.get('usda_updated', 0)}, "
+            f"Checked: {summary.get('checked', 0)}, New reports: {summary.get('new_reports', 0)}, "
+            f"Initialized: {summary.get('initialized', 0)}, Unchanged: {summary.get('unchanged', 0)}, "
+            f"Geocoded: {summary.get('geocoded', 0)}, Errors: {summary.get('errors', 0)}"
         ))
