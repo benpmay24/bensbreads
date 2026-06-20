@@ -1,17 +1,20 @@
-"""Dog Watch: static DB storage with incremental APHIS report checks."""
+"""
+Dog Watch data collector — runs independently of the web app.
+
+Entry point:  python manage.py dog_watch_sync
+
+Configure on Render as a Cron Job (not the web service):
+  Schedule:  0 6 * * *   (daily at 6 AM UTC)
+  Command:   python manage.py dog_watch_sync
+"""
 import io
 import logging
-import os
-import subprocess
-import sys
-import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 from datetime import datetime, timedelta
 
 import openpyxl
 import requests
-from django.conf import settings
 from django.db.models import Q
 from django.utils import timezone
 
@@ -213,7 +216,7 @@ def _upsert_base_record(data: dict) -> tuple[PuppyMillFacility, bool]:
 
 
 def import_usda_facilities() -> dict:
-    """One-time / rare: import breeder list from USDA spreadsheet into DB."""
+    """Refresh the breeder/dealer list from the USDA spreadsheet."""
     summary = {'created': 0, 'updated': 0, 'errors': 0, 'total_usda': 0}
     try:
         usda_facilities = fetch_usda_licensees()
@@ -237,6 +240,7 @@ def import_usda_facilities() -> dict:
 
 
 def _sync_facility(facility: PuppyMillFacility) -> str:
+    """Check one breeder for new APHIS reports; update DB only when reports are new."""
     try:
         inspections = list(search_inspections({'certNumber': facility.license_number}))
     except Exception as exc:
@@ -300,7 +304,6 @@ def _sync_facility(facility: PuppyMillFacility) -> str:
 
 
 def _sync_facility_timed(facility: PuppyMillFacility) -> str:
-    """Run _sync_facility with a hard timeout so one breeder cannot block the run."""
     timeout = sync_state.FACILITY_TIMEOUT_SECONDS
     with ThreadPoolExecutor(max_workers=1) as executor:
         future = executor.submit(_sync_facility, facility)
@@ -316,30 +319,40 @@ def _sync_facility_timed(facility: PuppyMillFacility) -> str:
             raise
 
 
-def check_for_new_reports(force: bool = False) -> dict:
+def run_collection(force: bool = False, import_usda: bool = False) -> dict:
     """
-    Check every dog breeder in the DB for new APHIS reports.
-    Stored data is left untouched unless a new report is found.
+    Main collector entry point. Checks each breeder for new APHIS reports.
+    Skips breeders already checked within the last 24 hours unless force=True.
     """
     sync_state.clear_stale_lock()
     if sync_state.get_sync_state().is_running:
-        return {'skipped': True, 'reason': 'sync already in progress'}
+        return {'skipped': True, 'reason': 'collection already in progress'}
 
-    if not force and not sync_state.is_sync_due():
+    if not force and not import_usda and not sync_state.is_sync_due():
         return {
             'skipped': True,
-            'reason': 'sync not due yet',
+            'reason': 'not due yet (runs every 24 hours)',
             'next_sync_at': sync_state.next_sync_at().isoformat(),
         }
 
     lock = sync_state.try_acquire_lock()
     if lock is None:
-        return {'skipped': True, 'reason': 'sync already in progress'}
+        return {'skipped': True, 'reason': 'collection already in progress'}
 
     summary = {'checked': 0, 'updated': 0, 'unchanged': 0, 'skipped': 0, 'errors': 0, 'timed_out': 0}
     resume_from = int((sync_state.get_progress() or {}).get('resume_from') or 0)
 
     try:
+        if import_usda:
+            import_summary = import_usda_facilities()
+            summary['usda_created'] = import_summary.get('created', 0)
+            summary['usda_updated'] = import_summary.get('updated', 0)
+            if import_summary.get('error'):
+                summary['status'] = 'error'
+                summary['error'] = import_summary['error']
+                sync_state.release_lock(lock, summary)
+                return summary
+
         facilities = list(
             PuppyMillFacility.objects.filter(
                 Q(is_dog_facility=True) | Q(last_scraped_at__isnull=True)
@@ -373,44 +386,10 @@ def check_for_new_reports(force: bool = False) -> dict:
         summary['status'] = 'complete'
         summary['completed_at'] = timezone.now().isoformat()
         sync_state.release_lock(lock, summary)
-        logger.info('Dog Watch sync complete: %s', summary)
+        logger.info('Dog Watch collection complete: %s', summary)
         return summary
     except Exception as exc:
         summary['status'] = 'error'
         summary['error'] = str(exc)
         sync_state.release_lock(lock, summary)
         raise
-
-
-def _use_sync_thread() -> bool:
-    return 'runserver' in sys.argv and os.environ.get('RUN_MAIN') == 'true'
-
-
-def start_sync_background(force: bool = False) -> bool:
-    """Start a sync without blocking the web worker (subprocess on gunicorn)."""
-    sync_state.clear_stale_lock()
-    if sync_state.get_sync_state().is_running:
-        return False
-
-    if _use_sync_thread():
-        def run():
-            try:
-                check_for_new_reports(force=force)
-            except Exception:
-                logger.exception('Dog Watch background sync failed')
-
-        threading.Thread(target=run, daemon=True, name='dog-watch-sync').start()
-        return True
-
-    cmd = [sys.executable, 'manage.py', 'dog_watch_sync']
-    if force:
-        cmd.append('--force')
-    subprocess.Popen(
-        cmd,
-        cwd=str(settings.BASE_DIR),
-        start_new_session=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        close_fds=True,
-    )
-    return True

@@ -313,9 +313,9 @@
         {% elif sync_status == 'up_to_date' and last_sync_at %}
           Up to date — last updated {{ last_sync_at|date:"M j, Y g:i A" }}
         {% elif sync_status == 'never_synced' %}
-          Preparing first update…
+          Waiting for first scheduled collection…
         {% else %}
-          Update due — syncing shortly
+          Collection due — runs on daily schedule
         {% endif %}
       </span>
     </div>
@@ -327,9 +327,9 @@
     </div>
     <small class="sync-progress-detail{% if scrape_running %} d-none{% endif %}" id="syncNextLabel">
       {% if last_sync_at and sync_status == 'up_to_date' %}
-        Next automatic update: {{ next_sync_at|date:"M j, Y g:i A" }} (every {{ sync_interval_hours|floatformat:0 }} hours)
+        Next scheduled collection: {{ next_sync_at|date:"M j, Y g:i A" }} (every {{ sync_interval_hours|floatformat:0 }} hours)
       {% elif sync_status != 'syncing' and sync_status != 'never_synced' %}
-        Full check runs every {{ sync_interval_hours|floatformat:0 }} hours (on page load when due)
+        Data is collected daily by a scheduled background job
       {% endif %}
     </small>
   </div>
@@ -340,13 +340,6 @@
       <div class="stat-box"><div class="num">{{ mapped_count }}</div><div class="lbl">On Map</div></div>
       <div class="stat-box"><div class="num">{{ violation_count }}</div><div class="lbl">w/ Violations</div></div>
     </div>
-    <form method="post" action="{% url 'dog_watch_refresh' %}" class="ms-auto">
-      {% csrf_token %}
-      <button type="submit" class="btn-game-primary" id="refreshBtn" {% if scrape_running %}disabled{% endif %}>
-        <i class="fas fa-sync-alt{% if scrape_running %} fa-spin{% endif %}" id="refreshIcon"></i>
-        <span id="refreshLabel">{% if scrape_running %}Checking...{% else %}Check Now{% endif %}</span>
-      </button>
-    </form>
   </div>
 
   <div class="dog-watch-detail-wrap" id="detailPanelWrap">
@@ -770,9 +763,6 @@ applyFilters();
   const progressBar = document.getElementById('syncProgressBar');
   const progressDetail = document.getElementById('syncProgressDetail');
   const nextLabel = document.getElementById('syncNextLabel');
-  const btn = document.getElementById('refreshBtn');
-  const icon = document.getElementById('refreshIcon');
-  const label = document.getElementById('refreshLabel');
   let wasRunning = {{ scrape_running|yesno:"true,false" }};
 
   function formatDate(iso) {
@@ -795,9 +785,6 @@ applyFilters();
           statusLabel.textContent = 'Checking for new reports…';
           progressWrap.classList.remove('d-none');
           nextLabel.classList.add('d-none');
-          btn.disabled = true;
-          icon.classList.add('fa-spin');
-          label.textContent = 'Checking...';
           if (data.total > 0) {
             const pct = Math.round((data.current / data.total) * 100);
             progressBar.classList.remove('indeterminate');
@@ -806,7 +793,7 @@ applyFilters();
           } else {
             progressBar.classList.add('indeterminate');
             progressBar.style.width = '40%';
-            progressDetail.textContent = data.message || 'Starting update…';
+            progressDetail.textContent = data.message || 'Starting…';
           }
           wasRunning = true;
           setTimeout(pollSyncStatus, 3000);
@@ -827,7 +814,7 @@ applyFilters();
           progressWrap.classList.add('d-none');
           nextLabel.classList.remove('d-none');
           nextLabel.textContent = data.next_sync_at
-            ? 'Next automatic update: ' + formatDate(data.next_sync_at) + ' (every ' + Math.round(data.sync_interval_hours) + ' hours)'
+            ? 'Next scheduled collection: ' + formatDate(data.next_sync_at) + ' (every ' + Math.round(data.sync_interval_hours) + ' hours)'
             : '';
           setTimeout(pollSyncStatus, 30000);
           return;
@@ -837,10 +824,10 @@ applyFilters();
           setBannerStatus(data.status);
           statusIcon.className = 'fas fa-clock';
           statusLabel.textContent = data.status === 'never_synced'
-            ? 'Preparing first update…'
-            : 'Update due — syncing shortly';
+            ? 'Waiting for first scheduled collection…'
+            : 'Collection due — runs on daily schedule';
           progressWrap.classList.add('d-none');
-          setTimeout(pollSyncStatus, 3000);
+          setTimeout(pollSyncStatus, 30000);
           return;
         }
 

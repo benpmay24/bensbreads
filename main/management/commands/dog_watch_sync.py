@@ -2,7 +2,10 @@ from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):
-    help = 'Check all dog breeders for new APHIS inspection reports (runs every 24h)'
+    help = (
+        'Dog Watch data collector — check breeders for new APHIS reports. '
+        'Run as a Render Cron Job, not from the web app.'
+    )
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -11,23 +14,31 @@ class Command(BaseCommand):
             help='Re-check every breeder even if checked within the last 24 hours',
         )
         parser.add_argument(
+            '--import-usda',
+            action='store_true',
+            help='Refresh the USDA breeder/dealer list before checking reports',
+        )
+        parser.add_argument(
             '--clear-lock',
             action='store_true',
-            help='Clear a stuck sync lock before running',
+            help='Clear a stuck collection lock before running',
         )
 
     def handle(self, *args, **options):
-        from main.dog_watch.scraper import check_for_new_reports
+        from main.dog_watch.collector import run_collection
         from main.dog_watch.sync_state import force_clear_lock, get_progress
 
         if options['clear_lock']:
             force_clear_lock()
-            self.stdout.write(self.style.SUCCESS('Sync lock cleared.'))
+            self.stdout.write(self.style.SUCCESS('Collection lock cleared.'))
             progress = get_progress()
             if progress.get('resume_from'):
-                self.stdout.write(f"  Will resume from facility {progress['resume_from']}")
+                self.stdout.write(f"  Resuming from facility {progress['resume_from']}")
 
-        summary = check_for_new_reports(force=options['force'])
+        summary = run_collection(
+            force=options['force'],
+            import_usda=options['import_usda'],
+        )
         if summary.get('skipped'):
             self.stdout.write(self.style.WARNING(
                 f"Skipped: {summary.get('reason', 'unknown')}"

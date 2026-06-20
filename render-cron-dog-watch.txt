@@ -1,0 +1,11 @@
+# Render Blueprint — Dog Watch collector runs as a Cron Job, separate from the web service.
+#
+# In the Render dashboard, create a Cron Job with:
+#   Schedule:  0 6 * * *          (daily at 6:00 AM UTC)
+#   Command:   python manage.py dog_watch_sync
+#
+# First-time setup (run once via Render Shell):
+#   python manage.py dog_watch_sync --import-usda --force
+#
+# If a run gets stuck:
+#   python manage.py dog_watch_sync --clear-lock --force

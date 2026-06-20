@@ -32,7 +32,6 @@ urlpatterns = [
     path('ramsey/profile/', views.ramsey_profile, name='ramsey_profile'),
     path('ramsey/profile/edit/', views.edit_ramsey_profile, name='edit_ramsey_profile'),
     path('ramsey/dog-watch/', views.dog_watch, name='dog_watch'),
-    path('ramsey/dog-watch/refresh/', views.dog_watch_refresh, name='dog_watch_refresh'),
     path('ramsey/dog-watch/status/', views.dog_watch_status, name='dog_watch_status'),
     
     # Vaccine Records URLs
@@ -70,7 +69,6 @@ urlpatterns = [
     path('api/leaderboard/', views.connect4_leaderboard, name='connect4_leaderboard'),
     path('health/', views.health, name='health_check'),
     path('cron/daily-reminder/', views.cron_daily_reminder, name='cron_daily_reminder'),
-    path('cron/dog-watch-sync/', views.cron_dog_watch_sync, name='cron_dog_watch_sync'),
     path('recipes/<int:pk>/', views.recipe_detail, name='recipe_detail'),
     path('api/validate-word/', views.validate_word, name='validate_word'),
     path('api/word-find-leaderboard/', views.word_find_leaderboard, name='word_find_leaderboard'),

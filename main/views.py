@@ -622,26 +622,19 @@ def _facility_to_json(facility):
 
 @user_passes_test(lambda u: u.is_superuser)
 def dog_watch(request):
-    """Map visualization of USDA-licensed dog breeding facilities."""
-    from main.dog_watch.scraper import start_sync_background
+    """Map visualization of USDA-licensed dog breeding facilities (reads DB only)."""
     from main.dog_watch.sync_state import (
-        clear_stale_lock,
         get_last_sync_summary,
         get_progress,
         get_sync_state,
-        is_sync_due,
         next_sync_at,
         sync_interval_hours,
         sync_status_label,
     )
 
-    clear_stale_lock()
     sync_state_obj = get_sync_state()
-    if not sync_state_obj.is_running and is_sync_due():
-        start_sync_background()
-
     progress = get_progress()
-    sync_state_obj = get_sync_state()
+    running = sync_state_obj.is_running
 
     facilities = PuppyMillFacility.objects.filter(is_dog_facility=True, coordinates_geocoded=True)
     facilities_json = json.dumps([_facility_to_json(f) for f in facilities if f.has_coordinates])
@@ -667,7 +660,6 @@ def dog_watch(request):
         .order_by('license_type')
     )
     last_sync = get_last_sync_summary()
-    running = sync_state_obj.is_running
 
     return render(request, 'ramsey/dog_watch.html', {
         'facilities_json': facilities_json,
@@ -687,37 +679,19 @@ def dog_watch(request):
     })
 
 
-@require_POST
-@user_passes_test(lambda u: u.is_superuser)
-def dog_watch_refresh(request):
-    """Force a check for new APHIS reports."""
-    from main.dog_watch.scraper import start_sync_background
-    from main.dog_watch.sync_state import get_sync_state
-
-    if not get_sync_state().is_running:
-        start_sync_background(force=True)
-    return redirect('dog_watch')
-
-
 @require_GET
 @user_passes_test(lambda u: u.is_superuser)
 def dog_watch_status(request):
-    """JSON endpoint for sync progress polling."""
+    """JSON endpoint for collection progress (read-only; collector runs via cron)."""
     from main.dog_watch.sync_state import (
-        clear_stale_lock,
         get_last_sync_summary,
         get_progress,
         get_sync_state,
-        is_sync_due,
         next_sync_at,
         sync_interval_hours,
         sync_status_label,
     )
 
-    clear_stale_lock()
-    progress = get_progress()
-    state = get_sync_state()
-    sync_state.clear_stale_lock()
     progress = get_progress()
     state = get_sync_state()
     last_sync = get_last_sync_summary()
@@ -729,12 +703,10 @@ def dog_watch_status(request):
 
     return JsonResponse({
         'running': running,
-        'phase': progress.get('phase', ''),
         'current': progress.get('current', 0),
         'total': progress.get('total', 0),
         'message': progress.get('message', ''),
         'status': 'syncing' if running else sync_status_label(),
-        'sync_due': is_sync_due(),
         'sync_interval_hours': sync_interval_hours(),
         'last_sync_at': state.last_sync_at.isoformat() if state.last_sync_at else None,
         'next_sync_at': next_sync_at().isoformat(),
@@ -830,22 +802,6 @@ def cron_daily_reminder(request):
     threading.Thread(target=send_reminder, daemon=True).start()
     return HttpResponse('OK', status=200)
 
-
-@require_GET
-def cron_dog_watch_sync(request):
-    """
-    Trigger Dog Watch report check. Protected by CRON_SECRET_TOKEN.
-    Example: https://yoursite.com/cron/dog-watch-sync/?token=your-secret-token
-    """
-    token = request.GET.get('token', '')
-    if not settings.CRON_SECRET_TOKEN or token != settings.CRON_SECRET_TOKEN:
-        return HttpResponse('Unauthorized', status=401)
-
-    from main.dog_watch.scraper import start_sync_background
-
-    if start_sync_background():
-        return HttpResponse('OK', status=200)
-    return HttpResponse('Sync already running', status=409)
 
 @login_required
 @user_passes_test(lambda u: u.is_staff)
