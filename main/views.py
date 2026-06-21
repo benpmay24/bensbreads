@@ -573,9 +573,34 @@ def download_document(request, doc_type, doc_id):
 
 
 # Dog Watch (Superuser Only)
+def _report_to_json(report):
+    return {
+        'date': report.inspection_date.isoformat() if report.inspection_date else '',
+        'url': report.report_url,
+        'direct': report.direct_count,
+        'critical': report.critical_count,
+        'non_critical': report.non_critical_count,
+        'teachable': report.teachable_count,
+    }
+
+
+def _violation_to_json(violation):
+    return {
+        'date': violation.inspection_date.isoformat() if violation.inspection_date else '',
+        'category': violation.category,
+        'section': violation.section,
+        'title': violation.title,
+        'description': violation.description,
+        'is_repeat': violation.is_repeat,
+        'report_url': violation.report.report_url,
+    }
+
+
 def _facility_to_json(facility):
-    reports = facility.inspection_reports or []
-    non_critical = sum(r.get('non_critical', 0) for r in reports)
+    from main.models import FacilityViolation
+
+    db_reports = list(facility.reports.all())
+    violation_items = list(facility.violations.all())
     license_type = facility.license_type or ''
     if 'Class A' in license_type:
         license_class = 'A'
@@ -584,16 +609,29 @@ def _facility_to_json(facility):
     else:
         license_class = ''
 
-    direct = facility.direct_violations or 0
-    # Legacy rows stored critical + direct in critical_violations
-    stored_critical = facility.critical_violations or 0
-    critical = stored_critical if stored_critical <= direct else max(0, stored_critical - direct)
-    if reports and sum(r.get('critical', 0) for r in reports) > 0:
-        critical = sum(r.get('critical', 0) for r in reports)
-    if reports and sum(r.get('direct', 0) for r in reports) > 0:
+    if db_reports:
+        reports = [_report_to_json(r) for r in db_reports]
+    else:
+        reports = facility.inspection_reports or []
+
+    if violation_items:
+        direct = sum(1 for v in violation_items if v.category == FacilityViolation.Category.DIRECT)
+        critical = sum(1 for v in violation_items if v.category == FacilityViolation.Category.CRITICAL)
+        non_critical = sum(
+            1 for v in violation_items if v.category == FacilityViolation.Category.NON_CRITICAL
+        )
+    elif db_reports:
+        direct = sum(r.direct_count for r in db_reports)
+        critical = sum(r.critical_count for r in db_reports)
+        non_critical = sum(r.non_critical_count for r in db_reports)
+    elif reports:
         direct = sum(r.get('direct', 0) for r in reports)
-    if reports and non_critical == 0:
+        critical = sum(r.get('critical', 0) for r in reports)
         non_critical = sum(r.get('non_critical', 0) for r in reports)
+    else:
+        direct = facility.direct_violations or 0
+        critical = facility.critical_violations or 0
+        non_critical = max(0, (facility.violation_count or 0) - direct - critical)
 
     return {
         'id': facility.id,
@@ -612,7 +650,8 @@ def _facility_to_json(facility):
         'breeds': facility.dog_breeds,
         'news': facility.news_articles,
         'reports': reports,
-        'violations': facility.violation_count,
+        'violation_items': [_violation_to_json(v) for v in violation_items],
+        'violations': direct + critical + non_critical,
         'direct': direct,
         'critical': critical,
         'non_critical': non_critical,
@@ -632,10 +671,29 @@ def dog_watch(request):
         sync_status_label,
     )
 
+    from django.db.models import Prefetch
+
+    from main.models import FacilityInspectionReport, FacilityViolation
+
     running, progress = refresh_collection_status()
     sync_state_obj = get_sync_state()
 
-    all_facilities = PuppyMillFacility.objects.filter(is_dog_facility=True).order_by('name')
+    all_facilities = (
+        PuppyMillFacility.objects.filter(is_dog_facility=True)
+        .prefetch_related(
+            Prefetch(
+                'reports',
+                queryset=FacilityInspectionReport.objects.order_by('-inspection_date'),
+            ),
+            Prefetch(
+                'violations',
+                queryset=FacilityViolation.objects.select_related('report').order_by(
+                    '-inspection_date', 'section'
+                ),
+            ),
+        )
+        .order_by('name')
+    )
     facilities_json = json.dumps([_facility_to_json(f) for f in all_facilities])
     mapped_count = all_facilities.filter(coordinates_geocoded=True).count()
 

@@ -175,6 +175,40 @@
   .reports-table .count-zero { color: #adb5bd; }
   .report-link { color: #8B4513; }
 
+  .violations-list { display: flex; flex-direction: column; gap: 0.75rem; }
+  .violation-card {
+    border: 1px solid #e8e0d4;
+    border-radius: 8px;
+    padding: 0.75rem;
+    background: white;
+  }
+  .violation-card.direct { border-left: 3px solid #c0392b; }
+  .violation-card.critical { border-left: 3px solid #d35400; }
+  .violation-card.non_critical { border-left: 3px solid #b7950b; }
+  .violation-card.teachable { border-left: 3px solid #6c757d; }
+  .violation-card-header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 0.35rem;
+    font-size: 0.78rem;
+  }
+  .violation-badge {
+    display: inline-block;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .violation-badge.direct { background: #fde8e8; color: #c0392b; }
+  .violation-badge.critical { background: #fef3e2; color: #d35400; }
+  .violation-badge.non_critical { background: #fff8e1; color: #b7950b; }
+  .violation-badge.teachable { background: #eef1f3; color: #6c757d; }
+  .violation-card-title { font-weight: 600; color: #5d4f41; font-size: 0.85rem; }
+  .violation-card-desc { font-size: 0.8rem; color: #5d4f41; margin: 0; white-space: pre-wrap; }
+
   .license-class-badge {
     display: inline-block;
     font-size: 0.68rem;
@@ -548,6 +582,11 @@ function violationClass(count) {
   return 'violation-ok';
 }
 
+function markerColor(f) {
+  if ((f.direct || 0) > 0 || (f.critical || 0) > 0) return '#c0392b';
+  return '#27ae60';
+}
+
 function initMap() {
   map = L.map('map').setView([39.8283, -98.5795], 4);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -558,7 +597,7 @@ function initMap() {
 
   facilities.forEach(f => {
     if (!f.lat || !f.lng) return;
-    const color = f.violations >= 10 ? '#c0392b' : f.violations >= 1 ? '#d35400' : '#27ae60';
+    const color = markerColor(f);
     const marker = L.circleMarker([f.lat, f.lng], {
       radius: 7, fillColor: color, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.85,
     });
@@ -598,6 +637,26 @@ function renderCountCell(count, typeClass) {
   return `<td class="col-viol ${n > 0 ? typeClass : 'count-zero'}">${n}</td>`;
 }
 
+function renderViolationsList(items) {
+  if (!items.length) {
+    return '<p class="text-muted small mb-0">No individual violations parsed yet. They will appear after the next sync downloads inspection report PDFs.</p>';
+  }
+  const sorted = [...items].sort((a, b) => parseReportDate(b.date) - parseReportDate(a.date));
+  return `<div class="violations-list">${sorted.map(v => {
+    const label = v.category === 'non_critical' ? 'Non-critical' : v.category.charAt(0).toUpperCase() + v.category.slice(1);
+    return `<div class="violation-card ${escapeHtml(v.category)}">
+      <div class="violation-card-header">
+        <span class="violation-badge ${escapeHtml(v.category)}">${label}${v.is_repeat ? ' · Repeat' : ''}</span>
+        <span class="text-muted">${formatReportDate(v.date)}</span>
+        <code style="font-size:0.75rem">${escapeHtml(v.section)}</code>
+        ${v.report_url ? `<a class="report-link ms-auto" href="${escapeHtml(v.report_url)}" target="_blank" rel="noopener"><i class="fas fa-file-pdf"></i></a>` : ''}
+      </div>
+      ${v.title ? `<div class="violation-card-title">${escapeHtml(v.title)}</div>` : ''}
+      ${v.description ? `<p class="violation-card-desc">${escapeHtml(v.description)}</p>` : ''}
+    </div>`;
+  }).join('')}</div>`;
+}
+
 function renderReportsTable(reports, usdaUrl) {
   if (!reports.length) return '<p class="text-muted small mb-0">No inspection reports on file.</p>';
   const sorted = [...reports].sort((a, b) => parseReportDate(b.date) - parseReportDate(a.date));
@@ -629,6 +688,7 @@ function showDetail(id) {
   const owners = (f.owners || []).map(o => `<li>${escapeHtml(o)}</li>`).join('') || '<li class="text-muted">Unknown</li>';
   const breeds = (f.breeds || []).map(b => `<li>${escapeHtml(b)}</li>`).join('') || '<li class="text-muted">Not recorded</li>';
   const reports = f.reports || [];
+  const violationItems = f.violation_items || [];
 
   panel.innerHTML = `
     <button class="detail-close" onclick="closeDetail()" title="Clear selection">&times;</button>
@@ -646,6 +706,10 @@ function showDetail(id) {
       <div class="violation-stat direct"><span class="count">${f.direct || 0}</span>Direct</div>
       <div class="violation-stat critical"><span class="count">${f.critical || 0}</span>Critical</div>
       <div class="violation-stat non-critical"><span class="count">${f.non_critical || 0}</span>Non-critical</div>
+    </div>
+    <div class="detail-section">
+      <h6>Violations (${violationItems.length || f.violations || 0})</h6>
+      ${renderViolationsList(violationItems)}
     </div>
     <div class="detail-section">
       <h6>Inspection Reports (${reports.length})</h6>

@@ -396,6 +396,79 @@ class PuppyMillFacility(models.Model):
         return self.latitude is not None and self.longitude is not None
 
 
+class FacilityInspectionReport(models.Model):
+    """A single USDA APHIS inspection report for a facility."""
+    facility = models.ForeignKey(
+        PuppyMillFacility,
+        on_delete=models.CASCADE,
+        related_name='reports',
+    )
+    inspection_date = models.DateField(null=True, blank=True)
+    report_url = models.URLField(max_length=500)
+    inspection_type = models.CharField(max_length=80, blank=True)
+    direct_count = models.PositiveIntegerField(default=0)
+    critical_count = models.PositiveIntegerField(default=0)
+    non_critical_count = models.PositiveIntegerField(default=0)
+    teachable_count = models.PositiveIntegerField(default=0)
+    violations_parsed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-inspection_date', '-id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['facility', 'report_url'],
+                name='unique_facility_report_url',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.facility.license_number} — {self.inspection_date or "unknown date"}'
+
+    @property
+    def total_violations(self):
+        return self.direct_count + self.critical_count + self.non_critical_count
+
+
+class FacilityViolation(models.Model):
+    """An individual noncompliance item cited on an inspection report."""
+
+    class Category(models.TextChoices):
+        DIRECT = 'direct', 'Direct'
+        CRITICAL = 'critical', 'Critical'
+        NON_CRITICAL = 'non_critical', 'Non-critical'
+        TEACHABLE = 'teachable', 'Teachable moment'
+
+    facility = models.ForeignKey(
+        PuppyMillFacility,
+        on_delete=models.CASCADE,
+        related_name='violations',
+    )
+    report = models.ForeignKey(
+        FacilityInspectionReport,
+        on_delete=models.CASCADE,
+        related_name='violations',
+    )
+    category = models.CharField(max_length=20, choices=Category.choices)
+    section = models.CharField(max_length=50)
+    title = models.CharField(max_length=300, blank=True)
+    description = models.TextField(blank=True)
+    is_repeat = models.BooleanField(default=False)
+    inspection_date = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-inspection_date', 'section']
+        indexes = [
+            models.Index(fields=['facility', 'category']),
+            models.Index(fields=['-inspection_date']),
+        ]
+
+    def __str__(self):
+        return f'{self.section} ({self.get_category_display()}) — {self.facility.name}'
+
+
 class DogWatchSyncState(models.Model):
     """Singleton tracking Dog Watch background sync state."""
     id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)

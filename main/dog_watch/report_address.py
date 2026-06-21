@@ -1,13 +1,7 @@
 """Extract facility street addresses from USDA inspection report PDFs."""
-import logging
 import re
-from io import BytesIO
 
-import requests
-
-logger = logging.getLogger(__name__)
-
-HEADERS = {'User-Agent': "Ben's Breads Dog Watch (bensbreads.com)"}
+from main.dog_watch.report_pdf import fetch_report_pdf_text
 
 # Appears on page 1 of every AWA inspection report, before "Customer ID:"
 _ADDRESS_BLOCK = re.compile(
@@ -51,29 +45,5 @@ def parse_address_from_report_text(text: str) -> dict[str, str]:
 
 def fetch_address_from_report_url(url: str) -> dict[str, str]:
     """Download an inspection report PDF and extract the facility address."""
-    if not url:
-        return {}
-
-    try:
-        response = requests.get(url, headers=HEADERS, timeout=(10, 30))
-        response.raise_for_status()
-    except requests.RequestException as exc:
-        logger.warning('Failed to download inspection report %s: %s', url[:80], exc)
-        return {}
-
-    try:
-        from pypdf import PdfReader
-    except ImportError:
-        logger.warning('pypdf not installed; cannot extract addresses from reports')
-        return {}
-
-    try:
-        reader = PdfReader(BytesIO(response.content))
-        if not reader.pages:
-            return {}
-        text = reader.pages[0].extract_text() or ''
-    except Exception as exc:
-        logger.warning('Failed to read inspection report PDF: %s', exc)
-        return {}
-
+    text = fetch_report_pdf_text(url, max_pages=1)
     return parse_address_from_report_text(text)

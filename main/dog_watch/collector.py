@@ -13,22 +13,23 @@ import io
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 import openpyxl
 import requests
 from django.db.models import Q
 from django.utils import timezone
 
-from main.models import PuppyMillFacility
-from main.dog_watch.aphis_client import (
-    _build_inspection_reports,
-    _inspection_report,
-    _int_field,
-    search_inspections,
-)
+from main.models import FacilityInspectionReport, PuppyMillFacility
+from main.dog_watch.aphis_client import search_inspections
 from main.dog_watch.geocoder import geocode, normalize_state
 from main.dog_watch.report_address import fetch_address_from_report_url
+from main.dog_watch.report_sync import (
+    parse_inspection_date,
+    parse_unparsed_report_violations,
+    recompute_facility_violation_counts,
+    upsert_inspection_reports,
+)
 from main.dog_watch import sync_state
 
 logger = logging.getLogger(__name__)
@@ -109,11 +110,26 @@ def _geocode_facility(facility: PuppyMillFacility) -> bool:
 
 def _known_report_urls(facility: PuppyMillFacility) -> set[str]:
     urls = set(facility.processed_report_urls or [])
-    for report in facility.inspection_reports or []:
-        url = report.get('url')
-        if url:
-            urls.add(url)
+    urls.update(
+        FacilityInspectionReport.objects.filter(facility=facility).values_list('report_url', flat=True)
+    )
     return urls
+
+
+def _latest_known_report_date(facility: PuppyMillFacility) -> date | None:
+    latest = (
+        FacilityInspectionReport.objects.filter(facility=facility, inspection_date__isnull=False)
+        .order_by('-inspection_date')
+        .values_list('inspection_date', flat=True)
+        .first()
+    )
+    if latest:
+        return latest
+    for report in facility.inspection_reports or []:
+        parsed = parse_inspection_date(report.get('date'))
+        if parsed and (latest is None or parsed > latest):
+            latest = parsed
+    return latest
 
 
 def _apply_pdf_address(facility: PuppyMillFacility, pdf_address: dict) -> bool:
@@ -136,9 +152,6 @@ def _apply_pdf_address(facility: PuppyMillFacility, pdf_address: dict) -> bool:
 
 def _apply_aphis_metadata(facility: PuppyMillFacility, inspections: list[dict]) -> None:
     latest = inspections[0]
-    direct = sum(_int_field(i, 'direct', 'directViolations') for i in inspections)
-    critical = sum(_int_field(i, 'critical', 'criticalViolations') for i in inspections)
-    non_critical = sum(_int_field(i, 'nonCritical', 'nonCriticalViolations') for i in inspections)
 
     species = set()
     for insp in inspections:
@@ -172,19 +185,9 @@ def _apply_aphis_metadata(facility: PuppyMillFacility, inspections: list[dict]) 
     if species:
         facility.dog_breeds = sorted(species)
 
-    facility.violation_count = direct + critical + non_critical
-    facility.direct_violations = direct
-    facility.critical_violations = critical
-    facility.inspection_reports = _build_inspection_reports(inspections)
     facility.processed_report_urls = [
         insp.get('reportLink') for insp in inspections if insp.get('reportLink')
     ]
-
-
-def _newest_report_url(reports: list[dict]) -> str:
-    if not reports:
-        return ''
-    return max(reports, key=lambda r: r.get('date') or '').get('url') or ''
 
 
 def _upsert_base_record(data: dict) -> tuple[PuppyMillFacility, bool]:
@@ -241,6 +244,32 @@ def import_usda_facilities() -> dict:
     return summary
 
 
+def _inspection_has_new_reports(
+    facility: PuppyMillFacility,
+    inspections: list[dict],
+    is_initial: bool,
+) -> bool:
+    known_urls = _known_report_urls(facility)
+    if is_initial:
+        return any(insp.get('reportLink') and insp['reportLink'] not in known_urls for insp in inspections)
+
+    latest_known_date = _latest_known_report_date(facility)
+    for insp in inspections:
+        url = insp.get('reportLink')
+        if not url or url in known_urls:
+            continue
+        report_date = parse_inspection_date(
+            insp.get('inspectionDate') or insp.get('inspectionDateString')
+        )
+        if latest_known_date is None:
+            return True
+        if report_date and report_date > latest_known_date:
+            return True
+        if report_date is None:
+            return True
+    return False
+
+
 def _sync_facility(facility: PuppyMillFacility) -> str:
     """Check one breeder for new APHIS reports; update DB only when reports are new."""
     try:
@@ -263,33 +292,40 @@ def _sync_facility(facility: PuppyMillFacility) -> str:
                 return 'initialized'
         return 'skipped'
 
-    api_reports = [_inspection_report(insp) for insp in inspections]
-    known_urls = _known_report_urls(facility)
+    report_records = upsert_inspection_reports(facility, inspections)
+    parse_unparsed_report_violations(report_records)
+    recompute_facility_violation_counts(facility)
 
-    if is_initial:
-        new_reports = [r for r in api_reports if r.get('url') and r['url'] not in known_urls]
-    else:
-        latest_known_date = max(
-            (r.get('date') or '' for r in (facility.inspection_reports or [])),
-            default='',
-        )
-        new_reports = [
-            r for r in api_reports
-            if r.get('url')
-            and r['url'] not in known_urls
-            and (r.get('date') or '') > latest_known_date
-        ]
+    has_new_reports = _inspection_has_new_reports(facility, inspections, is_initial)
 
-    if not is_initial and not new_reports:
+    if not is_initial and not has_new_reports:
         facility.processed_report_urls = [
             insp.get('reportLink') for insp in inspections if insp.get('reportLink')
         ]
-        facility.save(update_fields=['last_checked_at', 'processed_report_urls'])
+        facility.save(update_fields=[
+            'last_checked_at', 'processed_report_urls',
+            'direct_violations', 'critical_violations', 'violation_count',
+        ])
         return 'unchanged'
 
     _apply_aphis_metadata(facility, inspections)
 
-    pdf_url = _newest_report_url(new_reports if not is_initial else api_reports)
+    pdf_url = ''
+    if has_new_reports:
+        dated = [
+            insp for insp in inspections
+            if insp.get('reportLink')
+            and parse_inspection_date(insp.get('inspectionDate') or insp.get('inspectionDateString'))
+        ]
+        if dated:
+            pdf_url = max(
+                dated,
+                key=lambda i: parse_inspection_date(
+                    i.get('inspectionDate') or i.get('inspectionDateString')
+                ) or date.min,
+            ).get('reportLink') or ''
+        elif inspections[0].get('reportLink'):
+            pdf_url = inspections[0]['reportLink']
     address_changed = False
     if pdf_url:
         pdf_address = fetch_address_from_report_url(pdf_url)

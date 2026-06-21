@@ -1,7 +1,11 @@
 from django.contrib import admin
 
 # Register your models here.
-from .models import BlogPost, Recipe, Comment, Review, DailyUpdate, RamseyProfile, VaccineRecord, BoardingExperience, DietEntry, VaccineDocument, DietDocument, BoardingDocument, PuppyMillFacility
+from .models import (
+    BlogPost, Recipe, Comment, Review, DailyUpdate, RamseyProfile, VaccineRecord,
+    BoardingExperience, DietEntry, VaccineDocument, DietDocument, BoardingDocument,
+    PuppyMillFacility, FacilityInspectionReport, FacilityViolation,
+)
 
 admin.site.register(BlogPost)
 admin.site.register(Recipe)
@@ -108,3 +112,32 @@ class PuppyMillFacilityAdmin(admin.ModelAdmin):
     search_fields = ['name', 'dba_name', 'license_number', 'city']
     readonly_fields = ['created_at', 'updated_at', 'last_scraped_at']
     ordering = ['-violation_count', 'state', 'name']
+
+
+class FacilityViolationInline(admin.TabularInline):
+    model = FacilityViolation
+    extra = 0
+    fields = ['inspection_date', 'category', 'section', 'title', 'is_repeat']
+    readonly_fields = fields
+    can_delete = False
+    show_change_link = True
+
+
+@admin.register(FacilityInspectionReport)
+class FacilityInspectionReportAdmin(admin.ModelAdmin):
+    list_display = [
+        'facility', 'inspection_date', 'direct_count', 'critical_count',
+        'non_critical_count', 'violations_parsed',
+    ]
+    list_filter = ['violations_parsed', 'inspection_date']
+    search_fields = ['facility__name', 'facility__license_number', 'report_url']
+    readonly_fields = ['created_at', 'updated_at']
+    inlines = [FacilityViolationInline]
+
+
+@admin.register(FacilityViolation)
+class FacilityViolationAdmin(admin.ModelAdmin):
+    list_display = ['facility', 'inspection_date', 'category', 'section', 'title', 'is_repeat']
+    list_filter = ['category', 'is_repeat', 'inspection_date']
+    search_fields = ['facility__name', 'section', 'title', 'description']
+    readonly_fields = ['created_at']
