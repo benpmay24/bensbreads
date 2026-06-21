@@ -13,7 +13,7 @@ from main.dog_watch.report_violations import parse_violations_from_report_text, 
 logger = logging.getLogger(__name__)
 
 MAX_PARSE_ATTEMPTS = 3
-PDF_MAX_PAGES = 5
+PDF_MAX_PAGES = 8
 
 
 def parse_inspection_date(value: str | None) -> date | None:
@@ -151,6 +151,17 @@ def parse_report_violations(report: FacilityInspectionReport) -> int | None:
     if not text:
         report.parse_attempts += 1
         report.save(update_fields=['parse_attempts', 'updated_at'])
+        if report.parse_attempts >= MAX_PARSE_ATTEMPTS:
+            report.violations.all().delete()
+            created = _create_fallback_violations(report)
+            report.violations_parsed = True
+            report.save(update_fields=['violations_parsed', 'updated_at'])
+            logger.info(
+                'Using PDF fallback for %s report %s after %s attempts '
+                '(unreadable PDF, %s rows)',
+                report.facility.license_number, report.id, report.parse_attempts, created,
+            )
+            return created
         logger.warning(
             'Could not read PDF for %s report %s (attempt %s/%s)',
             report.facility.license_number, report.id, report.parse_attempts, MAX_PARSE_ATTEMPTS,

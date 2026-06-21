@@ -16,7 +16,13 @@ _END_RE = re.compile(
 )
 
 _NO_VIOLATIONS_RE = re.compile(
-    r'no non-?compliant items identified',
+    r'no non-?compliant items (?:identified|documented)'
+    r'|no items of non-?compliance (?:identified|documented|were found)',
+    re.IGNORECASE,
+)
+
+_TYPE_DATE_RE = re.compile(
+    r'Type:[ \t]*[^\n]+\nDate:[ \t]*[^\n]+\n',
     re.IGNORECASE,
 )
 
@@ -68,7 +74,7 @@ def parse_violations_from_report_text(text: str) -> list[dict]:
     end_match = _END_RE.search(text)
     narrative = text[:end_match.start()] if end_match else text
 
-    type_match = re.search(r'Type:\s*.+?\nDate:\s*.+?\n', narrative, re.IGNORECASE | re.DOTALL)
+    type_match = _TYPE_DATE_RE.search(narrative)
     if type_match:
         narrative = narrative[type_match.end():]
 
