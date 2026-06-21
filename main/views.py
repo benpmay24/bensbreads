@@ -596,23 +596,21 @@ def _violation_to_json(violation):
     }
 
 
-def _facility_to_json(facility):
+def _license_class(license_type: str) -> str:
+    if 'Class A' in license_type:
+        return 'A'
+    if 'Class B' in license_type:
+        return 'B'
+    return ''
+
+
+def _facility_violation_totals(facility, *, db_reports=None, violation_items=None):
     from main.models import FacilityViolation
 
-    db_reports = list(facility.reports.all())
-    violation_items = list(facility.violations.all())
-    license_type = facility.license_type or ''
-    if 'Class A' in license_type:
-        license_class = 'A'
-    elif 'Class B' in license_type:
-        license_class = 'B'
-    else:
-        license_class = ''
-
-    if db_reports:
-        reports = [_report_to_json(r) for r in db_reports]
-    else:
-        reports = facility.inspection_reports or []
+    if violation_items is None and hasattr(facility, '_prefetched_objects_cache'):
+        violation_items = list(facility.violations.all())
+    if db_reports is None and hasattr(facility, '_prefetched_objects_cache'):
+        db_reports = list(facility.reports.all())
 
     if violation_items:
         direct = sum(1 for v in violation_items if v.category == FacilityViolation.Category.DIRECT)
@@ -624,14 +622,51 @@ def _facility_to_json(facility):
         direct = sum(r.direct_count for r in db_reports)
         critical = sum(r.critical_count for r in db_reports)
         non_critical = sum(r.non_critical_count for r in db_reports)
-    elif reports:
-        direct = sum(r.get('direct', 0) for r in reports)
-        critical = sum(r.get('critical', 0) for r in reports)
-        non_critical = sum(r.get('non_critical', 0) for r in reports)
     else:
         direct = facility.direct_violations or 0
         critical = facility.critical_violations or 0
         non_critical = max(0, (facility.violation_count or 0) - direct - critical)
+
+    return direct, critical, non_critical
+
+
+def _facility_summary_to_json(facility):
+    """Lightweight payload for the map and facilities table."""
+    license_type = facility.license_type or ''
+    direct, critical, non_critical = _facility_violation_totals(facility)
+    return {
+        'id': facility.id,
+        'name': facility.name,
+        'dba': facility.dba_name,
+        'license': facility.license_number,
+        'license_type': license_type,
+        'license_class': _license_class(license_type),
+        'city': facility.city,
+        'state': facility.state,
+        'lat': float(facility.latitude) if facility.latitude else None,
+        'lng': float(facility.longitude) if facility.longitude else None,
+        'direct': direct,
+        'critical': critical,
+        'non_critical': non_critical,
+        'violations': direct + critical + non_critical,
+    }
+
+
+def _facility_to_json(facility):
+    db_reports = list(facility.reports.all())
+    violation_items = list(facility.violations.all())
+    license_type = facility.license_type or ''
+
+    if db_reports:
+        reports = [_report_to_json(r) for r in db_reports]
+    else:
+        reports = facility.inspection_reports or []
+
+    direct, critical, non_critical = _facility_violation_totals(
+        facility,
+        db_reports=db_reports,
+        violation_items=violation_items,
+    )
 
     return {
         'id': facility.id,
@@ -639,7 +674,7 @@ def _facility_to_json(facility):
         'dba': facility.dba_name,
         'license': facility.license_number,
         'license_type': license_type,
-        'license_class': license_class,
+        'license_class': _license_class(license_type),
         'address': facility.full_address,
         'city': facility.city,
         'state': facility.state,
@@ -662,6 +697,8 @@ def _facility_to_json(facility):
 @user_passes_test(lambda u: u.is_superuser)
 def dog_watch(request):
     """Map visualization of USDA-licensed dog breeding facilities (reads DB only)."""
+    from django.db.models import Count, Q
+
     from main.dog_watch.sync_state import (
         get_last_sync_summary,
         get_sync_state,
@@ -671,48 +708,38 @@ def dog_watch(request):
         sync_status_label,
     )
 
-    from django.db.models import Prefetch
-
-    from main.models import FacilityInspectionReport, FacilityViolation
-
     running, progress = refresh_collection_status()
     sync_state_obj = get_sync_state()
 
-    all_facilities = (
-        PuppyMillFacility.objects.filter(is_dog_facility=True)
-        .prefetch_related(
-            Prefetch(
-                'reports',
-                queryset=FacilityInspectionReport.objects.order_by('-inspection_date'),
-            ),
-            Prefetch(
-                'violations',
-                queryset=FacilityViolation.objects.select_related('report').order_by(
-                    '-inspection_date', 'section'
-                ),
-            ),
-        )
-        .order_by('name')
+    base_qs = PuppyMillFacility.objects.filter(is_dog_facility=True)
+    stats = base_qs.aggregate(
+        total=Count('id'),
+        mapped=Count('id', filter=Q(coordinates_geocoded=True)),
+        with_violations=Count('id', filter=Q(violation_count__gt=0)),
     )
-    facilities_json = json.dumps([_facility_to_json(f) for f in all_facilities])
-    mapped_count = all_facilities.filter(coordinates_geocoded=True).count()
+    all_facilities = list(
+        base_qs.only(
+            'id', 'name', 'dba_name', 'license_number', 'license_type',
+            'city', 'state', 'latitude', 'longitude',
+            'direct_violations', 'critical_violations', 'violation_count',
+        ).order_by('name')
+    )
+    facilities_json = json.dumps([_facility_summary_to_json(f) for f in all_facilities])
 
     last_scraped = (
-        PuppyMillFacility.objects.filter(last_scraped_at__isnull=False)
+        base_qs.filter(last_scraped_at__isnull=False)
         .order_by('-last_scraped_at')
         .values_list('last_scraped_at', flat=True)
         .first()
     )
     states = (
-        PuppyMillFacility.objects.filter(is_dog_facility=True)
-        .exclude(state='')
+        base_qs.exclude(state='')
         .values_list('state', flat=True)
         .distinct()
         .order_by('state')
     )
     license_classes = (
-        PuppyMillFacility.objects.filter(is_dog_facility=True)
-        .exclude(license_type='')
+        base_qs.exclude(license_type='')
         .values_list('license_type', flat=True)
         .distinct()
         .order_by('license_type')
@@ -721,9 +748,9 @@ def dog_watch(request):
 
     return render(request, 'ramsey/dog_watch.html', {
         'facilities_json': facilities_json,
-        'total_count': PuppyMillFacility.objects.filter(is_dog_facility=True).count(),
-        'mapped_count': mapped_count,
-        'violation_count': all_facilities.filter(violation_count__gt=0).count(),
+        'total_count': stats['total'],
+        'mapped_count': stats['mapped'],
+        'violation_count': stats['with_violations'],
         'last_scraped': last_scraped,
         'states': states,
         'license_classes': license_classes,
@@ -735,6 +762,32 @@ def dog_watch(request):
         'next_sync_at': next_sync_at(),
         'sync_status': 'syncing' if running else sync_status_label(),
     })
+
+
+@require_GET
+@user_passes_test(lambda u: u.is_superuser)
+def dog_watch_facility_detail(request, facility_id):
+    """Load full inspection/violation detail for one facility on demand."""
+    from django.db.models import Prefetch
+
+    from main.models import FacilityInspectionReport, FacilityViolation
+
+    facility = get_object_or_404(
+        PuppyMillFacility.objects.filter(is_dog_facility=True).prefetch_related(
+            Prefetch(
+                'reports',
+                queryset=FacilityInspectionReport.objects.order_by('-inspection_date'),
+            ),
+            Prefetch(
+                'violations',
+                queryset=FacilityViolation.objects.select_related('report').order_by(
+                    '-inspection_date', 'section'
+                ),
+            ),
+        ),
+        pk=facility_id,
+    )
+    return JsonResponse(_facility_to_json(facility))
 
 
 @user_passes_test(lambda u: u.is_superuser)

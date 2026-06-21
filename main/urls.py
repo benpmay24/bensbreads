@@ -32,6 +32,7 @@ urlpatterns = [
     path('ramsey/profile/', views.ramsey_profile, name='ramsey_profile'),
     path('ramsey/profile/edit/', views.edit_ramsey_profile, name='edit_ramsey_profile'),
     path('ramsey/dog-watch/', views.dog_watch, name='dog_watch'),
+    path('ramsey/dog-watch/facility/<int:facility_id>/', views.dog_watch_facility_detail, name='dog_watch_facility_detail'),
     path('ramsey/dog-watch/violations/', views.dog_watch_violations, name='dog_watch_violations'),
     path('ramsey/dog-watch/status/', views.dog_watch_status, name='dog_watch_status'),
     path('ramsey/dog-watch/clear-lock/', views.dog_watch_clear_lock, name='dog_watch_clear_lock'),

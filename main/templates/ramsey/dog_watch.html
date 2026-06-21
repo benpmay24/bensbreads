@@ -581,6 +581,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const facilities = {{ facilities_json|safe }};
+const FACILITY_DETAIL_URL = '{% url "dog_watch_facility_detail" 0 %}'.replace('/0/', '/');
 const PAGE_SIZE = 25;
 let map, markers = {}, activeId = null, markerLayer;
 let filteredFacilities = [];
@@ -588,6 +589,8 @@ let currentPage = 1;
 let sortKey = 'name';
 let sortAsc = true;
 let detailCollapsed = false;
+const detailCache = {};
+let detailRequestId = 0;
 
 function escapeHtml(text) {
   const d = document.createElement('div');
@@ -696,13 +699,7 @@ function renderReportsTable(reports, usdaUrl) {
     <tbody>${rows}</tbody></table></div>`;
 }
 
-function showDetail(id) {
-  activeId = id;
-  const f = facilities.find(x => x.id === id);
-  if (!f) return;
-
-  toggleDetailPane(true);
-
+function renderDetailPanel(f) {
   const panel = document.getElementById('detailPanel');
   const owners = (f.owners || []).map(o => `<li>${escapeHtml(o)}</li>`).join('') || '<li class="text-muted">Unknown</li>';
   const breeds = (f.breeds || []).map(b => `<li>${escapeHtml(b)}</li>`).join('') || '<li class="text-muted">Not recorded</li>';
@@ -740,6 +737,23 @@ function showDetail(id) {
     </div>
     ${f.usda_url ? `<div class="mt-2"><a href="${escapeHtml(f.usda_url)}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary"><i class="fas fa-external-link-alt"></i> USDA Profile</a></div>` : ''}
   `;
+}
+
+function showDetailLoading() {
+  document.getElementById('detailPanel').innerHTML = `
+    <div class="detail-empty">
+      <i class="fas fa-spinner fa-spin"></i>
+      Loading facility details…
+    </div>`;
+}
+
+async function showDetail(id) {
+  activeId = id;
+  const summary = facilities.find(x => x.id === id);
+  if (!summary) return;
+
+  toggleDetailPane(true);
+  showDetailLoading();
 
   document.querySelectorAll('#facilityTableBody tr').forEach(row => {
     row.classList.toggle('active', parseInt(row.dataset.id, 10) === id);
@@ -748,11 +762,32 @@ function showDetail(id) {
   if (markers[id]) {
     map.setView(markers[id].getLatLng(), Math.max(map.getZoom(), 10));
     markers[id].openPopup();
-  } else if (f.lat && f.lng) {
-    map.setView([f.lat, f.lng], 10);
+  } else if (summary.lat && summary.lng) {
+    map.setView([summary.lat, summary.lng], 10);
   }
 
   document.getElementById('dogWatchTop').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  const requestId = ++detailRequestId;
+  let detail = detailCache[id];
+  if (!detail) {
+    try {
+      const response = await fetch(FACILITY_DETAIL_URL + id + '/');
+      if (!response.ok) throw new Error('Failed to load facility');
+      detail = await response.json();
+      detailCache[id] = detail;
+    } catch (err) {
+      if (requestId !== detailRequestId) return;
+      document.getElementById('detailPanel').innerHTML = `
+        <div class="detail-empty text-danger">
+          Could not load facility details. Try again.
+        </div>`;
+      return;
+    }
+  }
+
+  if (requestId !== detailRequestId || activeId !== id) return;
+  renderDetailPanel({ ...summary, ...detail });
 }
 
 function closeDetail() {
