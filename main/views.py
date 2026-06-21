@@ -737,6 +737,68 @@ def dog_watch(request):
     })
 
 
+@user_passes_test(lambda u: u.is_superuser)
+def dog_watch_violations(request):
+    """Browse individual USDA inspection violations across all facilities."""
+    from django.core.paginator import Paginator
+    from django.db.models import Q
+
+    from main.dog_watch.report_sync import pending_violation_reports_queryset
+    from main.models import FacilityViolation
+
+    qs = (
+        FacilityViolation.objects
+        .select_related('facility', 'report')
+        .order_by('-inspection_date', '-id')
+    )
+
+    category = request.GET.get('category', '')
+    state = request.GET.get('state', '')
+    q = request.GET.get('q', '').strip()
+    repeat_only = request.GET.get('repeat') == '1'
+
+    if category:
+        qs = qs.filter(category=category)
+    if state:
+        qs = qs.filter(facility__state=state)
+    if repeat_only:
+        qs = qs.filter(is_repeat=True)
+    if q:
+        qs = qs.filter(
+            Q(section__icontains=q)
+            | Q(title__icontains=q)
+            | Q(description__icontains=q)
+            | Q(facility__name__icontains=q)
+            | Q(facility__license_number__icontains=q)
+        )
+
+    paginator = Paginator(qs, 50)
+    page_obj = paginator.get_page(request.GET.get('page'))
+
+    states = (
+        FacilityViolation.objects.exclude(facility__state='')
+        .values_list('facility__state', flat=True)
+        .distinct()
+        .order_by('facility__state')
+    )
+
+    return render(request, 'ramsey/dog_watch_violations.html', {
+        'page_obj': page_obj,
+        'violations': page_obj,
+        'categories': FacilityViolation.Category.choices,
+        'states': states,
+        'total_count': paginator.count,
+        'total_all': FacilityViolation.objects.count(),
+        'pending_reports': pending_violation_reports_queryset().count(),
+        'filters': {
+            'category': category,
+            'state': state,
+            'q': q,
+            'repeat': repeat_only,
+        },
+    })
+
+
 @require_GET
 @user_passes_test(lambda u: u.is_superuser)
 def dog_watch_status(request):

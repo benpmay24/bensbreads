@@ -2,11 +2,13 @@
 import logging
 from datetime import date, datetime
 
+from django.conf import settings
 from django.db.models import Count
 
 from main.models import FacilityInspectionReport, FacilityViolation, PuppyMillFacility
 from main.dog_watch.aphis_client import _int_field
-from main.dog_watch.report_violations import fetch_violations_from_report_url
+from main.dog_watch.report_pdf import fetch_report_pdf_text
+from main.dog_watch.report_violations import parse_violations_from_report_text
 
 logger = logging.getLogger(__name__)
 
@@ -56,8 +58,25 @@ def upsert_inspection_reports(
     return reports
 
 
-def parse_report_violations(report: FacilityInspectionReport) -> int:
-    """Download a report PDF and store individual violations. Returns count saved."""
+def pending_violation_reports_queryset():
+    """Reports that still need PDF violation parsing."""
+    return (
+        FacilityInspectionReport.objects.filter(violations_parsed=False)
+        .exclude(
+            direct_count=0,
+            critical_count=0,
+            non_critical_count=0,
+            teachable_count=0,
+        )
+        .select_related('facility')
+    )
+
+
+def parse_report_violations(report: FacilityInspectionReport) -> int | None:
+    """
+    Download a report PDF and store individual violations.
+    Returns the number saved, 0 if confirmed none, or None if parsing should retry.
+    """
     if report.violations_parsed:
         return report.violations.count()
 
@@ -66,9 +85,27 @@ def parse_report_violations(report: FacilityInspectionReport) -> int:
         report.save(update_fields=['violations_parsed', 'updated_at'])
         return 0
 
-    parsed = fetch_violations_from_report_url(report.report_url)
-    report.violations.all().delete()
+    text = fetch_report_pdf_text(report.report_url, max_pages=3)
+    if not text:
+        logger.warning(
+            'Could not read PDF for %s report %s — will retry later',
+            report.facility.license_number,
+            report.id,
+        )
+        return None
 
+    parsed = parse_violations_from_report_text(text)
+    expected = report.total_violations + report.teachable_count
+    if not parsed and expected > 0:
+        logger.warning(
+            'Parsed 0 violations from PDF but API reports %s for %s report %s — will retry later',
+            expected,
+            report.facility.license_number,
+            report.id,
+        )
+        return None
+
+    report.violations.all().delete()
     for item in parsed:
         FacilityViolation.objects.create(
             facility=report.facility,
@@ -86,25 +123,54 @@ def parse_report_violations(report: FacilityInspectionReport) -> int:
     return len(parsed)
 
 
-def parse_unparsed_report_violations(reports: list[FacilityInspectionReport]) -> int:
-    """Parse violations for reports that have not been processed yet."""
-    parsed_total = 0
-    for report in reports:
-        if report.violations_parsed:
-            continue
-        if report.total_violations == 0 and report.teachable_count == 0:
-            report.violations_parsed = True
-            report.save(update_fields=['violations_parsed', 'updated_at'])
-            continue
+def parse_pending_violations_batch(batch_size: int | None = None) -> dict:
+    """
+    Parse a batch of pending inspection report PDFs into FacilityViolation rows.
+    Runs independently of the per-facility APHIS check so backlog clears even when
+    facilities were recently checked.
+    """
+    if batch_size is None:
+        batch_size = getattr(settings, 'DOG_WATCH_VIOLATIONS_BATCH_SIZE', 40)
+
+    pending = list(
+        pending_violation_reports_queryset().order_by('-inspection_date', 'id')[:batch_size]
+    )
+
+    parsed_reports = 0
+    parsed_violations = 0
+    retry_later = 0
+    facility_ids: set[int] = set()
+
+    for report in pending:
         try:
-            parsed_total += parse_report_violations(report)
+            count = parse_report_violations(report)
         except Exception:
             logger.exception(
                 'Failed to parse violations for %s report %s',
                 report.facility.license_number,
-                report.report_url[:80],
+                report.id,
             )
-    return parsed_total
+            retry_later += 1
+            continue
+
+        if count is None:
+            retry_later += 1
+            continue
+
+        parsed_reports += 1
+        parsed_violations += count
+        facility_ids.add(report.facility_id)
+
+    for facility in PuppyMillFacility.objects.filter(id__in=facility_ids):
+        recompute_facility_violation_counts(facility)
+
+    remaining = pending_violation_reports_queryset().count()
+    return {
+        'violations_reports_parsed': parsed_reports,
+        'violations_created': parsed_violations,
+        'violations_parse_retries': retry_later,
+        'violations_pending': remaining,
+    }
 
 
 def recompute_facility_violation_counts(facility: PuppyMillFacility) -> None:

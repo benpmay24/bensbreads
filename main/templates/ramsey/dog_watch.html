@@ -398,6 +398,11 @@
       </h1>
       <p class="hero-subtitle">Mapping USDA-licensed dog breeders &amp; dealers across the United States</p>
       <div class="hero-divider"></div>
+      <div class="mt-2">
+        <a href="{% url 'dog_watch_violations' %}" class="btn btn-sm btn-outline-secondary">
+          <i class="fas fa-exclamation-triangle"></i> Browse All Violations
+        </a>
+      </div>
     </div>
   </div>
 
@@ -918,6 +923,9 @@ document.querySelectorAll('.facilities-table th[data-sort]').forEach(th => {
 initMap();
 updateFilterSummaries();
 applyFilters();
+
+const deepLinkFacility = parseInt(new URLSearchParams(window.location.search).get('facility'), 10);
+if (deepLinkFacility) showDetail(deepLinkFacility);
 
 (function pollSyncStatus() {
   const banner = document.getElementById('syncBanner');

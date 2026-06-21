@@ -3,7 +3,8 @@ from django.core.management.base import BaseCommand
 
 class Command(BaseCommand):
     help = (
-        'Dog Watch data collector — refresh USDA list, then check breeders for new APHIS reports. '
+        'Dog Watch data collector — refresh USDA list, check APHIS reports, '
+        'and parse violation details from inspection PDFs. '
         'Run as a Render Cron Job, not from the web app.'
     )
 
@@ -19,13 +20,18 @@ class Command(BaseCommand):
             help='Skip refreshing the USDA breeder/dealer list before checking reports',
         )
         parser.add_argument(
+            '--parse-violations-only',
+            action='store_true',
+            help='Only parse pending inspection report PDFs into violation records',
+        )
+        parser.add_argument(
             '--clear-lock',
             action='store_true',
             help='Clear a stuck collection lock before running',
         )
 
     def handle(self, *args, **options):
-        from main.dog_watch.collector import run_collection
+        from main.dog_watch.collector import run_collection, run_violation_parsing
         from main.dog_watch.sync_state import force_clear_lock, get_progress
 
         if options['clear_lock']:
@@ -35,10 +41,14 @@ class Command(BaseCommand):
             if progress.get('resume_from'):
                 self.stdout.write(f"  Resuming from facility {progress['resume_from']}")
 
-        summary = run_collection(
-            force=options['force'],
-            import_usda=not options['skip_usda_import'],
-        )
+        if options['parse_violations_only']:
+            summary = run_violation_parsing()
+        else:
+            summary = run_collection(
+                force=options['force'],
+                import_usda=not options['skip_usda_import'],
+            )
+
         if summary.get('skipped'):
             self.stdout.write(self.style.WARNING(
                 f"Skipped: {summary.get('reason', 'unknown')}"
@@ -54,6 +64,24 @@ class Command(BaseCommand):
                 f", USDA import: {summary.get('usda_created', 0)} new, "
                 f"{summary.get('usda_updated', 0)} updated"
             )
+
+        violations_msg = ''
+        if 'violations_reports_parsed' in summary:
+            violations_msg = (
+                f", violations: {summary.get('violations_created', 0)} parsed from "
+                f"{summary.get('violations_reports_parsed', 0)} reports "
+                f"({summary.get('violations_pending', 0)} pending)"
+            )
+
+        if options['parse_violations_only']:
+            self.stdout.write(self.style.SUCCESS(
+                f"Done — {summary.get('violations_created', 0)} violations from "
+                f"{summary.get('violations_reports_parsed', 0)} reports, "
+                f"{summary.get('violations_pending', 0)} reports still pending, "
+                f"{summary.get('violations_parse_retries', 0)} retries needed"
+            ))
+            return
+
         self.stdout.write(self.style.SUCCESS(
             f"Done — checked {summary.get('checked', 0)}, "
             f"updated {summary.get('updated', 0)}, "
@@ -61,4 +89,5 @@ class Command(BaseCommand):
             f"timeouts {summary.get('timed_out', 0)}, "
             f"errors {summary.get('errors', 0)}"
             f"{usda_msg}"
+            f"{violations_msg}"
         ))

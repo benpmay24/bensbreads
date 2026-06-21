@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% block title %}Dog Watch Violations{% endblock %}
+
+{% block content %}
+<style>
+  .violations-page { max-width: 1200px; margin: 0 auto; padding: 0 1rem 2rem; }
+  .violations-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background: #faf8f5;
+    border: 1px solid #e8e0d4;
+    border-radius: 12px;
+  }
+  .violations-toolbar input[type="text"],
+  .violations-toolbar select {
+    font-size: 0.85rem;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    padding: 0.35rem 0.6rem;
+  }
+  .violations-toolbar input[type="text"] { flex: 1; min-width: 200px; }
+  .violations-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  .violations-stat {
+    background: white;
+    border: 1px solid #e8e0d4;
+    border-radius: 8px;
+    padding: 0.6rem 0.9rem;
+    font-size: 0.85rem;
+    color: #6c757d;
+  }
+  .violations-stat strong { color: #8B4513; font-size: 1.1rem; display: block; }
+  .violations-table-wrap {
+    background: white;
+    border: 1px solid #e8e0d4;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .violations-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  .violations-table th, .violations-table td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid #e8e0d4;
+    vertical-align: top;
+  }
+  .violations-table th {
+    background: #faf8f5;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #5d4f41;
+  }
+  .violations-table tbody tr:hover { background: #fdfbf8; }
+  .violation-badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .violation-badge.direct { background: #fde8e8; color: #c0392b; }
+  .violation-badge.critical { background: #fef3e2; color: #d35400; }
+  .violation-badge.non_critical { background: #fff8e1; color: #b7950b; }
+  .violation-badge.teachable { background: #eef1f3; color: #6c757d; }
+  .violation-desc {
+    color: #5d4f41;
+    margin: 0.35rem 0 0;
+    font-size: 0.82rem;
+    line-height: 1.45;
+  }
+  .violations-footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: #faf8f5;
+    border-top: 1px solid #e8e0d4;
+    font-size: 0.85rem;
+    color: #6c757d;
+  }
+  .pagination { display: flex; gap: 0.25rem; margin: 0; flex-wrap: wrap; }
+  .pagination a, .pagination span {
+    border: 1px solid #ddd;
+    background: white;
+    border-radius: 6px;
+    padding: 0.25rem 0.65rem;
+    font-size: 0.8rem;
+    color: #5d4f41;
+    text-decoration: none;
+  }
+  .pagination .current { background: #8B4513; border-color: #8B4513; color: white; }
+  .pending-note {
+    background: #fffbf0;
+    border: 1px solid #f0d9a8;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    font-size: 0.85rem;
+    color: #5d4f41;
+  }
+</style>
+
+<div class="violations-page">
+  <div class="hero-header pt-4 pb-2">
+    <div class="hero-content">
+      <h1 class="hero-title">
+        <i class="fas fa-exclamation-triangle" style="color: #8B4513;"></i> Dog Watch Violations
+      </h1>
+      <p class="hero-subtitle">Browse individual USDA inspection noncompliance items across all facilities</p>
+      <div class="hero-divider"></div>
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <a href="{% url 'dog_watch' %}" class="btn btn-sm btn-outline-secondary">
+      <i class="fas fa-map-marked-alt"></i> Back to Map
+    </a>
+  </div>
+
+  {% if pending_reports %}
+  <div class="pending-note">
+    <i class="fas fa-clock"></i>
+    {{ pending_reports|floatformat:0 }} inspection reports still waiting for PDF parsing.
+    The daily cron job parses these in batches (40 per run by default). To backfill faster, run
+    <code>python manage.py dog_watch_sync --parse-violations-only</code>.
+  </div>
+  {% endif %}
+
+  <div class="violations-stats">
+    <div class="violations-stat"><strong>{{ total_count|floatformat:0 }}</strong> matching</div>
+    <div class="violations-stat"><strong>{{ total_all|floatformat:0 }}</strong> total parsed</div>
+  </div>
+
+  <form method="get" class="violations-toolbar">
+    <input type="text" name="q" value="{{ filters.q }}" placeholder="Search facility, section, description…">
+    <select name="category">
+      <option value="">All categories</option>
+      {% for value, label in categories %}
+      <option value="{{ value }}" {% if filters.category == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <select name="state">
+      <option value="">All states</option>
+      {% for st in states %}
+      <option value="{{ st }}" {% if filters.state == st %}selected{% endif %}>{{ st }}</option>
+      {% endfor %}
+    </select>
+    <label class="form-check-label" style="font-size:0.85rem;">
+      <input type="checkbox" name="repeat" value="1" {% if filters.repeat %}checked{% endif %}> Repeat only
+    </label>
+    <button type="submit" class="btn btn-sm btn-primary" style="background:#8B4513;border-color:#8B4513;">Filter</button>
+    {% if filters.q or filters.category or filters.state or filters.repeat %}
+    <a href="{% url 'dog_watch_violations' %}" class="btn btn-sm btn-outline-secondary">Clear</a>
+    {% endif %}
+  </form>
+
+  <div class="violations-table-wrap">
+    <table class="violations-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Facility</th>
+          <th>Section</th>
+          <th>Violation</th>
+          <th>PDF</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in violations %}
+        <tr>
+          <td style="white-space:nowrap;">{{ v.inspection_date|date:"M j, Y"|default:"—" }}</td>
+          <td>
+            <a href="{% url 'dog_watch' %}?facility={{ v.facility_id }}">{{ v.facility.name }}</a><br>
+            <small class="text-muted">{{ v.facility.city }}{% if v.facility.city and v.facility.state %}, {% endif %}{{ v.facility.state }}</small>
+          </td>
+          <td><code>{{ v.section }}</code></td>
+          <td>
+            <span class="violation-badge {{ v.category }}">{{ v.get_category_display }}</span>
+            {% if v.is_repeat %}<span class="text-muted" style="font-size:0.75rem;">· Repeat</span>{% endif %}
+            {% if v.title %}<div><strong>{{ v.title }}</strong></div>{% endif %}
+            {% if v.description %}<p class="violation-desc">{{ v.description|truncatewords:60 }}</p>{% endif %}
+          </td>
+          <td>
+            {% if v.report.report_url %}
+            <a href="{{ v.report.report_url }}" target="_blank" rel="noopener" title="View report PDF"><i class="fas fa-file-pdf"></i></a>
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="text-center text-muted py-4">
+            No violations found. They will appear as the cron job parses inspection report PDFs.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="violations-footer">
+      <span>
+        Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}
+      </span>
+      <div class="pagination">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}&q={{ filters.q }}&category={{ filters.category }}&state={{ filters.state }}{% if filters.repeat %}&repeat=1{% endif %}">Prev</a>
+        {% endif %}
+        <span class="current">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}&q={{ filters.q }}&category={{ filters.category }}&state={{ filters.state }}{% if filters.repeat %}&repeat=1{% endif %}">Next</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

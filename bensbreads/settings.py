@@ -210,3 +210,4 @@ CRON_SECRET_TOKEN = os.environ.get('CRON_SECRET_TOKEN', 'yeet')
 # The web app only reads from the database.
 DOG_WATCH_SYNC_INTERVAL_HOURS = int(os.environ.get('DOG_WATCH_SYNC_INTERVAL_HOURS', '24'))
 DOG_WATCH_APHIS_DELAY_SECONDS = float(os.environ.get('DOG_WATCH_APHIS_DELAY_SECONDS', '1.5'))
+DOG_WATCH_VIOLATIONS_BATCH_SIZE = int(os.environ.get('DOG_WATCH_VIOLATIONS_BATCH_SIZE', '40'))

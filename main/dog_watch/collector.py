@@ -26,7 +26,7 @@ from main.dog_watch.geocoder import geocode, normalize_state
 from main.dog_watch.report_address import fetch_address_from_report_url
 from main.dog_watch.report_sync import (
     parse_inspection_date,
-    parse_unparsed_report_violations,
+    parse_pending_violations_batch,
     recompute_facility_violation_counts,
     upsert_inspection_reports,
 )
@@ -293,7 +293,6 @@ def _sync_facility(facility: PuppyMillFacility) -> str:
         return 'skipped'
 
     report_records = upsert_inspection_reports(facility, inspections)
-    parse_unparsed_report_violations(report_records)
     recompute_facility_violation_counts(facility)
 
     has_new_reports = _inspection_has_new_reports(facility, inspections, is_initial)
@@ -355,6 +354,23 @@ def _sync_facility_timed(facility: PuppyMillFacility) -> str:
             facility.last_checked_at = timezone.now()
             facility.save(update_fields=['last_checked_at'])
             raise
+
+
+def run_violation_parsing(batch_size: int | None = None) -> dict:
+    """Parse pending inspection report PDFs without running a full facility sync."""
+    sync_state.clear_stale_lock()
+    if sync_state.get_sync_state().is_running:
+        return {'skipped': True, 'reason': 'collection already in progress'}
+
+    lock = sync_state.try_acquire_lock()
+    if lock is None:
+        return {'skipped': True, 'reason': 'collection already in progress'}
+
+    summary = parse_pending_violations_batch(batch_size=batch_size)
+    summary['status'] = 'complete'
+    summary['completed_at'] = timezone.now().isoformat()
+    sync_state.release_lock(lock, summary)
+    return summary
 
 
 def run_collection(force: bool = False, import_usda: bool = True) -> dict:
@@ -421,6 +437,11 @@ def run_collection(force: bool = False, import_usda: bool = True) -> dict:
             except Exception:
                 logger.exception('Error checking %s', facility.license_number)
                 summary['errors'] += 1
+
+        sync_state.set_progress(
+            total, total, 'Parsing inspection report violations…',
+        )
+        summary.update(parse_pending_violations_batch())
 
         summary['status'] = 'complete'
         summary['completed_at'] = timezone.now().isoformat()

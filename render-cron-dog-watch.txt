@@ -7,6 +7,13 @@
 # Each run:
 #   1. Downloads the USDA active licensees spreadsheet and adds/updates breeders
 #   2. Checks APHIS for new inspection reports on facilities due for refresh
+#   3. Parses a batch of inspection report PDFs into individual violation records
+#
+# Parse violations backlog only (no APHIS checks):
+#   python manage.py dog_watch_sync --parse-violations-only
+#
+# Batch size (default 40 reports per run):
+#   DOG_WATCH_VIOLATIONS_BATCH_SIZE=40
 #
 # First-time setup (run once via Render Shell to backfill everything):
 #   python manage.py dog_watch_sync --force
