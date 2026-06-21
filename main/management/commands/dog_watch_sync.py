@@ -3,8 +3,8 @@ from django.core.management.base import BaseCommand
 
 class Command(BaseCommand):
     help = (
-        'Dog Watch data collector — refresh USDA list, check APHIS reports, '
-        'and parse violation details from inspection PDFs. '
+        'Self-contained Dog Watch collector: refresh USDA breeders, check APHIS '
+        'for new inspection reports, and parse violations from PDFs. '
         'Run as a Render Cron Job, not from the web app.'
     )
 
@@ -70,9 +70,10 @@ class Command(BaseCommand):
         violations_msg = ''
         if 'violations_reports_parsed' in summary:
             violations_msg = (
-                f", violations: {summary.get('violations_created', 0)} parsed from "
+                f", violations: {summary.get('violations_created', 0)} from "
                 f"{summary.get('violations_reports_parsed', 0)} reports "
-                f"({summary.get('violations_pending', 0)} pending)"
+                f"({summary.get('violations_pending', 0)} pending, "
+                f"{summary.get('violations_parse_retries', 0)} retries)"
             )
 
         if options['parse_violations_only']:

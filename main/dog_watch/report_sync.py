@@ -295,6 +295,42 @@ def parse_pending_violations_batch(
     }
 
 
+def drain_pending_violations(
+    batch_size: int | None = None,
+    max_batches: int | None = None,
+) -> dict:
+    """
+    Parse all pending report PDFs in repeated batches until the queue is empty,
+    a batch makes no progress, or max_batches is reached.
+    """
+    if max_batches is None:
+        max_batches = getattr(settings, 'DOG_WATCH_VIOLATIONS_MAX_BATCHES', 50)
+
+    totals = {
+        'violations_reports_parsed': 0,
+        'violations_created': 0,
+        'violations_parse_retries': 0,
+        'violations_pending': pending_violation_reports_queryset().count(),
+        'violations_parse_batches': 0,
+    }
+
+    for _ in range(max_batches):
+        if totals['violations_pending'] == 0:
+            break
+
+        batch = parse_pending_violations_batch(batch_size=batch_size)
+        totals['violations_parse_batches'] += 1
+        totals['violations_reports_parsed'] += batch['violations_reports_parsed']
+        totals['violations_created'] += batch['violations_created']
+        totals['violations_parse_retries'] += batch['violations_parse_retries']
+        totals['violations_pending'] = batch['violations_pending']
+
+        if batch['violations_reports_parsed'] == 0:
+            break
+
+    return totals
+
+
 def recompute_facility_violation_counts(facility: PuppyMillFacility) -> None:
     """Refresh denormalized violation totals on the facility."""
     counts = (

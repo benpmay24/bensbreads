@@ -7,7 +7,10 @@ Configure on Render as a Cron Job (not the web service):
   Schedule:  0 6 * * *   (daily at 6 AM UTC)
   Command:   python manage.py dog_watch_sync
 
-Each run refreshes the USDA licensee list first, then checks APHIS for new reports.
+Each run is self-contained:
+  1. Refresh USDA breeder/dealer list (add new sites, update changed records)
+  2. Check each facility for new APHIS inspection reports (skip already-stored PDFs)
+  3. Parse any unparsed report PDFs, update addresses and violation counts
 """
 import io
 import logging
@@ -26,9 +29,9 @@ from main.dog_watch.geocoder import geocode, normalize_state
 from main.dog_watch.report_address import fetch_address_from_report_url
 from main.dog_watch.report_sync import (
     create_new_inspection_reports,
+    drain_pending_violations,
     find_new_inspections,
     parse_inspection_date,
-    parse_pending_violations_batch,
     parse_violations_for_reports,
     recompute_facility_violation_counts,
 )
@@ -197,8 +200,15 @@ def _upsert_base_record(data: dict) -> tuple[PuppyMillFacility, bool]:
         facility.license_expiration = data.get('license_expiration')
         if profile_url:
             facility.usda_profile_url = profile_url
+        new_city = (data.get('city') or '').strip()
+        if new_city:
+            facility.city = new_city
+        new_state = normalize_state(data.get('state', ''))
+        if new_state:
+            facility.state = new_state
         facility.save(update_fields=[
-            'name', 'dba_name', 'license_type', 'license_expiration', 'usda_profile_url',
+            'name', 'dba_name', 'license_type', 'license_expiration',
+            'usda_profile_url', 'city', 'state',
         ])
         return facility, False
 
@@ -237,9 +247,6 @@ def import_usda_facilities() -> dict:
         except Exception:
             logger.exception('Error importing %s', data.get('license_number'))
             summary['errors'] += 1
-    return summary
-
-
     return summary
 
 
@@ -314,7 +321,7 @@ def _sync_facility_timed(facility: PuppyMillFacility) -> str:
 
 
 def run_violation_parsing(batch_size: int | None = None) -> dict:
-    """Parse pending inspection report PDFs without running a full facility sync."""
+    """Parse all pending inspection report PDFs without running a full facility sync."""
     sync_state.clear_stale_lock()
     if sync_state.get_sync_state().is_running:
         return {'skipped': True, 'reason': 'collection already in progress'}
@@ -323,7 +330,7 @@ def run_violation_parsing(batch_size: int | None = None) -> dict:
     if lock is None:
         return {'skipped': True, 'reason': 'collection already in progress'}
 
-    summary = parse_pending_violations_batch(batch_size=batch_size)
+    summary = drain_pending_violations(batch_size=batch_size)
     summary['status'] = 'complete'
     summary['completed_at'] = timezone.now().isoformat()
     sync_state.release_lock(lock, summary)
@@ -332,9 +339,9 @@ def run_violation_parsing(batch_size: int | None = None) -> dict:
 
 def run_collection(force: bool = False, import_usda: bool = True) -> dict:
     """
-    Main collector entry point. By default, refreshes the USDA licensee list first,
-    then checks each breeder for new APHIS reports.
-    Skips breeders already checked within the last 24 hours unless force=True.
+    Self-contained collector: USDA import → APHIS checks → violation parsing.
+    Skips facilities already checked within the last 24 hours unless force=True.
+    Already-parsed reports (violations_parsed=True) are never re-processed.
     """
     sync_state.clear_stale_lock()
     if sync_state.get_sync_state().is_running:
@@ -353,10 +360,11 @@ def run_collection(force: bool = False, import_usda: bool = True) -> dict:
 
     summary = {'checked': 0, 'updated': 0, 'unchanged': 0, 'skipped': 0, 'errors': 0, 'timed_out': 0}
     resume_from = int((sync_state.get_progress() or {}).get('resume_from') or 0)
-    run_started_at = timezone.now()
 
     try:
+        # Step 1: refresh USDA breeder/dealer list
         if import_usda:
+            sync_state.set_progress(0, 0, 'Refreshing USDA breeder list…')
             import_summary = import_usda_facilities()
             summary['usda_created'] = import_summary.get('created', 0)
             summary['usda_updated'] = import_summary.get('updated', 0)
@@ -366,6 +374,7 @@ def run_collection(force: bool = False, import_usda: bool = True) -> dict:
                 sync_state.release_lock(lock, summary)
                 return summary
 
+        # Step 2: check each facility for new inspection reports
         facilities = list(
             PuppyMillFacility.objects.filter(
                 Q(is_dog_facility=True) | Q(last_scraped_at__isnull=True)
@@ -396,10 +405,11 @@ def run_collection(force: bool = False, import_usda: bool = True) -> dict:
                 logger.exception('Error checking %s', facility.license_number)
                 summary['errors'] += 1
 
+        # Step 3: parse any unparsed report PDFs (new and backlog)
         sync_state.set_progress(
-            total, total, 'Parsing new inspection report violations…',
+            total, total, 'Parsing inspection report violations…',
         )
-        summary.update(parse_pending_violations_batch(created_since=run_started_at))
+        summary.update(drain_pending_violations())
 
         summary['status'] = 'complete'
         summary['completed_at'] = timezone.now().isoformat()
