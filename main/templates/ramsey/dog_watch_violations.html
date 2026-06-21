@@ -3,14 +3,14 @@
 
 {% block content %}
 <style>
-  .violations-page { max-width: 1200px; margin: 0 auto; padding: 0 1rem 2rem; }
+  .violations-page { max-width: 1400px; margin: 0 auto; padding: 0 1rem 2rem; }
   .violations-toolbar {
     display: flex;
     flex-wrap: wrap;
     gap: 0.75rem;
     align-items: center;
     margin-bottom: 1rem;
-    padding: 1rem;
+    padding: 1rem 1.25rem;
     background: #faf8f5;
     border: 1px solid #e8e0d4;
     border-radius: 12px;
@@ -22,7 +22,48 @@
     border: 1px solid #ddd;
     padding: 0.35rem 0.6rem;
   }
-  .violations-toolbar input[type="text"] { flex: 1; min-width: 200px; }
+  .violations-toolbar input[type="text"] { flex: 1; min-width: 200px; max-width: 320px; }
+  .violations-toolbar input[type="date"] {
+    font-size: 0.85rem;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    padding: 0.35rem 0.6rem;
+  }
+  .date-range { display: flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; color: #5d4f41; }
+  .filter-multiselect { position: relative; }
+  .filter-multiselect-btn {
+    font-size: 0.8rem;
+    text-align: left;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    background: white;
+    border-color: #ddd;
+    color: #5d4f41;
+    min-width: 130px;
+  }
+  .filter-multiselect-btn:hover { background: #faf8f5; border-color: #8B4513; }
+  .filter-multiselect-menu {
+    max-height: 220px;
+    overflow-y: auto;
+    font-size: 0.85rem;
+  }
+  .filter-multiselect-menu .form-check { padding: 0.2rem 0.5rem 0.2rem 1.75rem; margin: 0; }
+  .filter-multiselect-actions {
+    border-top: 1px solid #e8e0d4;
+    padding: 0.35rem 0.5rem;
+    display: flex;
+    gap: 0.5rem;
+  }
+  .filter-multiselect-actions button {
+    font-size: 0.75rem;
+    padding: 0;
+    border: none;
+    background: none;
+    color: #8B4513;
+    text-decoration: underline;
+  }
   .violations-stats {
     display: flex;
     flex-wrap: wrap;
@@ -44,13 +85,15 @@
     border-radius: 12px;
     overflow: hidden;
   }
+  .violations-table-wrap .table-scroll { overflow-x: auto; }
   .violations-table {
     width: 100%;
+    min-width: 960px;
     border-collapse: collapse;
     font-size: 0.85rem;
   }
   .violations-table th, .violations-table td {
-    padding: 0.75rem 1rem;
+    padding: 0.65rem 1rem;
     text-align: left;
     border-bottom: 1px solid #e8e0d4;
     vertical-align: top;
@@ -61,8 +104,14 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: #5d4f41;
+    font-weight: 600;
+    white-space: nowrap;
   }
   .violations-table tbody tr:hover { background: #fdfbf8; }
+  .violations-table .col-date { white-space: nowrap; width: 7rem; }
+  .violations-table .col-section { white-space: nowrap; width: 6rem; }
+  .violations-table .col-type { white-space: nowrap; width: 7rem; }
+  .violations-table .col-report { white-space: nowrap; width: 6rem; text-align: center; }
   .violation-badge {
     display: inline-block;
     padding: 0.15rem 0.5rem;
@@ -76,11 +125,36 @@
   .violation-badge.critical { background: #fef3e2; color: #d35400; }
   .violation-badge.non_critical { background: #fff8e1; color: #b7950b; }
   .violation-badge.teachable { background: #eef1f3; color: #6c757d; }
-  .violation-desc {
+  .violation-title {
+    font-weight: 600;
     color: #5d4f41;
-    margin: 0.35rem 0 0;
     font-size: 0.82rem;
+    margin-bottom: 0.2rem;
+  }
+  .violation-preview {
+    color: #6c757d;
+    font-size: 0.8rem;
     line-height: 1.45;
+    margin: 0;
+    max-width: 420px;
+  }
+  .report-link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.78rem;
+    color: #8B4513;
+    text-decoration: none;
+    border: 1px solid #e8e0d4;
+    border-radius: 6px;
+    padding: 0.3rem 0.55rem;
+    background: white;
+    white-space: nowrap;
+  }
+  .report-link-btn:hover {
+    border-color: #8B4513;
+    background: #fff9f5;
+    color: #8B4513;
   }
   .violations-footer {
     display: flex;
@@ -88,7 +162,7 @@
     justify-content: space-between;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.75rem 1rem;
+    padding: 0.75rem 1.25rem;
     background: #faf8f5;
     border-top: 1px solid #e8e0d4;
     font-size: 0.85rem;
@@ -147,14 +221,36 @@
     <div class="violations-stat"><strong>{{ total_all|floatformat:0 }}</strong> total parsed</div>
   </div>
 
-  <form method="get" class="violations-toolbar">
+  <form method="get" class="violations-toolbar" id="violationsFilterForm">
+    <input type="hidden" name="filtered" value="1">
     <input type="text" name="q" value="{{ filters.q }}" placeholder="Search facility, section, description…">
-    <select name="category">
-      <option value="">All categories</option>
-      {% for value, label in categories %}
-      <option value="{{ value }}" {% if filters.category == value %}selected{% endif %}>{{ label }}</option>
-      {% endfor %}
-    </select>
+
+    <div class="dropdown filter-multiselect">
+      <button class="btn btn-sm filter-multiselect-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+        Type <span class="filter-summary" id="categorySummary">All</span>
+      </button>
+      <div class="dropdown-menu filter-multiselect-menu">
+        {% for value, label in categories %}
+        <div class="form-check">
+          <input class="form-check-input category-filter" type="checkbox" name="category" value="{{ value }}" id="cat-{{ value }}"
+            {% if not filters.filtered or value in filters.categories %}checked{% endif %}>
+          <label class="form-check-label" for="cat-{{ value }}">{{ label }}</label>
+        </div>
+        {% endfor %}
+        <div class="filter-multiselect-actions">
+          <button type="button" data-action="all" data-group="category">All</button>
+          <button type="button" data-action="none" data-group="category">None</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="date-range">
+      <label for="dateFrom">From</label>
+      <input type="date" name="date_from" id="dateFrom" value="{{ filters.date_from }}">
+      <label for="dateTo">To</label>
+      <input type="date" name="date_to" id="dateTo" value="{{ filters.date_to }}">
+    </div>
+
     <select name="state">
       <option value="">All states</option>
       {% for st in states %}
@@ -165,69 +261,120 @@
       <input type="checkbox" name="repeat" value="1" {% if filters.repeat %}checked{% endif %}> Repeat only
     </label>
     <button type="submit" class="btn btn-sm btn-primary" style="background:#8B4513;border-color:#8B4513;">Filter</button>
-    {% if filters.q or filters.category or filters.state or filters.repeat %}
+    {% if has_active_filters %}
     <a href="{% url 'dog_watch_violations' %}" class="btn btn-sm btn-outline-secondary">Clear</a>
     {% endif %}
   </form>
 
   <div class="violations-table-wrap">
-    <table class="violations-table">
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Facility</th>
-          <th>Section</th>
-          <th>Violation</th>
-          <th>PDF</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for v in violations %}
-        <tr>
-          <td style="white-space:nowrap;">{{ v.inspection_date|date:"M j, Y"|default:"—" }}</td>
-          <td>
-            <a href="{% url 'dog_watch' %}?facility={{ v.facility_id }}">{{ v.facility.name }}</a><br>
-            <small class="text-muted">{{ v.facility.city }}{% if v.facility.city and v.facility.state %}, {% endif %}{{ v.facility.state }}</small>
-          </td>
-          <td><code>{{ v.section }}</code></td>
-          <td>
-            <span class="violation-badge {{ v.category }}">{{ v.get_category_display }}</span>
-            {% if v.is_repeat %}<span class="text-muted" style="font-size:0.75rem;">· Repeat</span>{% endif %}
-            {% if v.title %}<div><strong>{{ v.title }}</strong></div>{% endif %}
-            {% if v.description %}<p class="violation-desc">{{ v.description|truncatewords:60 }}</p>{% endif %}
-          </td>
-          <td>
-            {% if v.report.report_url %}
-            <a href="{{ v.report.report_url }}" target="_blank" rel="noopener" title="View report PDF"><i class="fas fa-file-pdf"></i></a>
-            {% else %}—{% endif %}
-          </td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="5" class="text-center text-muted py-4">
-            No violations found. They will appear as the cron job parses inspection report PDFs.
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="table-scroll">
+      <table class="violations-table">
+        <thead>
+          <tr>
+            <th class="col-date">Date</th>
+            <th>Facility</th>
+            <th class="col-section">Section</th>
+            <th class="col-type">Type</th>
+            <th>Regulation</th>
+            <th>Description</th>
+            <th class="col-report">Report</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for v in violations %}
+          <tr>
+            <td class="col-date">{{ v.inspection_date|date:"M j, Y"|default:"—" }}</td>
+            <td>
+              <a href="{% url 'dog_watch' %}?facility={{ v.facility_id }}">{{ v.facility.name }}</a>
+              {% if v.facility.city or v.facility.state %}
+              <br><small class="text-muted">{{ v.facility.city }}{% if v.facility.city and v.facility.state %}, {% endif %}{{ v.facility.state }}</small>
+              {% endif %}
+            </td>
+            <td class="col-section"><code>{{ v.section }}</code></td>
+            <td class="col-type">
+              <span class="violation-badge {{ v.category }}">{{ v.get_category_display }}</span>
+              {% if v.is_repeat %}<br><small class="text-muted">Repeat</small>{% endif %}
+            </td>
+            <td>
+              {% if v.title %}
+              <span class="violation-title">{{ v.title }}</span>
+              {% else %}
+              <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if v.description %}
+              <p class="violation-preview">{{ v.description|truncatechars:160 }}</p>
+              {% else %}
+              <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="col-report">
+              {% if v.report.report_url %}
+              <a class="report-link-btn" href="{{ v.report.report_url }}" target="_blank" rel="noopener" title="Open inspection report PDF">
+                <i class="fas fa-file-pdf"></i> View report
+              </a>
+              {% else %}
+              —
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center text-muted py-4">
+              No violations found. They will appear as the cron job parses inspection report PDFs.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
 
-    {% if page_obj.paginator.num_pages > 1 %}
     <div class="violations-footer">
       <span>
+        {% if page_obj.paginator.count %}
         Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}
+        {% else %}
+        No results
+        {% endif %}
       </span>
+      {% if page_obj.paginator.num_pages > 1 %}
       <div class="pagination">
         {% if page_obj.has_previous %}
-        <a href="?page={{ page_obj.previous_page_number }}&q={{ filters.q }}&category={{ filters.category }}&state={{ filters.state }}{% if filters.repeat %}&repeat=1{% endif %}">Prev</a>
+        <a href="?page={{ page_obj.previous_page_number }}&{{ filter_query }}">Prev</a>
         {% endif %}
         <span class="current">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
         {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}&q={{ filters.q }}&category={{ filters.category }}&state={{ filters.state }}{% if filters.repeat %}&repeat=1{% endif %}">Next</a>
+        <a href="?page={{ page_obj.next_page_number }}&{{ filter_query }}">Next</a>
         {% endif %}
       </div>
+      {% endif %}
     </div>
-    {% endif %}
   </div>
 </div>
+
+<script>
+(function () {
+  const summary = document.getElementById('categorySummary');
+  const boxes = document.querySelectorAll('.category-filter');
+
+  function updateCategorySummary() {
+    const total = boxes.length;
+    const checked = [...boxes].filter(cb => cb.checked).length;
+    if (checked === 0) summary.textContent = 'None';
+    else if (checked === total) summary.textContent = 'All';
+    else summary.textContent = `${checked}/${total}`;
+  }
+
+  boxes.forEach(cb => cb.addEventListener('change', updateCategorySummary));
+  document.querySelectorAll('[data-action][data-group="category"]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.preventDefault();
+      boxes.forEach(cb => { cb.checked = btn.dataset.action === 'all'; });
+      updateCategorySummary();
+    });
+  });
+  updateCategorySummary();
+})();
+</script>
 {% endblock %}

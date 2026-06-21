@@ -43,6 +43,8 @@ class Command(BaseCommand):
 
         if options['parse_violations_only']:
             summary = run_violation_parsing()
+        elif options['clear_lock'] and not options['force']:
+            return
         else:
             summary = run_collection(
                 force=options['force'],

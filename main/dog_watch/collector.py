@@ -20,15 +20,17 @@ import requests
 from django.db.models import Q
 from django.utils import timezone
 
-from main.models import FacilityInspectionReport, PuppyMillFacility
+from main.models import PuppyMillFacility
 from main.dog_watch.aphis_client import search_inspections
 from main.dog_watch.geocoder import geocode, normalize_state
 from main.dog_watch.report_address import fetch_address_from_report_url
 from main.dog_watch.report_sync import (
+    create_new_inspection_reports,
+    find_new_inspections,
     parse_inspection_date,
     parse_pending_violations_batch,
+    parse_violations_for_reports,
     recompute_facility_violation_counts,
-    upsert_inspection_reports,
 )
 from main.dog_watch import sync_state
 
@@ -108,28 +110,22 @@ def _geocode_facility(facility: PuppyMillFacility) -> bool:
     return True
 
 
-def _known_report_urls(facility: PuppyMillFacility) -> set[str]:
-    urls = set(facility.processed_report_urls or [])
-    urls.update(
-        FacilityInspectionReport.objects.filter(facility=facility).values_list('report_url', flat=True)
-    )
-    return urls
-
-
-def _latest_known_report_date(facility: PuppyMillFacility) -> date | None:
-    latest = (
-        FacilityInspectionReport.objects.filter(facility=facility, inspection_date__isnull=False)
-        .order_by('-inspection_date')
-        .values_list('inspection_date', flat=True)
-        .first()
-    )
-    if latest:
-        return latest
-    for report in facility.inspection_reports or []:
-        parsed = parse_inspection_date(report.get('date'))
-        if parsed and (latest is None or parsed > latest):
-            latest = parsed
-    return latest
+def _newest_inspection_url(inspections: list[dict]) -> str:
+    if not inspections:
+        return ''
+    dated = [
+        insp for insp in inspections
+        if insp.get('reportLink')
+        and parse_inspection_date(insp.get('inspectionDate') or insp.get('inspectionDateString'))
+    ]
+    if dated:
+        return max(
+            dated,
+            key=lambda i: parse_inspection_date(
+                i.get('inspectionDate') or i.get('inspectionDateString')
+            ) or date.min,
+        ).get('reportLink') or ''
+    return inspections[0].get('reportLink') or ''
 
 
 def _apply_pdf_address(facility: PuppyMillFacility, pdf_address: dict) -> bool:
@@ -244,34 +240,15 @@ def import_usda_facilities() -> dict:
     return summary
 
 
-def _inspection_has_new_reports(
-    facility: PuppyMillFacility,
-    inspections: list[dict],
-    is_initial: bool,
-) -> bool:
-    known_urls = _known_report_urls(facility)
-    if is_initial:
-        return any(insp.get('reportLink') and insp['reportLink'] not in known_urls for insp in inspections)
-
-    latest_known_date = _latest_known_report_date(facility)
-    for insp in inspections:
-        url = insp.get('reportLink')
-        if not url or url in known_urls:
-            continue
-        report_date = parse_inspection_date(
-            insp.get('inspectionDate') or insp.get('inspectionDateString')
-        )
-        if latest_known_date is None:
-            return True
-        if report_date and report_date > latest_known_date:
-            return True
-        if report_date is None:
-            return True
-    return False
+    return summary
 
 
 def _sync_facility(facility: PuppyMillFacility) -> str:
-    """Check one breeder for new APHIS reports; update DB only when reports are new."""
+    """
+    Check one facility for new APHIS reports.
+    Only writes to the DB when this is a new site or new report URLs appear.
+    Already-stored reports are never updated or re-parsed.
+    """
     try:
         inspections = list(search_inspections({'certNumber': facility.license_number}))
     except Exception as exc:
@@ -281,63 +258,43 @@ def _sync_facility(facility: PuppyMillFacility) -> str:
         raise
 
     facility.last_checked_at = timezone.now()
-    is_initial = facility.last_scraped_at is None
+    is_new_site = facility.last_scraped_at is None
 
     if not inspections:
         facility.save(update_fields=['last_checked_at'])
-        if is_initial and not facility.coordinates_geocoded:
+        if is_new_site and not facility.coordinates_geocoded:
             if _geocode_facility(facility):
                 facility.last_scraped_at = timezone.now()
                 facility.save()
                 return 'initialized'
         return 'skipped'
 
-    report_records = upsert_inspection_reports(facility, inspections)
-    recompute_facility_violation_counts(facility)
+    new_inspections = find_new_inspections(facility, inspections)
 
-    has_new_reports = _inspection_has_new_reports(facility, inspections, is_initial)
-
-    if not is_initial and not has_new_reports:
-        facility.processed_report_urls = [
-            insp.get('reportLink') for insp in inspections if insp.get('reportLink')
-        ]
-        facility.save(update_fields=[
-            'last_checked_at', 'processed_report_urls',
-            'direct_violations', 'critical_violations', 'violation_count',
-        ])
+    if not is_new_site and not new_inspections:
+        facility.save(update_fields=['last_checked_at'])
         return 'unchanged'
+
+    new_reports = create_new_inspection_reports(facility, new_inspections)
+    parse_violations_for_reports(new_reports)
 
     _apply_aphis_metadata(facility, inspections)
 
-    pdf_url = ''
-    if has_new_reports:
-        dated = [
-            insp for insp in inspections
-            if insp.get('reportLink')
-            and parse_inspection_date(insp.get('inspectionDate') or insp.get('inspectionDateString'))
-        ]
-        if dated:
-            pdf_url = max(
-                dated,
-                key=lambda i: parse_inspection_date(
-                    i.get('inspectionDate') or i.get('inspectionDateString')
-                ) or date.min,
-            ).get('reportLink') or ''
-        elif inspections[0].get('reportLink'):
-            pdf_url = inspections[0]['reportLink']
+    pdf_url = _newest_inspection_url(new_inspections)
     address_changed = False
     if pdf_url:
         pdf_address = fetch_address_from_report_url(pdf_url)
         if pdf_address:
             address_changed = _apply_pdf_address(facility, pdf_address)
 
-    if is_initial or address_changed or not facility.coordinates_geocoded:
+    if is_new_site or address_changed or not facility.coordinates_geocoded:
         _geocode_facility(facility)
 
+    recompute_facility_violation_counts(facility)
     facility.last_scraped_at = timezone.now()
     facility.save()
 
-    return 'initialized' if is_initial else 'updated'
+    return 'initialized' if is_new_site else 'updated'
 
 
 def _sync_facility_timed(facility: PuppyMillFacility) -> str:
@@ -396,6 +353,7 @@ def run_collection(force: bool = False, import_usda: bool = True) -> dict:
 
     summary = {'checked': 0, 'updated': 0, 'unchanged': 0, 'skipped': 0, 'errors': 0, 'timed_out': 0}
     resume_from = int((sync_state.get_progress() or {}).get('resume_from') or 0)
+    run_started_at = timezone.now()
 
     try:
         if import_usda:
@@ -439,9 +397,9 @@ def run_collection(force: bool = False, import_usda: bool = True) -> dict:
                 summary['errors'] += 1
 
         sync_state.set_progress(
-            total, total, 'Parsing inspection report violations…',
+            total, total, 'Parsing new inspection report violations…',
         )
-        summary.update(parse_pending_violations_batch())
+        summary.update(parse_pending_violations_batch(created_since=run_started_at))
 
         summary['status'] = 'complete'
         summary['completed_at'] = timezone.now().isoformat()

@@ -411,6 +411,7 @@ class FacilityInspectionReport(models.Model):
     non_critical_count = models.PositiveIntegerField(default=0)
     teachable_count = models.PositiveIntegerField(default=0)
     violations_parsed = models.BooleanField(default=False)
+    parse_attempts = models.PositiveSmallIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

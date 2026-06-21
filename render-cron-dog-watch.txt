@@ -5,20 +5,21 @@
 #   Command:   python manage.py dog_watch_sync
 #
 # Each run:
-#   1. Downloads the USDA active licensees spreadsheet and adds/updates breeders
+#   1. Downloads the USDA active licensees spreadsheet (adds new sites only)
 #   2. Checks APHIS for new inspection reports on facilities due for refresh
-#   3. Parses a batch of inspection report PDFs into individual violation records
+#   3. Parses violations only for newly discovered reports (never re-processes old ones)
 #
-# Parse violations backlog only (no APHIS checks):
+# Already-processed reports (violations_parsed=True) are never touched.
+# Backfill historical reports manually:
 #   python manage.py dog_watch_sync --parse-violations-only
-#
-# Batch size (default 40 reports per run):
-#   DOG_WATCH_VIOLATIONS_BATCH_SIZE=40
 #
 # First-time setup (run once via Render Shell to backfill everything):
 #   python manage.py dog_watch_sync --force
 #
 # If a run gets stuck:
+#   python manage.py dog_watch_sync --clear-lock
+#
+# Clear lock and immediately start a new run:
 #   python manage.py dog_watch_sync --clear-lock --force
 #
 # To skip the USDA import step (not recommended for cron):

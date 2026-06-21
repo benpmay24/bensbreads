@@ -34,6 +34,7 @@ urlpatterns = [
     path('ramsey/dog-watch/', views.dog_watch, name='dog_watch'),
     path('ramsey/dog-watch/violations/', views.dog_watch_violations, name='dog_watch_violations'),
     path('ramsey/dog-watch/status/', views.dog_watch_status, name='dog_watch_status'),
+    path('ramsey/dog-watch/clear-lock/', views.dog_watch_clear_lock, name='dog_watch_clear_lock'),
     
     # Vaccine Records URLs
     path('ramsey/vaccines/add/', views.add_vaccine_record, name='add_vaccine_record'),

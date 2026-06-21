@@ -381,6 +381,17 @@
   .sync-progress-wrap .progress { height: 6px; background: #e8e0d4; }
   .sync-progress-wrap .progress-bar { background: #8B4513; }
   .sync-progress-detail { display: block; margin-top: 0.35rem; font-size: 0.78rem; color: #6c757d; }
+  .sync-clear-btn {
+    margin-left: auto;
+    font-size: 0.78rem;
+    padding: 0.2rem 0.55rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: white;
+    color: #5d4f41;
+    cursor: pointer;
+  }
+  .sync-clear-btn:hover { border-color: #8B4513; color: #8B4513; }
 
   @media (max-width: 900px) {
     .dog-watch-top { grid-template-columns: 1fr; height: auto; }
@@ -422,6 +433,9 @@
           Up to date
         {% endif %}
       </span>
+      <button type="button" class="sync-clear-btn{% if sync_status != 'syncing' %} d-none{% endif %}" id="syncClearBtn" title="Clear a stuck sync lock">
+        Clear stuck sync
+      </button>
     </div>
     <div class="sync-progress-wrap{% if not scrape_running %} d-none{% endif %}" id="syncProgressWrap">
       <div class="progress"><div class="progress-bar" id="syncProgressBar" style="width:0%"></div></div>
@@ -927,6 +941,28 @@ applyFilters();
 const deepLinkFacility = parseInt(new URLSearchParams(window.location.search).get('facility'), 10);
 if (deepLinkFacility) showDetail(deepLinkFacility);
 
+function getCsrfToken() {
+  const match = document.cookie.match(/csrftoken=([^;]+)/);
+  return match ? match[1] : '';
+}
+
+document.getElementById('syncClearBtn')?.addEventListener('click', () => {
+  const btn = document.getElementById('syncClearBtn');
+  btn.disabled = true;
+  btn.textContent = 'Clearing…';
+  fetch('{% url "dog_watch_clear_lock" %}', {
+    method: 'POST',
+    headers: { 'X-CSRFToken': getCsrfToken() },
+  })
+    .then(r => r.json())
+    .then(() => window.location.reload())
+    .catch(() => {
+      btn.disabled = false;
+      btn.textContent = 'Clear stuck sync';
+      alert('Could not clear sync lock. Run: python manage.py dog_watch_sync --clear-lock');
+    });
+});
+
 (function pollSyncStatus() {
   const banner = document.getElementById('syncBanner');
   const statusLabel = document.getElementById('syncStatusLabel');
@@ -935,6 +971,7 @@ if (deepLinkFacility) showDetail(deepLinkFacility);
   const progressBar = document.getElementById('syncProgressBar');
   const progressDetail = document.getElementById('syncProgressDetail');
   const nextLabel = document.getElementById('syncNextLabel');
+  const clearBtn = document.getElementById('syncClearBtn');
   let wasRunning = {{ scrape_running|yesno:"true,false" }};
 
   function formatDate(iso) {
@@ -952,6 +989,7 @@ if (deepLinkFacility) showDetail(deepLinkFacility);
           statusLabel.textContent = 'Collection in progress (cron job)…';
           progressWrap.classList.remove('d-none');
           nextLabel.classList.add('d-none');
+          clearBtn?.classList.remove('d-none');
           if (data.total > 0) {
             progressBar.style.width = Math.round((data.current / data.total) * 100) + '%';
             progressDetail.textContent = data.message || '';
@@ -961,6 +999,7 @@ if (deepLinkFacility) showDetail(deepLinkFacility);
           return;
         }
         if (wasRunning) { window.location.reload(); return; }
+        clearBtn?.classList.add('d-none');
         if (data.status === 'up_to_date') {
           banner.className = 'sync-banner sync-banner--up_to_date';
           statusIcon.className = 'fas fa-check-circle';

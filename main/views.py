@@ -740,6 +740,8 @@ def dog_watch(request):
 @user_passes_test(lambda u: u.is_superuser)
 def dog_watch_violations(request):
     """Browse individual USDA inspection violations across all facilities."""
+    from datetime import datetime
+
     from django.core.paginator import Paginator
     from django.db.models import Q
 
@@ -752,17 +754,41 @@ def dog_watch_violations(request):
         .order_by('-inspection_date', '-id')
     )
 
-    category = request.GET.get('category', '')
+    valid_categories = {c.value for c in FacilityViolation.Category}
+    categories_selected = [
+        c for c in request.GET.getlist('category') if c in valid_categories
+    ]
+    is_filtered = request.GET.get('filtered') == '1'
     state = request.GET.get('state', '')
     q = request.GET.get('q', '').strip()
     repeat_only = request.GET.get('repeat') == '1'
+    date_from_raw = request.GET.get('date_from', '').strip()
+    date_to_raw = request.GET.get('date_to', '').strip()
 
-    if category:
-        qs = qs.filter(category=category)
+    def _parse_date(value: str):
+        if not value:
+            return None
+        try:
+            return datetime.strptime(value, '%Y-%m-%d').date()
+        except ValueError:
+            return None
+
+    date_from = _parse_date(date_from_raw)
+    date_to = _parse_date(date_to_raw)
+
+    if is_filtered:
+        if categories_selected:
+            qs = qs.filter(category__in=categories_selected)
+        else:
+            qs = qs.none()
     if state:
         qs = qs.filter(facility__state=state)
     if repeat_only:
         qs = qs.filter(is_repeat=True)
+    if date_from:
+        qs = qs.filter(inspection_date__gte=date_from)
+    if date_to:
+        qs = qs.filter(inspection_date__lte=date_to)
     if q:
         qs = qs.filter(
             Q(section__icontains=q)
@@ -782,6 +808,18 @@ def dog_watch_violations(request):
         .order_by('facility__state')
     )
 
+    query = request.GET.copy()
+    query.pop('page', None)
+    filter_query = query.urlencode()
+
+    has_active_filters = bool(
+        is_filtered and (
+            len(categories_selected) < len(valid_categories)
+            or not categories_selected
+        )
+        or state or q or repeat_only or date_from_raw or date_to_raw
+    )
+
     return render(request, 'ramsey/dog_watch_violations.html', {
         'page_obj': page_obj,
         'violations': page_obj,
@@ -790,11 +828,16 @@ def dog_watch_violations(request):
         'total_count': paginator.count,
         'total_all': FacilityViolation.objects.count(),
         'pending_reports': pending_violation_reports_queryset().count(),
+        'filter_query': filter_query,
+        'has_active_filters': has_active_filters,
         'filters': {
-            'category': category,
+            'categories': categories_selected,
+            'filtered': is_filtered,
             'state': state,
             'q': q,
             'repeat': repeat_only,
+            'date_from': date_from_raw,
+            'date_to': date_to_raw,
         },
     })
 
@@ -833,6 +876,18 @@ def dog_watch_status(request):
         'facility_count': PuppyMillFacility.objects.filter(is_dog_facility=True).count(),
         'mapped_count': mapped_count,
     })
+
+
+@require_POST
+@user_passes_test(lambda u: u.is_superuser)
+def dog_watch_clear_lock(request):
+    """Release a ghost sync lock left behind by a killed cron job."""
+    from main.dog_watch.sync_state import force_clear_lock, normalize_progress, get_sync_state
+
+    force_clear_lock()
+    state = get_sync_state()
+    progress = normalize_progress(state)
+    return JsonResponse({'ok': True, 'running': False, 'message': progress.get('message', '')})
 
 
 def connect4 (request):

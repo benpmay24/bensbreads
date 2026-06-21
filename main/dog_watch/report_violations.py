@@ -4,15 +4,26 @@ import re
 from main.dog_watch.report_pdf import fetch_report_pdf_text
 
 SECTION_RE = re.compile(
-    r'(?P<section>\d+\.\d+(?:\([a-z0-9]+\))+)\s*'
+    r'(?:^|\n)\s*'
+    r'(?P<section>\d+\.\d+(?:\([a-z0-9]+\))*)\s*'
     r'(?P<flags>(?:Direct\s+Repeat|Critical\s+Repeat|Direct|Critical|Repeat|Teachable(?:\s+Moment)?)?)',
-    re.IGNORECASE,
+    re.IGNORECASE | re.MULTILINE,
 )
 
 _END_RE = re.compile(
     r'\n(?:This inspection and exit|End of report|\*END OF REPORT\*|Additional Inspectors:)',
     re.IGNORECASE,
 )
+
+_NO_VIOLATIONS_RE = re.compile(
+    r'no non-?compliant items identified',
+    re.IGNORECASE,
+)
+
+
+def pdf_reports_no_violations(text: str) -> bool:
+    """True when the PDF explicitly states the inspection had no NCIs."""
+    return bool(_NO_VIOLATIONS_RE.search(text or ''))
 
 
 def _category_from_flags(flags: str) -> str:
@@ -51,6 +62,9 @@ def parse_violations_from_report_text(text: str) -> list[dict]:
     if not text:
         return []
 
+    if pdf_reports_no_violations(text):
+        return []
+
     end_match = _END_RE.search(text)
     narrative = text[:end_match.start()] if end_match else text
 
@@ -59,14 +73,21 @@ def parse_violations_from_report_text(text: str) -> list[dict]:
         narrative = narrative[type_match.end():]
 
     violations = []
+    seen_sections: set[str] = set()
     matches = list(SECTION_RE.finditer(narrative))
     for index, match in enumerate(matches):
+        section = match.group('section')
+        if section in seen_sections:
+            continue
         next_start = matches[index + 1].start() if index + 1 < len(matches) else len(narrative)
         body = narrative[match.end():next_start].strip()
         title, description = _split_title_and_description(body)
+        if not title and not description:
+            continue
         flags = (match.group('flags') or '').strip()
+        seen_sections.add(section)
         violations.append({
-            'section': match.group('section'),
+            'section': section,
             'category': _category_from_flags(flags),
             'is_repeat': 'repeat' in flags.lower(),
             'title': title,
@@ -77,5 +98,5 @@ def parse_violations_from_report_text(text: str) -> list[dict]:
 
 def fetch_violations_from_report_url(url: str) -> list[dict]:
     """Download a report PDF and return parsed violations."""
-    text = fetch_report_pdf_text(url, max_pages=3)
+    text = fetch_report_pdf_text(url, max_pages=5)
     return parse_violations_from_report_text(text)

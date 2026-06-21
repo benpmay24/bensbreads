@@ -81,6 +81,23 @@ def force_clear_lock() -> None:
     state.is_running = False
     state.progress = cleared
     state.save(update_fields=['is_running', 'progress'])
+    logger.warning('Force-cleared Dog Watch sync lock at facility %s', current)
+
+
+def normalize_progress(state: DogWatchSyncState) -> dict:
+    """Ensure progress JSON matches is_running (fixes ghost 'syncing' UI)."""
+    progress = dict(state.progress or {})
+    if state.is_running:
+        progress['running'] = True
+        return progress
+    if progress.get('running'):
+        cleared: dict = {'running': False}
+        if progress.get('resume_from'):
+            cleared['resume_from'] = progress['resume_from']
+        state.progress = cleared
+        state.save(update_fields=['progress'])
+        return cleared
+    return progress
 
 
 def set_progress(current: int, total: int, message: str = '') -> None:
@@ -139,7 +156,7 @@ def refresh_collection_status() -> tuple[bool, dict]:
     """Clear stale locks and return current running state + progress."""
     clear_stale_lock()
     state = get_sync_state()
-    progress = state.progress or {'running': False}
+    progress = normalize_progress(state)
     return state.is_running, progress
 
 
