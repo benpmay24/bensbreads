@@ -6,6 +6,8 @@ Entry point:  python manage.py dog_watch_sync
 Configure on Render as a Cron Job (not the web service):
   Schedule:  0 6 * * *   (daily at 6 AM UTC)
   Command:   python manage.py dog_watch_sync
+
+Each run refreshes the USDA licensee list first, then checks APHIS for new reports.
 """
 import io
 import logging
@@ -319,9 +321,10 @@ def _sync_facility_timed(facility: PuppyMillFacility) -> str:
             raise
 
 
-def run_collection(force: bool = False, import_usda: bool = False) -> dict:
+def run_collection(force: bool = False, import_usda: bool = True) -> dict:
     """
-    Main collector entry point. Checks each breeder for new APHIS reports.
+    Main collector entry point. By default, refreshes the USDA licensee list first,
+    then checks each breeder for new APHIS reports.
     Skips breeders already checked within the last 24 hours unless force=True.
     """
     sync_state.clear_stale_lock()

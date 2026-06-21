@@ -625,19 +625,19 @@ def dog_watch(request):
     """Map visualization of USDA-licensed dog breeding facilities (reads DB only)."""
     from main.dog_watch.sync_state import (
         get_last_sync_summary,
-        get_progress,
         get_sync_state,
         next_sync_at,
+        refresh_collection_status,
         sync_interval_hours,
         sync_status_label,
     )
 
+    running, progress = refresh_collection_status()
     sync_state_obj = get_sync_state()
-    progress = get_progress()
-    running = sync_state_obj.is_running
 
-    facilities = PuppyMillFacility.objects.filter(is_dog_facility=True, coordinates_geocoded=True)
-    facilities_json = json.dumps([_facility_to_json(f) for f in facilities if f.has_coordinates])
+    all_facilities = PuppyMillFacility.objects.filter(is_dog_facility=True).order_by('name')
+    facilities_json = json.dumps([_facility_to_json(f) for f in all_facilities])
+    mapped_count = all_facilities.filter(coordinates_geocoded=True).count()
 
     last_scraped = (
         PuppyMillFacility.objects.filter(last_scraped_at__isnull=False)
@@ -664,8 +664,8 @@ def dog_watch(request):
     return render(request, 'ramsey/dog_watch.html', {
         'facilities_json': facilities_json,
         'total_count': PuppyMillFacility.objects.filter(is_dog_facility=True).count(),
-        'mapped_count': facilities.count(),
-        'violation_count': facilities.filter(violation_count__gt=0).count(),
+        'mapped_count': mapped_count,
+        'violation_count': all_facilities.filter(violation_count__gt=0).count(),
         'last_scraped': last_scraped,
         'states': states,
         'license_classes': license_classes,
@@ -685,17 +685,16 @@ def dog_watch_status(request):
     """JSON endpoint for collection progress (read-only; collector runs via cron)."""
     from main.dog_watch.sync_state import (
         get_last_sync_summary,
-        get_progress,
         get_sync_state,
         next_sync_at,
+        refresh_collection_status,
         sync_interval_hours,
         sync_status_label,
     )
 
-    progress = get_progress()
+    running, progress = refresh_collection_status()
     state = get_sync_state()
     last_sync = get_last_sync_summary()
-    running = state.is_running
     mapped_count = PuppyMillFacility.objects.filter(
         is_dog_facility=True,
         coordinates_geocoded=True,

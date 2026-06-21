@@ -135,5 +135,13 @@ def sync_status_label() -> str:
     return 'up_to_date'
 
 
+def refresh_collection_status() -> tuple[bool, dict]:
+    """Clear stale locks and return current running state + progress."""
+    clear_stale_lock()
+    state = get_sync_state()
+    progress = state.progress or {'running': False}
+    return state.is_running, progress
+
+
 def aphis_delay() -> float:
     return getattr(settings, 'DOG_WATCH_APHIS_DELAY_SECONDS', 1.5)

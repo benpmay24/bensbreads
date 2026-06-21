@@ -5,24 +5,82 @@
 {% block content %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
-  .dog-watch-layout {
+  /* ── Top: detail + map ── */
+  .dog-watch-top {
     display: grid;
-    grid-template-columns: 340px 1fr;
+    grid-template-columns: minmax(300px, 38%) 1fr;
     gap: 0;
-    height: calc(100vh - 120px);
-    min-height: 600px;
-  }
-  .dog-watch-detail-wrap {
-    margin: 0 1rem 1rem;
-    display: none;
-  }
-  .dog-watch-detail-wrap.visible { display: block; }
-  #detailPanel {
-    background: white;
-    border: 2px solid #8B4513;
+    height: 52vh;
+    min-height: 420px;
+    margin: 0 1rem;
+    border: 1px solid #e8e0d4;
     border-radius: 12px;
-    padding: 1.25rem 1.5rem;
+    overflow: hidden;
+    background: white;
   }
+  .dog-watch-top.detail-collapsed { grid-template-columns: 44px 1fr; }
+
+  .detail-pane {
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #e8e0d4;
+    background: #faf8f5;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .detail-pane-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid #e8e0d4;
+    background: white;
+    flex-shrink: 0;
+  }
+  .detail-pane-header h2 {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #5d4f41;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .detail-pane-toggle {
+    background: none;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    color: #5d4f41;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .detail-pane-toggle:hover { border-color: #8B4513; color: #8B4513; }
+  .dog-watch-top.detail-collapsed .detail-pane-header h2,
+  .dog-watch-top.detail-collapsed .detail-pane-body { display: none; }
+  .dog-watch-top.detail-collapsed .detail-pane-header {
+    justify-content: center;
+    padding: 0.5rem;
+    border-bottom: none;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    height: 100%;
+  }
+
+  .detail-pane-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+  }
+  .detail-empty {
+    color: #6c757d;
+    font-size: 0.875rem;
+    text-align: center;
+    padding: 2rem 1rem;
+  }
+  .detail-empty i { font-size: 1.75rem; color: #c4b8a8; margin-bottom: 0.75rem; display: block; }
+
   .detail-close {
     float: right;
     background: none;
@@ -37,207 +95,151 @@
   .detail-header {
     display: flex;
     flex-wrap: wrap;
-    gap: 1rem 2rem;
+    gap: 1rem;
     align-items: flex-start;
     margin-bottom: 1rem;
-    padding-right: 2rem;
+    padding-right: 1.5rem;
   }
-  .detail-header-main { flex: 1; min-width: 220px; }
+  .detail-header-main { flex: 1; min-width: 180px; }
   .detail-meta-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 1rem;
-    margin-top: 1rem;
-    font-size: 0.875rem;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+    font-size: 0.8rem;
   }
   .detail-meta-grid h6 {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #8B4513;
+    margin-bottom: 0.25rem;
+  }
+  .detail-meta-grid ul { margin: 0; padding-left: 1rem; }
+  .detail-section { margin-bottom: 0.875rem; }
+  .detail-section h6 {
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: #8B4513;
     margin-bottom: 0.35rem;
   }
-  .detail-meta-grid ul { margin: 0; padding-left: 1.1rem; }
+
+  .dog-watch-map { height: 100%; min-height: 320px; }
+
+  .violation-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.4rem;
+    margin-bottom: 0.75rem;
+  }
+  .violation-stat {
+    border-radius: 8px;
+    padding: 0.4rem;
+    text-align: center;
+    font-size: 0.72rem;
+  }
+  .violation-stat .count { font-size: 1.1rem; font-weight: 700; display: block; }
+  .violation-stat.direct { background: #fde8e8; color: #c0392b; }
+  .violation-stat.critical { background: #fef3e2; color: #d35400; }
+  .violation-stat.non-critical { background: #fff8e1; color: #b7950b; }
+
   .reports-table-wrap {
     overflow-x: auto;
-    margin-top: 0.5rem;
     border: 1px solid #e8e0d4;
     border-radius: 8px;
   }
   .reports-table {
     width: 100%;
-    min-width: 640px;
+    min-width: 520px;
     border-collapse: collapse;
-    font-size: 0.85rem;
+    font-size: 0.78rem;
   }
-  .reports-table th,
-  .reports-table td {
-    padding: 0.55rem 0.75rem;
+  .reports-table th, .reports-table td {
+    padding: 0.45rem 0.6rem;
     text-align: left;
     border-bottom: 1px solid #e8e0d4;
     white-space: nowrap;
   }
   .reports-table th {
     background: #faf8f5;
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: #5d4f41;
-    font-weight: 600;
   }
-  .reports-table tbody tr:last-child td { border-bottom: none; }
-  .reports-table tbody tr:hover { background: #fdfbf8; }
-  .reports-table .col-count { text-align: center; width: 4.5rem; }
+  .reports-table .col-count { text-align: center; }
   .reports-table .count-direct { color: #c0392b; font-weight: 600; }
   .reports-table .count-critical { color: #d35400; font-weight: 600; }
   .reports-table .count-non-critical { color: #b7950b; font-weight: 600; }
-  .reports-table .count-zero { color: #adb5bd; font-weight: 400; }
-  .reports-table .col-date { min-width: 7rem; font-weight: 500; }
-  .reports-table .col-link { text-align: center; width: 5rem; }
-  .dog-watch-sidebar {
-    background: #faf8f5;
-    border-right: 1px solid #e8e0d4;
-    overflow-y: auto;
-    padding: 1.25rem;
-    display: flex;
-    flex-direction: column;
-  }
-  .dog-watch-map {
-    height: 100%;
-    min-height: 600px;
-  }
-  .violation-summary {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-  }
-  .violation-stat {
-    border-radius: 8px;
-    padding: 0.5rem;
-    text-align: center;
-    font-size: 0.8rem;
-  }
-  .violation-stat .count { font-size: 1.25rem; font-weight: 700; display: block; }
-  .violation-stat.direct { background: #fde8e8; color: #c0392b; }
-  .violation-stat.critical { background: #fef3e2; color: #d35400; }
-  .violation-stat.non-critical { background: #fff8e1; color: #b7950b; }
-  .report-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    font-size: 0.8rem;
-    color: #8B4513;
-    text-decoration: none;
-    font-weight: 500;
-  }
-  .report-link:hover { text-decoration: underline; }
+  .reports-table .count-zero { color: #adb5bd; }
+  .report-link { color: #8B4513; }
+
   .license-class-badge {
     display: inline-block;
-    font-size: 0.72rem;
-    padding: 0.15rem 0.5rem;
+    font-size: 0.68rem;
+    padding: 0.1rem 0.45rem;
     border-radius: 999px;
     background: #f0ebe3;
     color: #5d4f41;
     font-weight: 600;
-    margin-left: 0.35rem;
+    margin-left: 0.25rem;
   }
-  #facilityList { flex: 1; overflow-y: auto; min-height: 0; }
-  .facility-card {
+
+  /* ── Bottom: filters + table ── */
+  .dog-watch-bottom {
+    margin: 1rem;
     background: white;
     border: 1px solid #e8e0d4;
-    border-radius: 10px;
-    padding: 0.875rem;
-    margin-bottom: 0.75rem;
-    cursor: pointer;
-    transition: box-shadow 0.15s, border-color 0.15s;
+    border-radius: 12px;
+    overflow: hidden;
   }
-  .facility-card:hover, .facility-card.active {
-    border-color: #8B4513;
-    box-shadow: 0 2px 8px rgba(139, 69, 19, 0.15);
+  .dog-watch-bottom-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #e8e0d4;
+    background: #faf8f5;
   }
-  .facility-card h6 {
-    margin: 0 0 0.25rem;
+  .dog-watch-bottom-header h2 {
+    margin: 0 0 0.75rem;
+    font-size: 1rem;
+    font-weight: 600;
     color: #5d4f41;
-    font-weight: 600;
-    font-size: 0.95rem;
   }
-  .facility-card .meta {
-    font-size: 0.8rem;
-    color: #6c757d;
-  }
-  .violation-badge {
-    display: inline-block;
-    font-size: 0.7rem;
-    padding: 0.15rem 0.5rem;
-    border-radius: 999px;
-    font-weight: 600;
-  }
-  .violation-high { background: #fde8e8; color: #c0392b; }
-  .violation-med { background: #fef3e2; color: #d35400; }
-  .violation-low { background: #e8f5e9; color: #27ae60; }
-  .detail-panel h5 { color: #5d4f41; margin-bottom: 0.75rem; }
-  .detail-section { margin-bottom: 1rem; }
-  .detail-section h6 {
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: #8B4513;
-    margin-bottom: 0.35rem;
-  }
-  .detail-section ul { margin: 0; padding-left: 1.1rem; font-size: 0.875rem; }
-  .stats-row {
+  .filter-row {
     display: flex;
-    gap: 0.75rem;
     flex-wrap: wrap;
-    margin-bottom: 1rem;
+    gap: 0.5rem;
+    align-items: center;
   }
-  .stat-box {
-    background: white;
-    border: 1px solid #e8e0d4;
-    border-radius: 8px;
-    padding: 0.5rem 0.75rem;
-    text-align: center;
+  .filter-row input[type="text"] {
     flex: 1;
-    min-width: 70px;
-  }
-  .stat-box .num { font-size: 1.25rem; font-weight: 700; color: #8B4513; }
-  .stat-box .lbl { font-size: 0.7rem; color: #6c757d; text-transform: uppercase; }
-  .filter-bar { margin-bottom: 1rem; }
-  .filter-bar input[type="text"] {
+    min-width: 180px;
+    max-width: 280px;
     font-size: 0.85rem;
     border-radius: 6px;
     border: 1px solid #ddd;
-    padding: 0.35rem 0.5rem;
-    width: 100%;
-    margin-bottom: 0.5rem;
+    padding: 0.35rem 0.6rem;
   }
-  .filter-multiselect { margin-bottom: 0.5rem; }
+  .filter-multiselect { position: relative; }
   .filter-multiselect-btn {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     text-align: left;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 0.5rem;
     background: white;
     border-color: #ddd;
     color: #5d4f41;
+    min-width: 130px;
   }
-  .filter-multiselect-btn:hover, .filter-multiselect-btn:focus {
-    background: #faf8f5;
-    border-color: #8B4513;
-    color: #5d4f41;
-  }
+  .filter-multiselect-btn:hover { background: #faf8f5; border-color: #8B4513; }
   .filter-multiselect-menu {
     max-height: 220px;
     overflow-y: auto;
     font-size: 0.85rem;
   }
-  .filter-multiselect-menu .form-check {
-    padding: 0.2rem 0.5rem 0.2rem 1.75rem;
-    margin: 0;
-  }
-  .filter-multiselect-menu .form-check:hover { background: #faf8f5; }
+  .filter-multiselect-menu .form-check { padding: 0.2rem 0.5rem 0.2rem 1.75rem; margin: 0; }
   .filter-multiselect-actions {
     border-top: 1px solid #e8e0d4;
     padding: 0.35rem 0.5rem;
@@ -252,6 +254,84 @@
     color: #8B4513;
     text-decoration: underline;
   }
+
+  .facilities-table-wrap { overflow-x: auto; }
+  .facilities-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  .facilities-table th, .facilities-table td {
+    padding: 0.65rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid #e8e0d4;
+  }
+  .facilities-table th {
+    background: #faf8f5;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #5d4f41;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+  }
+  .facilities-table th:hover { color: #8B4513; }
+  .facilities-table tbody tr {
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .facilities-table tbody tr:hover { background: #fdfbf8; }
+  .facilities-table tbody tr.active {
+    background: #fff9f5;
+    box-shadow: inset 3px 0 0 #8B4513;
+  }
+  .facilities-table .col-num { text-align: center; width: 3rem; }
+  .facilities-table .col-viol { text-align: center; width: 4rem; }
+  .facilities-table .violation-high { color: #c0392b; font-weight: 600; }
+  .facilities-table .violation-med { color: #d35400; font-weight: 600; }
+  .facilities-table .violation-ok { color: #27ae60; }
+
+  .table-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem 1.25rem;
+    border-top: 1px solid #e8e0d4;
+    background: #faf8f5;
+    font-size: 0.85rem;
+    color: #6c757d;
+  }
+  .pagination { display: flex; gap: 0.25rem; margin: 0; }
+  .pagination button {
+    border: 1px solid #ddd;
+    background: white;
+    border-radius: 6px;
+    padding: 0.25rem 0.65rem;
+    font-size: 0.8rem;
+    color: #5d4f41;
+    cursor: pointer;
+  }
+  .pagination button:hover:not(:disabled) { border-color: #8B4513; color: #8B4513; }
+  .pagination button:disabled { opacity: 0.45; cursor: default; }
+  .pagination button.active { background: #8B4513; border-color: #8B4513; color: white; }
+
+  .stats-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0; }
+  .stat-box {
+    background: white;
+    border: 1px solid #e8e0d4;
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    text-align: center;
+    flex: 1;
+    min-width: 70px;
+  }
+  .stat-box .num { font-size: 1.25rem; font-weight: 700; color: #8B4513; }
+  .stat-box .lbl { font-size: 0.7rem; color: #6c757d; text-transform: uppercase; }
+
   .sync-banner {
     margin: 0 1rem 1rem;
     padding: 0.875rem 1.25rem;
@@ -262,34 +342,17 @@
   .sync-banner--syncing { border-color: #8B4513; background: #fff9f5; }
   .sync-banner--up_to_date { border-color: #b7dfc8; background: #f0faf3; }
   .sync-banner--due, .sync-banner--never_synced { border-color: #f0d9a8; background: #fffbf0; }
-  .sync-banner-main {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    font-size: 0.92rem;
-    color: #5d4f41;
-  }
-  .sync-banner-main i { width: 1.1rem; text-align: center; }
-  .sync-banner--syncing .sync-banner-main i { color: #8B4513; }
-  .sync-banner--up_to_date .sync-banner-main i { color: #27ae60; }
-  .sync-banner--due .sync-banner-main i,
-  .sync-banner--never_synced .sync-banner-main i { color: #d68910; }
+  .sync-banner-main { display: flex; align-items: center; gap: 0.6rem; font-size: 0.92rem; color: #5d4f41; }
   .sync-progress-wrap { margin-top: 0.65rem; }
   .sync-progress-wrap .progress { height: 6px; background: #e8e0d4; }
-  .sync-progress-wrap .progress-bar { background: #8B4513; transition: width 0.3s; }
-  .sync-progress-wrap .progress-bar.indeterminate {
-    width: 40% !important;
-    animation: sync-indeterminate 1.5s ease-in-out infinite;
-  }
-  @keyframes sync-indeterminate {
-    0% { margin-left: 0; }
-    50% { margin-left: 60%; }
-    100% { margin-left: 0; }
-  }
+  .sync-progress-wrap .progress-bar { background: #8B4513; }
   .sync-progress-detail { display: block; margin-top: 0.35rem; font-size: 0.78rem; color: #6c757d; }
-  @media (max-width: 768px) {
-    .dog-watch-layout { grid-template-columns: 1fr; height: auto; }
-    .dog-watch-map { height: 400px; }
+
+  @media (max-width: 900px) {
+    .dog-watch-top { grid-template-columns: 1fr; height: auto; }
+    .dog-watch-top.detail-collapsed { grid-template-columns: 1fr; }
+    .detail-pane { border-right: none; border-bottom: 1px solid #e8e0d4; max-height: 40vh; }
+    .dog-watch-map { height: 360px; }
   }
 </style>
 
@@ -309,20 +372,20 @@
       <i class="fas {% if sync_status == 'syncing' %}fa-sync-alt fa-spin{% elif sync_status == 'up_to_date' %}fa-check-circle{% else %}fa-clock{% endif %}" id="syncStatusIcon"></i>
       <span id="syncStatusLabel">
         {% if sync_status == 'syncing' %}
-          Checking for new reports…
+          Collection in progress (cron job)…
         {% elif sync_status == 'up_to_date' and last_sync_at %}
           Up to date — last updated {{ last_sync_at|date:"M j, Y g:i A" }}
         {% elif sync_status == 'never_synced' %}
-          Waiting for first scheduled collection…
+          No collection run yet — waiting for scheduled cron job
+        {% elif sync_status == 'due' %}
+          Collection pending — next cron run will continue checking
         {% else %}
-          Collection due — runs on daily schedule
+          Up to date
         {% endif %}
       </span>
     </div>
     <div class="sync-progress-wrap{% if not scrape_running %} d-none{% endif %}" id="syncProgressWrap">
-      <div class="progress">
-        <div class="progress-bar" id="syncProgressBar" role="progressbar" style="width: 0%"></div>
-      </div>
+      <div class="progress"><div class="progress-bar" id="syncProgressBar" style="width:0%"></div></div>
       <small class="sync-progress-detail" id="syncProgressDetail">{{ scrape_message }}</small>
     </div>
     <small class="sync-progress-detail{% if scrape_running %} d-none{% endif %}" id="syncNextLabel">
@@ -334,28 +397,45 @@
     </small>
   </div>
 
-  <div class="px-4 pb-3 d-flex align-items-center gap-3 flex-wrap">
-    <div class="stats-row mb-0">
+  <div class="px-4 pb-3">
+    <div class="stats-row">
       <div class="stat-box"><div class="num">{{ total_count }}</div><div class="lbl">Facilities</div></div>
       <div class="stat-box"><div class="num">{{ mapped_count }}</div><div class="lbl">On Map</div></div>
       <div class="stat-box"><div class="num">{{ violation_count }}</div><div class="lbl">w/ Violations</div></div>
     </div>
   </div>
 
-  <div class="dog-watch-detail-wrap" id="detailPanelWrap">
-    <div id="detailPanel"></div>
+  <!-- Top: detail (left) + map (right) -->
+  <div class="dog-watch-top" id="dogWatchTop">
+    <aside class="detail-pane" id="detailPane">
+      <div class="detail-pane-header">
+        <h2>Facility Detail</h2>
+        <button type="button" class="detail-pane-toggle" id="detailPaneToggle" title="Collapse panel" aria-label="Toggle detail panel">
+          <i class="fas fa-chevron-left" id="detailPaneToggleIcon"></i>
+        </button>
+      </div>
+      <div class="detail-pane-body" id="detailPanel">
+        <div class="detail-empty">
+          <i class="fas fa-hand-pointer"></i>
+          Select a facility from the table below to view details and locate it on the map.
+        </div>
+      </div>
+    </aside>
+    <div id="map" class="dog-watch-map"></div>
   </div>
 
-  <div class="dog-watch-layout">
-    <div class="dog-watch-sidebar">
-      <div class="filter-bar">
-        <input type="text" id="searchInput" placeholder="Search by name, city, license...">
+  <!-- Bottom: filters + table -->
+  <div class="dog-watch-bottom">
+    <div class="dog-watch-bottom-header">
+      <h2>All Facilities</h2>
+      <div class="filter-row">
+        <input type="text" id="searchInput" placeholder="Search name, city, license…">
 
-        <div class="dropdown filter-multiselect w-100">
-          <button class="btn filter-multiselect-btn dropdown-toggle w-100" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-            <span>States</span><span class="filter-summary" data-group="state">All</span>
+        <div class="dropdown filter-multiselect">
+          <button class="btn btn-sm filter-multiselect-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+            States <span class="filter-summary" data-group="state">All</span>
           </button>
-          <div class="dropdown-menu filter-multiselect-menu w-100">
+          <div class="dropdown-menu filter-multiselect-menu">
             {% for st in states %}
             <div class="form-check">
               <input class="form-check-input" type="checkbox" data-filter="state" value="{{ st }}" id="state-{{ st }}" checked>
@@ -363,65 +443,47 @@
             </div>
             {% endfor %}
             <div class="filter-multiselect-actions">
-              <button type="button" data-action="all" data-group="state">Select all</button>
-              <button type="button" data-action="none" data-group="state">Clear all</button>
+              <button type="button" data-action="all" data-group="state">All</button>
+              <button type="button" data-action="none" data-group="state">None</button>
             </div>
           </div>
         </div>
 
-        <div class="dropdown filter-multiselect w-100">
-          <button class="btn filter-multiselect-btn dropdown-toggle w-100" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-            <span>Violation Count</span><span class="filter-summary" data-group="count">All</span>
+        <div class="dropdown filter-multiselect">
+          <button class="btn btn-sm filter-multiselect-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+            Violations <span class="filter-summary" data-group="count">All</span>
           </button>
-          <div class="dropdown-menu filter-multiselect-menu w-100">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" data-filter="count" value="high" id="count-high" checked>
-              <label class="form-check-label" for="count-high">High (10+ total)</label>
-            </div>
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" data-filter="count" value="med" id="count-med" checked>
-              <label class="form-check-label" for="count-med">Medium (1–9 total)</label>
-            </div>
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" data-filter="count" value="none" id="count-none" checked>
-              <label class="form-check-label" for="count-none">No violations</label>
-            </div>
+          <div class="dropdown-menu filter-multiselect-menu">
+            <div class="form-check"><input class="form-check-input" type="checkbox" data-filter="count" value="high" id="count-high" checked><label class="form-check-label" for="count-high">High (10+)</label></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox" data-filter="count" value="med" id="count-med" checked><label class="form-check-label" for="count-med">Medium (1–9)</label></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox" data-filter="count" value="none" id="count-none" checked><label class="form-check-label" for="count-none">None</label></div>
             <div class="filter-multiselect-actions">
-              <button type="button" data-action="all" data-group="count">Select all</button>
-              <button type="button" data-action="none" data-group="count">Clear all</button>
+              <button type="button" data-action="all" data-group="count">All</button>
+              <button type="button" data-action="none" data-group="count">None</button>
             </div>
           </div>
         </div>
 
-        <div class="dropdown filter-multiselect w-100">
-          <button class="btn filter-multiselect-btn dropdown-toggle w-100" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-            <span>Violation Type</span><span class="filter-summary" data-group="type">All</span>
+        <div class="dropdown filter-multiselect">
+          <button class="btn btn-sm filter-multiselect-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+            Type <span class="filter-summary" data-group="type">All</span>
           </button>
-          <div class="dropdown-menu filter-multiselect-menu w-100">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" data-filter="type" value="direct" id="type-direct" checked>
-              <label class="form-check-label" for="type-direct">Direct</label>
-            </div>
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" data-filter="type" value="critical" id="type-critical" checked>
-              <label class="form-check-label" for="type-critical">Critical</label>
-            </div>
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" data-filter="type" value="non_critical" id="type-nc" checked>
-              <label class="form-check-label" for="type-nc">Non-critical</label>
-            </div>
+          <div class="dropdown-menu filter-multiselect-menu">
+            <div class="form-check"><input class="form-check-input" type="checkbox" data-filter="type" value="direct" id="type-direct" checked><label class="form-check-label" for="type-direct">Direct</label></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox" data-filter="type" value="critical" id="type-critical" checked><label class="form-check-label" for="type-critical">Critical</label></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox" data-filter="type" value="non_critical" id="type-nc" checked><label class="form-check-label" for="type-nc">Non-critical</label></div>
             <div class="filter-multiselect-actions">
-              <button type="button" data-action="all" data-group="type">Select all</button>
-              <button type="button" data-action="none" data-group="type">Clear all</button>
+              <button type="button" data-action="all" data-group="type">All</button>
+              <button type="button" data-action="none" data-group="type">None</button>
             </div>
           </div>
         </div>
 
-        <div class="dropdown filter-multiselect w-100">
-          <button class="btn filter-multiselect-btn dropdown-toggle w-100" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-            <span>License Class</span><span class="filter-summary" data-group="class">All</span>
+        <div class="dropdown filter-multiselect">
+          <button class="btn btn-sm filter-multiselect-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+            License <span class="filter-summary" data-group="class">All</span>
           </button>
-          <div class="dropdown-menu filter-multiselect-menu w-100">
+          <div class="dropdown-menu filter-multiselect-menu">
             {% for cls in license_classes %}
             <div class="form-check">
               <input class="form-check-input" type="checkbox" data-filter="class" value="{{ cls }}" id="class-{{ forloop.counter }}" checked>
@@ -429,39 +491,61 @@
             </div>
             {% endfor %}
             <div class="filter-multiselect-actions">
-              <button type="button" data-action="all" data-group="class">Select all</button>
-              <button type="button" data-action="none" data-group="class">Clear all</button>
+              <button type="button" data-action="all" data-group="class">All</button>
+              <button type="button" data-action="none" data-group="class">None</button>
             </div>
           </div>
         </div>
       </div>
-      <div id="facilityList"></div>
     </div>
-    <div id="map" class="dog-watch-map"></div>
+
+    <div class="facilities-table-wrap">
+      <table class="facilities-table">
+        <thead>
+          <tr>
+            <th data-sort="name">Name</th>
+            <th data-sort="city">City</th>
+            <th data-sort="state">State</th>
+            <th data-sort="license">License</th>
+            <th data-sort="license_type">Class</th>
+            <th class="col-viol" data-sort="direct">Direct</th>
+            <th class="col-viol" data-sort="critical">Critical</th>
+            <th class="col-viol" data-sort="non_critical">Non-crit</th>
+            <th class="col-viol" data-sort="violations">Total</th>
+          </tr>
+        </thead>
+        <tbody id="facilityTableBody"></tbody>
+      </table>
+    </div>
+
+    <div class="table-footer">
+      <span id="tableSummary">Showing 0 facilities</span>
+      <div class="pagination" id="pagination"></div>
+    </div>
   </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const facilities = {{ facilities_json|safe }};
+const PAGE_SIZE = 25;
 let map, markers = {}, activeId = null, markerLayer;
+let filteredFacilities = [];
+let currentPage = 1;
+let sortKey = 'name';
+let sortAsc = true;
+let detailCollapsed = false;
 
 function escapeHtml(text) {
   const d = document.createElement('div');
-  d.textContent = text;
+  d.textContent = text ?? '';
   return d.innerHTML;
 }
 
 function violationClass(count) {
   if (count >= 10) return 'violation-high';
   if (count >= 1) return 'violation-med';
-  return 'violation-low';
-}
-
-function violationLabel(count) {
-  if (count >= 10) return count + ' violations';
-  if (count >= 1) return count + ' violation' + (count > 1 ? 's' : '');
-  return 'No violations';
+  return 'violation-ok';
 }
 
 function initMap() {
@@ -470,44 +554,31 @@ function initMap() {
     attribution: '&copy; OpenStreetMap contributors',
     maxZoom: 18,
   }).addTo(map);
-
   markerLayer = L.layerGroup().addTo(map);
 
   facilities.forEach(f => {
     if (!f.lat || !f.lng) return;
     const color = f.violations >= 10 ? '#c0392b' : f.violations >= 1 ? '#d35400' : '#27ae60';
     const marker = L.circleMarker([f.lat, f.lng], {
-      radius: 7,
-      fillColor: color,
-      color: '#fff',
-      weight: 2,
-      opacity: 1,
-      fillOpacity: 0.85,
+      radius: 7, fillColor: color, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.85,
     });
-    marker.bindPopup(`<strong>${escapeHtml(f.name)}</strong><br>${escapeHtml(f.city || '')}, ${escapeHtml(f.state || '')}<br>${violationLabel(f.violations)}<br><em style="font-size:0.85em">Click for details</em>`);
+    marker.bindPopup(`<strong>${escapeHtml(f.name)}</strong><br>${escapeHtml(f.city || '')}, ${escapeHtml(f.state || '')}`);
     marker.on('click', () => showDetail(f.id));
     markers[f.id] = marker;
     markerLayer.addLayer(marker);
   });
 }
 
-function renderList(filtered) {
-  const list = document.getElementById('facilityList');
-  if (!filtered.length) {
-    list.innerHTML = '<p class="text-muted small">No facilities match your filters.</p>';
-    return;
-  }
-  list.innerHTML = filtered.slice(0, 100).map(f => `
-    <div class="facility-card${activeId === f.id ? ' active' : ''}" data-id="${f.id}" onclick="showDetail(${f.id})">
-      <h6>${escapeHtml(f.name)}${f.license_class ? `<span class="license-class-badge">${escapeHtml(f.license_class)}</span>` : ''}</h6>
-      <div class="meta">${escapeHtml(f.city || '')}${f.city && f.state ? ', ' : ''}${escapeHtml(f.state || '')} &middot; ${escapeHtml(f.license)}</div>
-      <span class="violation-badge ${violationClass(f.violations)}">${violationLabel(f.violations)}</span>
-    </div>
-  `).join('');
-  if (filtered.length > 100) {
-    list.innerHTML += `<p class="text-muted small mt-2">Showing 100 of ${filtered.length} results. Refine filters to see more.</p>`;
-  }
+function toggleDetailPane(forceExpand) {
+  if (forceExpand) detailCollapsed = false;
+  else detailCollapsed = !detailCollapsed;
+  document.getElementById('dogWatchTop').classList.toggle('detail-collapsed', detailCollapsed);
+  const icon = document.getElementById('detailPaneToggleIcon');
+  icon.className = detailCollapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left';
+  setTimeout(() => map.invalidateSize(), 200);
 }
+
+document.getElementById('detailPaneToggle').addEventListener('click', () => toggleDetailPane());
 
 function parseReportDate(dateStr) {
   if (!dateStr) return 0;
@@ -519,57 +590,32 @@ function formatReportDate(dateStr) {
   if (!dateStr) return '—';
   const parsed = parseReportDate(dateStr);
   if (!parsed) return escapeHtml(dateStr);
-  return new Date(parsed).toLocaleDateString(undefined, {
-    year: 'numeric', month: 'short', day: 'numeric',
-  });
+  return new Date(parsed).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 function renderCountCell(count, typeClass) {
   const n = count || 0;
-  const cls = n > 0 ? typeClass : 'count-zero';
-  return `<td class="col-count ${cls}">${n}</td>`;
+  return `<td class="col-viol ${n > 0 ? typeClass : 'count-zero'}">${n}</td>`;
 }
 
 function renderReportsTable(reports, usdaUrl) {
-  if (!reports.length) {
-    return '<p class="text-muted small mb-0">No inspection reports on file yet.</p>';
-  }
-
+  if (!reports.length) return '<p class="text-muted small mb-0">No inspection reports on file.</p>';
   const sorted = [...reports].sort((a, b) => parseReportDate(b.date) - parseReportDate(a.date));
   const rows = sorted.map(r => {
     const reportUrl = r.url || usdaUrl || '#';
     const hasLink = r.url || usdaUrl;
-    return `
-      <tr>
-        <td class="col-date">${formatReportDate(r.date)}</td>
-        ${renderCountCell(r.direct, 'count-direct')}
-        ${renderCountCell(r.critical, 'count-critical')}
-        ${renderCountCell(r.non_critical, 'count-non-critical')}
-        ${renderCountCell(r.teachable, 'count-non-critical')}
-        <td class="col-link">
-          ${hasLink
-            ? `<a class="report-link" href="${escapeHtml(reportUrl)}" target="_blank" rel="noopener" title="View report"><i class="fas fa-file-pdf"></i></a>`
-            : '—'}
-        </td>
-      </tr>`;
+    return `<tr>
+      <td>${formatReportDate(r.date)}</td>
+      ${renderCountCell(r.direct, 'count-direct')}
+      ${renderCountCell(r.critical, 'count-critical')}
+      ${renderCountCell(r.non_critical, 'count-non-critical')}
+      ${renderCountCell(r.teachable, 'count-non-critical')}
+      <td>${hasLink ? `<a class="report-link" href="${escapeHtml(reportUrl)}" target="_blank" rel="noopener"><i class="fas fa-file-pdf"></i></a>` : '—'}</td>
+    </tr>`;
   }).join('');
-
-  return `
-    <div class="reports-table-wrap">
-      <table class="reports-table">
-        <thead>
-          <tr>
-            <th class="col-date">Date</th>
-            <th class="col-count">Direct</th>
-            <th class="col-count">Critical</th>
-            <th class="col-count">Non-critical</th>
-            <th class="col-count">Teachable</th>
-            <th class="col-link">Report</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
+  return `<div class="reports-table-wrap"><table class="reports-table">
+    <thead><tr><th>Date</th><th class="col-count">Direct</th><th class="col-count">Critical</th><th class="col-count">Non-crit</th><th class="col-count">Teach</th><th>PDF</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>`;
 }
 
 function showDetail(id) {
@@ -577,88 +623,145 @@ function showDetail(id) {
   const f = facilities.find(x => x.id === id);
   if (!f) return;
 
-  document.querySelectorAll('.facility-card').forEach(el => {
-    el.classList.toggle('active', parseInt(el.dataset.id) === id);
-  });
+  toggleDetailPane(true);
 
   const panel = document.getElementById('detailPanel');
-  const panelWrap = document.getElementById('detailPanelWrap');
-  panelWrap.classList.add('visible');
-
   const owners = (f.owners || []).map(o => `<li>${escapeHtml(o)}</li>`).join('') || '<li class="text-muted">Unknown</li>';
   const breeds = (f.breeds || []).map(b => `<li>${escapeHtml(b)}</li>`).join('') || '<li class="text-muted">Not recorded</li>';
-  const suppliers = (f.suppliers || []).map(s => `<li>${escapeHtml(s)}</li>`).join('') || '<li class="text-muted">Not recorded</li>';
-  const news = (f.news || []).map(n =>
-    `<li><a href="${escapeHtml(n.url)}" target="_blank" rel="noopener">${escapeHtml(n.title)}</a></li>`
-  ).join('') || '<li class="text-muted">None</li>';
-
   const reports = f.reports || [];
-  const direct = f.direct || 0;
-  const critical = f.critical || 0;
-  const nonCritical = f.non_critical || 0;
 
   panel.innerHTML = `
-    <button class="detail-close" onclick="closeDetail()" title="Close">&times;</button>
+    <button class="detail-close" onclick="closeDetail()" title="Clear selection">&times;</button>
     <div class="detail-header">
       <div class="detail-header-main">
-        <h5 class="mb-1">${escapeHtml(f.name)}${f.dba ? ` <small class="text-muted">(${escapeHtml(f.dba)})</small>` : ''}</h5>
+        <h5 class="mb-1" style="font-size:1rem;color:#5d4f41;">${escapeHtml(f.name)}${f.dba ? ` <small class="text-muted">(${escapeHtml(f.dba)})</small>` : ''}</h5>
         <p class="text-muted small mb-0">
           ${escapeHtml(f.address || [f.city, f.state].filter(Boolean).join(', '))}<br>
           License: <strong>${escapeHtml(f.license)}</strong>
-          <span class="license-class-badge">${escapeHtml(f.license_type || 'Unknown class')}</span>
+          <span class="license-class-badge">${escapeHtml(f.license_type || '—')}</span>
         </p>
       </div>
-      <div class="violation-summary" style="margin:0;min-width:280px;">
-        <div class="violation-stat direct"><span class="count">${direct}</span>Direct</div>
-        <div class="violation-stat critical"><span class="count">${critical}</span>Critical</div>
-        <div class="violation-stat non-critical"><span class="count">${nonCritical}</span>Non-critical</div>
-      </div>
     </div>
-
+    <div class="violation-summary">
+      <div class="violation-stat direct"><span class="count">${f.direct || 0}</span>Direct</div>
+      <div class="violation-stat critical"><span class="count">${f.critical || 0}</span>Critical</div>
+      <div class="violation-stat non-critical"><span class="count">${f.non_critical || 0}</span>Non-critical</div>
+    </div>
     <div class="detail-section">
       <h6>Inspection Reports (${reports.length})</h6>
       ${renderReportsTable(reports, f.usda_url)}
     </div>
-
     <div class="detail-meta-grid">
       <div><h6>Owners</h6><ul>${owners}</ul></div>
-      <div><h6>Dog Breeds / Species</h6><ul>${breeds}</ul></div>
-      <div><h6>Suppliers / Buyers</h6><ul>${suppliers}</ul></div>
-      <div><h6>News</h6><ul>${news}</ul></div>
+      <div><h6>Species</h6><ul>${breeds}</ul></div>
     </div>
-    ${f.usda_url ? `<div class="mt-3"><a href="${escapeHtml(f.usda_url)}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary"><i class="fas fa-external-link-alt"></i> USDA Profile</a></div>` : ''}
+    ${f.usda_url ? `<div class="mt-2"><a href="${escapeHtml(f.usda_url)}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary"><i class="fas fa-external-link-alt"></i> USDA Profile</a></div>` : ''}
   `;
 
-  panelWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  document.querySelectorAll('#facilityTableBody tr').forEach(row => {
+    row.classList.toggle('active', parseInt(row.dataset.id, 10) === id);
+  });
 
   if (markers[id]) {
     map.setView(markers[id].getLatLng(), Math.max(map.getZoom(), 10));
     markers[id].openPopup();
+  } else if (f.lat && f.lng) {
+    map.setView([f.lat, f.lng], 10);
   }
+
+  document.getElementById('dogWatchTop').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function closeDetail() {
   activeId = null;
-  document.getElementById('detailPanelWrap').classList.remove('visible');
-  document.getElementById('detailPanel').innerHTML = '';
-  document.querySelectorAll('.facility-card').forEach(el => el.classList.remove('active'));
-  map.closePopup();
+  document.getElementById('detailPanel').innerHTML = `
+    <div class="detail-empty">
+      <i class="fas fa-hand-pointer"></i>
+      Select a facility from the table below to view details and locate it on the map.
+    </div>`;
+  document.querySelectorAll('#facilityTableBody tr').forEach(row => row.classList.remove('active'));
+  if (map) map.closePopup();
 }
 
-function updateMapMarkers(filtered) {
-  const visibleIds = new Set(filtered.map(f => f.id));
+function sortFacilities(list) {
+  return [...list].sort((a, b) => {
+    let av = a[sortKey], bv = b[sortKey];
+    if (typeof av === 'string') { av = (av || '').toLowerCase(); bv = (bv || '').toLowerCase(); }
+    if (av < bv) return sortAsc ? -1 : 1;
+    if (av > bv) return sortAsc ? 1 : -1;
+    return 0;
+  });
+}
+
+function renderTable() {
+  const sorted = sortFacilities(filteredFacilities);
+  const total = sorted.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  if (currentPage > totalPages) currentPage = totalPages;
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const page = sorted.slice(start, start + PAGE_SIZE);
+
+  const tbody = document.getElementById('facilityTableBody');
+  if (!page.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="text-muted text-center py-4">No facilities match your filters.</td></tr>';
+  } else {
+    tbody.innerHTML = page.map(f => `
+      <tr data-id="${f.id}" class="${activeId === f.id ? 'active' : ''}" onclick="showDetail(${f.id})">
+        <td><strong>${escapeHtml(f.name)}</strong>${f.dba ? `<br><small class="text-muted">${escapeHtml(f.dba)}</small>` : ''}</td>
+        <td>${escapeHtml(f.city || '—')}</td>
+        <td>${escapeHtml(f.state || '—')}</td>
+        <td><code style="font-size:0.78rem">${escapeHtml(f.license)}</code></td>
+        <td>${escapeHtml(f.license_class || '—')}</td>
+        <td class="col-viol">${f.direct || 0}</td>
+        <td class="col-viol">${f.critical || 0}</td>
+        <td class="col-viol">${f.non_critical || 0}</td>
+        <td class="col-viol ${violationClass(f.violations)}">${f.violations || 0}</td>
+      </tr>
+    `).join('');
+  }
+
+  const end = Math.min(start + PAGE_SIZE, total);
+  document.getElementById('tableSummary').textContent = total
+    ? `Showing ${start + 1}–${end} of ${total.toLocaleString()} facilities`
+    : 'No facilities to show';
+
+  renderPagination(totalPages);
+  updateMapMarkers(sorted);
+}
+
+function renderPagination(totalPages) {
+  const el = document.getElementById('pagination');
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+
+  let html = `<button type="button" ${currentPage === 1 ? 'disabled' : ''} onclick="goToPage(${currentPage - 1})">Prev</button>`;
+  const windowSize = 5;
+  let startPage = Math.max(1, currentPage - Math.floor(windowSize / 2));
+  let endPage = Math.min(totalPages, startPage + windowSize - 1);
+  startPage = Math.max(1, endPage - windowSize + 1);
+
+  for (let p = startPage; p <= endPage; p++) {
+    html += `<button type="button" class="${p === currentPage ? 'active' : ''}" onclick="goToPage(${p})">${p}</button>`;
+  }
+  html += `<button type="button" ${currentPage === totalPages ? 'disabled' : ''} onclick="goToPage(${currentPage + 1})">Next</button>`;
+  el.innerHTML = html;
+}
+
+function goToPage(page) {
+  currentPage = page;
+  renderTable();
+  document.querySelector('.dog-watch-bottom').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function updateMapMarkers(visible) {
+  const visibleIds = new Set(visible.filter(f => f.lat && f.lng).map(f => f.id));
   markerLayer.clearLayers();
   facilities.forEach(f => {
-    if (!f.lat || !f.lng || !visibleIds.has(f.id)) return;
-    markerLayer.addLayer(markers[f.id]);
+    if (markers[f.id] && visibleIds.has(f.id)) markerLayer.addLayer(markers[f.id]);
   });
 }
 
 function getViolationCounts(f) {
-  const direct = f.direct || 0;
-  const criticalOnly = f.critical || 0;
-  const nonCritical = f.non_critical || 0;
-  return { direct, criticalOnly, nonCritical };
+  return { direct: f.direct || 0, criticalOnly: f.critical || 0, nonCritical: f.non_critical || 0 };
 }
 
 function getCheckedValues(group) {
@@ -679,7 +782,7 @@ function updateFilterSummaries() {
     const checked = getCheckedValues(group).length;
     if (checked === 0) el.textContent = 'None';
     else if (checked === total) el.textContent = 'All';
-    else el.textContent = `${checked} of ${total}`;
+    else el.textContent = `${checked}/${total}`;
   });
 }
 
@@ -704,50 +807,47 @@ function applyFilters() {
   const counts = getCheckedValues('count');
   const types = getCheckedValues('type');
   const classes = getCheckedValues('class');
-
   updateFilterSummaries();
 
-  const filtered = facilities.filter(f => {
+  filteredFacilities = facilities.filter(f => {
     if (!isAllSelected('state') && states.length && !states.includes(f.state)) return false;
     if (!isAllSelected('class') && classes.length && !classes.includes(f.license_type)) return false;
-
-    if (!isAllSelected('count') && counts.length) {
-      if (!counts.includes(getViolationCountBucket(f))) return false;
-    }
+    if (!isAllSelected('count') && counts.length && !counts.includes(getViolationCountBucket(f))) return false;
     if (!isAllSelected('count') && counts.length === 0) return false;
-
     if (!isAllSelected('type') && types.length) {
-      const facilityTypes = getFacilityViolationTypes(f);
-      if (facilityTypes.size === 0) return false;
-      if (!types.some(t => facilityTypes.has(t))) return false;
+      const ft = getFacilityViolationTypes(f);
+      if (ft.size === 0 || !types.some(t => ft.has(t))) return false;
     }
     if (!isAllSelected('type') && types.length === 0) return false;
-
     if (!isAllSelected('class') && classes.length === 0) return false;
-
     if (q) {
       const hay = `${f.name} ${f.dba} ${f.city} ${f.state} ${f.license} ${f.license_type}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
   });
-  renderList(filtered);
-  updateMapMarkers(filtered);
+
+  currentPage = 1;
+  renderTable();
 }
 
 document.getElementById('searchInput').addEventListener('input', applyFilters);
-document.querySelectorAll('input[data-filter]').forEach(el => {
-  el.addEventListener('change', applyFilters);
-});
+document.querySelectorAll('input[data-filter]').forEach(el => el.addEventListener('change', applyFilters));
 document.querySelectorAll('[data-action][data-group]').forEach(btn => {
-  btn.addEventListener('click', (e) => {
+  btn.addEventListener('click', e => {
     e.preventDefault();
     const group = btn.dataset.group;
-    const select = btn.dataset.action === 'all';
-    document.querySelectorAll(`input[data-filter="${group}"]`).forEach(cb => {
-      cb.checked = select;
-    });
+    document.querySelectorAll(`input[data-filter="${group}"]`).forEach(cb => { cb.checked = btn.dataset.action === 'all'; });
     applyFilters();
+  });
+});
+
+document.querySelectorAll('.facilities-table th[data-sort]').forEach(th => {
+  th.addEventListener('click', () => {
+    const key = th.dataset.sort;
+    if (sortKey === key) sortAsc = !sortAsc;
+    else { sortKey = key; sortAsc = true; }
+    renderTable();
   });
 });
 
@@ -767,76 +867,52 @@ applyFilters();
 
   function formatDate(iso) {
     if (!iso) return '';
-    const d = new Date(iso);
-    return d.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+    return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
   }
 
-  function setBannerStatus(status) {
-    banner.className = 'sync-banner sync-banner--' + status;
-  }
-
-  function pollSyncStatus() {
+  function poll() {
     fetch('{% url "dog_watch_status" %}')
       .then(r => r.json())
       .then(data => {
         if (data.running) {
-          setBannerStatus('syncing');
+          banner.className = 'sync-banner sync-banner--syncing';
           statusIcon.className = 'fas fa-sync-alt fa-spin';
-          statusLabel.textContent = 'Checking for new reports…';
+          statusLabel.textContent = 'Collection in progress (cron job)…';
           progressWrap.classList.remove('d-none');
           nextLabel.classList.add('d-none');
           if (data.total > 0) {
-            const pct = Math.round((data.current / data.total) * 100);
-            progressBar.classList.remove('indeterminate');
-            progressBar.style.width = pct + '%';
-            progressDetail.textContent = data.message || ('Step ' + data.current + ' of ' + data.total);
-          } else {
-            progressBar.classList.add('indeterminate');
-            progressBar.style.width = '40%';
-            progressDetail.textContent = data.message || 'Starting…';
+            progressBar.style.width = Math.round((data.current / data.total) * 100) + '%';
+            progressDetail.textContent = data.message || '';
           }
           wasRunning = true;
-          setTimeout(pollSyncStatus, 3000);
+          setTimeout(poll, 3000);
           return;
         }
-
-        if (wasRunning) {
-          window.location.reload();
-          return;
-        }
-
+        if (wasRunning) { window.location.reload(); return; }
         if (data.status === 'up_to_date') {
-          setBannerStatus('up_to_date');
+          banner.className = 'sync-banner sync-banner--up_to_date';
           statusIcon.className = 'fas fa-check-circle';
-          statusLabel.textContent = data.last_sync_at
-            ? 'Up to date — last updated ' + formatDate(data.last_sync_at)
-            : 'Up to date';
+          statusLabel.textContent = data.last_sync_at ? 'Up to date — last updated ' + formatDate(data.last_sync_at) : 'Up to date';
           progressWrap.classList.add('d-none');
           nextLabel.classList.remove('d-none');
-          nextLabel.textContent = data.next_sync_at
-            ? 'Next scheduled collection: ' + formatDate(data.next_sync_at) + ' (every ' + Math.round(data.sync_interval_hours) + ' hours)'
-            : '';
-          setTimeout(pollSyncStatus, 30000);
+          setTimeout(poll, 30000);
           return;
         }
-
         if (data.status === 'never_synced' || data.status === 'due') {
-          setBannerStatus(data.status);
+          banner.className = 'sync-banner sync-banner--' + data.status;
           statusIcon.className = 'fas fa-clock';
           statusLabel.textContent = data.status === 'never_synced'
-            ? 'Waiting for first scheduled collection…'
-            : 'Collection due — runs on daily schedule';
+            ? 'No collection run yet — waiting for scheduled cron job'
+            : 'Collection pending — next cron run will continue checking';
           progressWrap.classList.add('d-none');
-          setTimeout(pollSyncStatus, 30000);
+          setTimeout(poll, 30000);
           return;
         }
-
-        setTimeout(pollSyncStatus, 30000);
+        setTimeout(poll, 30000);
       })
-      .catch(() => setTimeout(pollSyncStatus, 5000));
+      .catch(() => setTimeout(poll, 5000));
   }
-
-  pollSyncStatus();
+  poll();
 })();
 </script>
 {% endblock %}
