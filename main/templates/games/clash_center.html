@@ -1,0 +1,276 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Clash Center | Ben's Breads{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'main/clash_center.css' %}">
+
+<div class="hero-header text-center">
+  <nav class="clash-breadcrumb" aria-label="Breadcrumb">
+    <a href="{% url 'games' %}"><i class="fas fa-arrow-left me-1"></i>Games</a>
+    <span class="text-muted mx-1">/</span>
+    <span class="text-muted">Clash Center</span>
+  </nav>
+  <div class="hero-content">
+    <h1 class="hero-title">Clash Center</h1>
+    <p class="hero-subtitle mb-2">
+      Ranked battle analytics, league meta, and deck recommendations.
+      {% if my_data.tag %}<span class="clash-player-tag ms-1">{{ my_data.tag }}</span>{% endif %}
+    </p>
+    <div class="hero-divider"></div>
+    <div class="clash-sync-bar">
+      <span class="clash-sync-badge {{ sync_status }}{% if scrape_running %} syncing{% endif %}">
+        {% if scrape_running %}
+          <i class="fas fa-spinner fa-spin"></i> Syncing{% if scrape_message %} — {{ scrape_message }}{% endif %}
+        {% elif sync_status == 'never_synced' %}
+          <i class="fas fa-clock"></i> Awaiting first sync
+        {% elif sync_status == 'due' %}
+          <i class="fas fa-exclamation-circle"></i> Sync overdue
+        {% else %}
+          <i class="fas fa-check-circle"></i> Data current
+        {% endif %}
+      </span>
+      {% if last_sync_at %}
+        <span><i class="far fa-clock me-1"></i>Updated {{ last_sync_at|timesince }} ago</span>
+      {% endif %}
+      <span><i class="fas fa-database me-1"></i>{{ total_battles }} battles · {{ total_players }} players</span>
+    </div>
+  </div>
+</div>
+
+<div class="container pb-5">
+
+  <!-- Your performance -->
+  <div class="clash-panel">
+    <div class="clash-panel-header">
+      <h2 class="clash-panel-title"><i class="fas fa-user"></i>Your Performance</h2>
+      {% if my_data.tier_label and my_data.tier_label != 'Unknown' %}
+        <span class="clash-panel-subtitle">{{ my_data.tier_label }}</span>
+      {% endif %}
+    </div>
+    <div class="clash-panel-body">
+      {% if my_data.battle_count == 0 %}
+        <p class="text-muted mb-0">
+          No battles recorded yet. Set <code>CLASH_CENTER_PLAYER_TAG</code> and run
+          <code>python manage.py clash_center_sync --force</code>.
+        </p>
+      {% else %}
+        <div class="clash-stats-grid">
+          <div class="stat-card">
+            <div class="stat-value">{{ my_data.battle_count }}</div>
+            <div class="stat-label">Battles</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">{{ my_data.overall_win_rate }}%</div>
+            <div class="stat-label">Win Rate</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" style="font-size:1.35rem;">{{ my_data.tier_label }}</div>
+            <div class="stat-label">League</div>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if my_data.decks %}
+  <div class="clash-panel">
+    <div class="clash-panel-header">
+      <h2 class="clash-panel-title"><i class="fas fa-layer-group"></i>Your Most Used Decks</h2>
+    </div>
+    <div class="clash-panel-body">
+      {% for deck in my_data.decks %}
+        {% include 'games/_clash_deck_row.html' with deck=deck %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- League meta -->
+  <h2 class="clash-section-heading">League Meta <span class="text-muted" style="font-size:1rem;">— {{ tier_data.label }}</span></h2>
+
+  <nav class="clash-tier-nav" aria-label="League filter">
+    {% for t in tiers_nav %}
+      <a href="?tier={{ t.tier }}" class="clash-tier-tab{% if t.tier == selected_tier %} active{% endif %}">
+        {{ t.label }}
+        <span class="clash-tier-count">{{ t.battle_count }}</span>
+      </a>
+    {% endfor %}
+  </nav>
+
+  <div class="clash-stats-grid mb-4">
+    <div class="stat-card">
+      <div class="stat-value">{{ tier_data.battle_count }}</div>
+      <div class="stat-label">League Battles</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">{{ tier_data.overall_win_rate }}%</div>
+      <div class="stat-label">Avg Win Rate</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">{{ total_cards }}</div>
+      <div class="stat-label">Cards Tracked</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">~{{ sync_interval_hours }}h</div>
+      <div class="stat-label">Sync Interval</div>
+    </div>
+  </div>
+
+  {% if tier_data.battle_count == 0 %}
+    <div class="clash-panel">
+      <div class="clash-empty">
+        <i class="fas fa-database"></i>
+        <p class="mb-0"><strong>No battle data for this league yet.</strong></p>
+      </div>
+    </div>
+  {% else %}
+
+  <div class="clash-panel">
+    <div class="clash-panel-header">
+      <h2 class="clash-panel-title"><i class="fas fa-chart-bar"></i>Card Meta</h2>
+    </div>
+    <div class="row g-0">
+      <div class="col-lg-6 border-end border-light">
+        <h3 class="clash-subpanel-title">Top 10 Most Used</h3>
+        <div class="clash-panel-body--flush px-1 pb-2">
+          {% include 'games/_clash_card_table.html' with cards=tier_data.cards_by_usage win_rate_first=False %}
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <h3 class="clash-subpanel-title">Top 10 Win Rate <span class="fw-normal text-muted">(15+ games)</span></h3>
+        <div class="clash-panel-body--flush px-1 pb-2">
+          {% include 'games/_clash_card_table.html' with cards=tier_data.cards_by_win_rate win_rate_first=True %}
+        </div>
+      </div>
+    </div>
+    {% if tier_data.all_cards %}
+    <div class="clash-expand-wrap">
+      <button type="button" class="btn btn-outline-primary btn-sm" id="toggle-all-cards"
+              data-count="{{ tier_data.all_cards|length }}">
+        <i class="fas fa-chevron-down me-1"></i>Show all {{ tier_data.all_cards|length }} cards
+      </button>
+    </div>
+    <div id="all-cards-panel" class="d-none border-top">
+      <div class="clash-panel-body--flush">
+        <table class="table table-sm clash-table mb-0">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Card</th>
+              <th class="text-end">Usage</th>
+              <th class="text-end">Games</th>
+              <th class="text-end">Win %</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for card in tier_data.all_cards %}
+            <tr>
+              <td class="text-muted">{{ forloop.counter }}</td>
+              <td>
+                <span class="clash-card-chip clash-card-chip--compact">
+                  {% if card.icon_url %}<img src="{{ card.icon_url }}" alt="" loading="lazy">{% endif %}
+                  <span class="clash-elixir">{{ card.elixir }}</span>
+                  <span class="clash-card-name">{{ card.name }}</span>
+                </span>
+              </td>
+              <td class="text-end text-muted">{{ card.usage_rate }}%</td>
+              <td class="text-end text-muted">{{ card.uses }}</td>
+              <td class="text-end {% if card.win_rate >= 52 %}wr-good{% elif card.win_rate >= 48 %}wr-ok{% else %}wr-bad{% endif %}">
+                {{ card.win_rate }}%
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="clash-panel">
+    <div class="clash-panel-header">
+      <h2 class="clash-panel-title"><i class="fas fa-lightbulb"></i>Recommendations</h2>
+      <span class="clash-panel-subtitle">For {{ tier_data.label }}</span>
+    </div>
+    <div class="clash-panel-body">
+      {% for rec in tier_data.recommendations %}
+      <div class="clash-recommend-card">
+        <div class="clash-recommend-reason">
+          <i class="fas fa-star me-1"></i>{{ rec.reason }}
+          {% if rec.is_my_deck %}<span class="badge rounded-pill text-bg-secondary ms-1">Your deck</span>{% endif %}
+        </div>
+        <div class="clash-deck-meta">
+          <span class="clash-wr-badge {% if rec.win_rate >= 52 %}wr-good{% elif rec.win_rate >= 48 %}wr-ok{% else %}wr-bad{% endif %}">
+            {{ rec.win_rate }}% WR
+          </span>
+          <span class="clash-meta-item">{{ rec.uses }} battles</span>
+          <span class="clash-meta-item">{{ rec.avg_elixir }} avg elixir</span>
+        </div>
+        <div class="clash-deck-cards">
+          {% for card in rec.cards %}
+          <span class="clash-card-chip" title="{{ card.name }}">
+            {% if card.icon_url %}<img src="{{ card.icon_url }}" alt="{{ card.name }}" loading="lazy">{% endif %}
+            <span class="clash-elixir">{{ card.elixir }}</span>
+          </span>
+          {% endfor %}
+        </div>
+        {% if rec.swaps %}
+        <div class="clash-swap-hint">
+          {% for swap in rec.swaps %}
+          <div><i class="fas fa-exchange-alt me-1"></i>{{ swap.reason }}</div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% empty %}
+      <p class="text-muted mb-0">Not enough data for recommendations yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if tier_data.my_decks %}
+  <div class="clash-panel">
+    <div class="clash-panel-header">
+      <h2 class="clash-panel-title"><i class="fas fa-user"></i>Your Decks in {{ tier_data.label }}</h2>
+    </div>
+    <div class="clash-panel-body">
+      {% for deck in tier_data.my_decks %}
+        {% include 'games/_clash_deck_row.html' with deck=deck %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="clash-panel">
+    <div class="clash-panel-header">
+      <h2 class="clash-panel-title"><i class="fas fa-crown"></i>Top Decks in {{ tier_data.label }}</h2>
+    </div>
+    <div class="clash-panel-body">
+      {% for deck in tier_data.top_decks %}
+        {% include 'games/_clash_deck_row.html' with deck=deck %}
+      {% empty %}
+      <p class="text-muted mb-0">Not enough deck samples yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% endif %}
+</div>
+
+<script>
+  (function () {
+    const btn = document.getElementById('toggle-all-cards');
+    const panel = document.getElementById('all-cards-panel');
+    if (!btn || !panel) return;
+    const count = btn.dataset.count || '';
+    btn.addEventListener('click', function () {
+      const hidden = panel.classList.toggle('d-none');
+      btn.innerHTML = hidden
+        ? '<i class="fas fa-chevron-down me-1"></i>Show all ' + count + ' cards'
+        : '<i class="fas fa-chevron-up me-1"></i>Hide all cards';
+    });
+  })();
+</script>
+{% endblock %}

@@ -1,0 +1,20 @@
+<div class="clash-deck-row">
+  <div class="clash-deck-meta">
+    <span class="clash-wr-badge {% if deck.win_rate >= 52 %}wr-good{% elif deck.win_rate >= 48 %}wr-ok{% else %}wr-bad{% endif %}">
+      {{ deck.win_rate }}% win rate
+    </span>
+    <span class="clash-meta-item"><i class="fas fa-chart-line me-1"></i>{{ deck.uses }} battles</span>
+    {% if deck.avg_elixir %}
+    <span class="clash-meta-item"><i class="fas fa-bolt me-1"></i>{{ deck.avg_elixir }} avg elixir</span>
+    {% endif %}
+  </div>
+  <div class="clash-deck-cards">
+    {% for card in deck.cards %}
+    <span class="clash-card-chip" title="{{ card.name }}">
+      {% if card.icon_url %}<img src="{{ card.icon_url }}" alt="{{ card.name }}" loading="lazy">{% endif %}
+      <span class="clash-elixir">{{ card.elixir }}</span>
+      <span class="clash-card-name">{{ card.name }}</span>
+    </span>
+    {% endfor %}
+  </div>
+</div>

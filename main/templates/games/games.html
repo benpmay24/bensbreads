@@ -40,7 +40,25 @@
         </div>
       </div>
     </div>
-    <!-- Placeholder for future games -->
+    <!-- Clash Center (admin only) -->
+    {% if user.is_superuser %}
+    <div class="col-md-6 col-lg-4">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body d-flex flex-column align-items-center">
+          <div style="font-size:2.5rem; color:var(--color-primary-dark, #8b6914);">
+            <i class="fas fa-crown"></i>
+          </div>
+          <h3 class="card-title mt-2 mb-1" style="font-weight:600;">Clash Center</h3>
+          <p class="card-text text-muted mb-3 text-center" style="font-size:1rem;">
+            Ranked battle analytics, league meta, and deck recommendations from your battle logs.
+          </p>
+          <a href="{% url 'clash_center' %}" class="btn btn-outline-primary w-100 mt-auto" style="font-weight:600; font-size:1.08rem;">
+            <i class="fas fa-crown me-2"></i>Open Clash Center
+          </a>
+        </div>
+      </div>
+    </div>
+    {% else %}
     <div class="col-md-6 col-lg-4">
       <div class="card h-100 shadow-sm" style="border:2px dashed #d2b48c;">
         <div class="card-body d-flex flex-column align-items-center justify-content-center" style="opacity:0.6;">
@@ -51,11 +69,11 @@
           <p class="card-text text-muted mb-0 text-center" style="font-size:1rem;">
             Stay tuned for more fun games!
           </p>
-          <!-- Keep button spacing for consistent layout, but hide the button -->
           <a class="btn btn-outline-primary w-100 mt-auto" style="visibility:hidden;">Coming Soon</a>
         </div>
       </div>
     </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

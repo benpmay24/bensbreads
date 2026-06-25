@@ -1,0 +1,344 @@
+
+/* ===== Clash Center ===== */
+.clash-breadcrumb {
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+.clash-breadcrumb a {
+  color: var(--color-text-muted);
+  text-decoration: none;
+  transition: color var(--transition);
+}
+
+.clash-breadcrumb a:hover {
+  color: var(--color-primary-dark);
+}
+
+.clash-sync-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 1rem;
+  margin-top: 1rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.clash-sync-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-elevated);
+}
+
+.clash-sync-badge.syncing {
+  border-color: #e6c200;
+  background: #fffbeb;
+  color: #8a6d00;
+}
+
+.clash-sync-badge.due {
+  border-color: #f5c6c0;
+  background: #fff5f5;
+  color: #a94442;
+}
+
+.clash-sync-badge.up_to_date,
+.clash-sync-badge.never_synced {
+  border-color: #c8e6c9;
+  background: #f1f8f1;
+  color: #2e7d32;
+}
+
+.clash-panel {
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.clash-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.9rem 1.25rem;
+  border-bottom: 1px solid var(--color-border-light);
+  background: var(--color-surface);
+}
+
+.clash-panel-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.clash-panel-title i {
+  color: var(--color-primary-dark);
+  margin-right: 0.4rem;
+}
+
+.clash-panel-subtitle {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.clash-panel-body {
+  padding: 1.25rem;
+}
+
+.clash-panel-body--flush {
+  padding: 0;
+}
+
+.clash-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 1rem;
+}
+
+.clash-section-heading {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 2rem 0 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--color-border-light);
+}
+
+.clash-tier-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.clash-tier-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+  transition: all var(--transition);
+}
+
+.clash-tier-tab:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary-dark);
+}
+
+.clash-tier-tab.active {
+  background: var(--color-primary-dark);
+  border-color: var(--color-primary-dark);
+  color: #fff;
+}
+
+.clash-tier-tab .clash-tier-count {
+  font-weight: 500;
+  opacity: 0.8;
+  font-size: 0.75rem;
+}
+
+.clash-subpanel-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-primary-dark);
+  padding: 0.85rem 1.25rem 0.5rem;
+  margin: 0;
+}
+
+.clash-table thead th {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border-light);
+  background: var(--color-surface);
+  padding: 0.65rem 1rem;
+}
+
+.clash-table tbody td {
+  padding: 0.65rem 1rem;
+  vertical-align: middle;
+  border-color: var(--color-border-light);
+}
+
+.clash-table tbody tr:hover {
+  background: var(--color-surface);
+}
+
+.clash-card-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+  padding: 0.2rem 0.5rem 0.2rem 0.2rem;
+  font-size: 0.78rem;
+  margin: 0.15rem;
+  white-space: nowrap;
+}
+
+.clash-card-chip img {
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.clash-card-chip--compact .clash-card-name {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.clash-elixir {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  background: #ede4f7;
+  color: #6b3fa0;
+  font-size: 0.65rem;
+  font-weight: 700;
+  border-radius: 4px;
+}
+
+.clash-deck-row {
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.clash-deck-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.clash-deck-row:first-child {
+  padding-top: 0;
+}
+
+.clash-deck-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+  font-size: 0.85rem;
+}
+
+.clash-meta-item {
+  color: var(--color-text-muted);
+}
+
+.clash-wr-badge {
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+}
+
+.clash-wr-badge.wr-good { background: #e8f5e9; color: #2e7d32; }
+.clash-wr-badge.wr-ok { background: #fff3e0; color: #e65100; }
+.clash-wr-badge.wr-bad { background: #ffebee; color: #c62828; }
+
+.wr-good { color: #2e7d32; font-weight: 600; }
+.wr-ok { color: #e65100; font-weight: 600; }
+.wr-bad { color: #c62828; font-weight: 600; }
+
+.clash-deck-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.clash-recommend-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.15rem;
+  margin-bottom: 0.85rem;
+  background: linear-gradient(135deg, #fffdf9 0%, var(--color-surface) 100%);
+  transition: box-shadow var(--transition);
+}
+
+.clash-recommend-card:hover { box-shadow: var(--shadow-sm); }
+.clash-recommend-card:last-child { margin-bottom: 0; }
+
+.clash-recommend-reason {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-primary-dark);
+  margin-bottom: 0.6rem;
+}
+
+.clash-swap-hint {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin-top: 0.65rem;
+  padding-top: 0.65rem;
+  border-top: 1px dashed var(--color-border-light);
+}
+
+.clash-expand-wrap {
+  padding: 0.85rem 1.25rem;
+  text-align: center;
+  border-top: 1px solid var(--color-border-light);
+  background: var(--color-surface);
+}
+
+.clash-empty {
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+  color: var(--color-text-muted);
+}
+
+.clash-empty i {
+  font-size: 2rem;
+  color: var(--color-border);
+  margin-bottom: 0.75rem;
+  display: block;
+}
+
+.clash-player-tag {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-primary-dark);
+  background: rgba(184, 134, 11, 0.12);
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-sm);
+}
+
+@media (max-width: 768px) {
+  .clash-tier-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+  }
+  .clash-card-chip--compact .clash-card-name { max-width: 90px; }
+  .clash-stats-grid { grid-template-columns: repeat(2, 1fr); }
+}

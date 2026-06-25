@@ -212,3 +212,12 @@ DOG_WATCH_SYNC_INTERVAL_HOURS = int(os.environ.get('DOG_WATCH_SYNC_INTERVAL_HOUR
 DOG_WATCH_APHIS_DELAY_SECONDS = float(os.environ.get('DOG_WATCH_APHIS_DELAY_SECONDS', '1.5'))
 DOG_WATCH_VIOLATIONS_BATCH_SIZE = int(os.environ.get('DOG_WATCH_VIOLATIONS_BATCH_SIZE', '40'))
 DOG_WATCH_VIOLATIONS_MAX_BATCHES = int(os.environ.get('DOG_WATCH_VIOLATIONS_MAX_BATCHES', '50'))
+
+# Clash Center: data collected by Render Cron Job (`python manage.py clash_center_sync`).
+# The web app only reads from the database.
+CLASH_ROYALE_API_TOKEN = os.environ.get('CLASH_ROYALE_API_TOKEN', '')
+CLASH_ROYALE_API_BASE = 'https://api.clashroyale.com/v1'
+CLASH_CENTER_PLAYER_TAG = os.environ.get('CLASH_CENTER_PLAYER_TAG', '')
+CLASH_CENTER_SYNC_INTERVAL_HOURS = float(os.environ.get('CLASH_CENTER_SYNC_INTERVAL_HOURS', '1'))
+CLASH_CENTER_MAX_BATTLES_PER_SYNC = int(os.environ.get('CLASH_CENTER_MAX_BATTLES_PER_SYNC', '2500'))
+CLASH_CENTER_API_DELAY_SECONDS = float(os.environ.get('CLASH_CENTER_API_DELAY_SECONDS', '0.4'))

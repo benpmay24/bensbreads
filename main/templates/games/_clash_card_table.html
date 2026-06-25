@@ -1,0 +1,40 @@
+<table class="table table-sm clash-table mb-0">
+  <thead>
+    <tr>
+      <th>Card</th>
+      {% if win_rate_first %}
+      <th class="text-end">Win %</th>
+      <th class="text-end">Usage</th>
+      {% else %}
+      <th class="text-end">Usage</th>
+      <th class="text-end">Win %</th>
+      {% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for card in cards %}
+    <tr>
+      <td>
+        <span class="clash-card-chip clash-card-chip--compact">
+          {% if card.icon_url %}<img src="{{ card.icon_url }}" alt="" loading="lazy">{% endif %}
+          <span class="clash-elixir">{{ card.elixir }}</span>
+          <span class="clash-card-name">{{ card.name }}</span>
+        </span>
+      </td>
+      {% if win_rate_first %}
+      <td class="text-end {% if card.win_rate >= 52 %}wr-good{% elif card.win_rate >= 48 %}wr-ok{% else %}wr-bad{% endif %}">
+        {{ card.win_rate }}%
+      </td>
+      <td class="text-end text-muted">{{ card.usage_rate }}%</td>
+      {% else %}
+      <td class="text-end text-muted">{{ card.usage_rate }}%</td>
+      <td class="text-end {% if card.win_rate >= 52 %}wr-good{% elif card.win_rate >= 48 %}wr-ok{% else %}wr-bad{% endif %}">
+        {{ card.win_rate }}%
+      </td>
+      {% endif %}
+    </tr>
+    {% empty %}
+    <tr><td colspan="3" class="text-muted text-center py-4">Not enough data yet</td></tr>
+    {% endfor %}
+  </tbody>
+</table>

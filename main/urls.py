@@ -11,6 +11,7 @@ urlpatterns = [
     path('games/', views.games, name='games'),
     path('games/connect4/', views.connect4, name='connect4'),
     path('games/word-find/', views.word_find, name='word_find'),
+    path('games/clash-center/', views.clash_center, name='clash_center'),
     path('blog/add/', views.add_blog_post, name='add_blog_post'),
     path('manage-users/', views.manage_users, name='manage_users'),
     path('login/', auth_views.LoginView.as_view(), name='login'),

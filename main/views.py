@@ -39,6 +39,17 @@ def home(request):
 def games(request):
     return render(request, 'games/games.html')
 
+
+@user_passes_test(lambda u: u.is_superuser)
+def clash_center(request):
+    """Ranked battle analytics (reads DB only)."""
+    from main.clash_center.analytics import build_clash_center_context
+
+    tier_param = request.GET.get('tier')
+    selected_tier = int(tier_param) if tier_param and tier_param.isdigit() else None
+    context = build_clash_center_context(selected_tier=selected_tier)
+    return render(request, 'games/clash_center.html', context)
+
 # Home view (showing public posts)
 def blog(request):
     posts = BlogPost.objects.filter(private=False).order_by('-created_at')  # Only non-private posts
