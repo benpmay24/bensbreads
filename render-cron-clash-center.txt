@@ -8,7 +8,8 @@
 #   CLASH_ROYALE_API_TOKEN=...          — API key from developer.clashroyale.com
 #   CLASH_CENTER_PLAYER_TAG=#YOURTAG    — your Clash Royale player tag
 #
-# Whitelist the Render cron job's outbound IP in the developer portal, or requests will 403.
+# API requests go through https://proxy.royaleapi.dev/v1 (hardcoded).
+# Whitelist 45.79.218.79 on your API key at developer.clashroyale.com (proxy IP).
 #
 # Optional env vars:
 #   CLASH_CENTER_SYNC_INTERVAL_HOURS=1
