@@ -47,6 +47,11 @@ def _tier_baseline(tier: int) -> float:
     return qs.filter(player_won=True).count() / n
 
 
+def _significant_win_rate(row: dict) -> bool:
+    """One-sided p < 0.05 vs league baseline (win rate above average)."""
+    return row.get('p_value_greater', 1.0) < 0.05
+
+
 def _merge_win_stats(row: dict, wins: int, uses: int, baseline: float, *, min_n: int = 1) -> dict:
     stats = analyze_win_rate(wins, uses, baseline, min_n_for_test=min_n)
     row.update(stats)
@@ -155,24 +160,20 @@ def _card_stats_for_tier(tier: int) -> dict:
     by_usage = sorted(all_rows, key=lambda r: (-r['usage_rate'], -r['score']))
     qualified = [r for r in all_rows if r['uses'] >= MIN_CARD_BATTLES_WIN_RATE]
     by_win_rate = sorted(
-        qualified,
-        key=lambda r: (-r['ci_low_score'], -r['win_rate'], -r['uses']),
-    )
-    by_sig = sorted(
-        [r for r in qualified if r['sig_advantage']],
-        key=lambda r: (-r['score'], -r['win_rate']),
+        [r for r in qualified if _significant_win_rate(r)],
+        key=lambda r: (-r['win_rate'], -r['uses']),
     )
 
     return {
         'by_usage': by_usage[:TOP_CARDS_N],
         'by_win_rate': by_win_rate[:TOP_CARDS_N],
-        'by_sig': by_sig[:TOP_CARDS_N],
         'all': by_usage,
         'baseline_wr': round(100 * baseline, 1),
     }
 
 
-def _deck_stats_for_tier(tier: int) -> list[dict]:
+def _deck_stats_for_tier(tier: int) -> tuple[list[dict], list[dict]]:
+    """Returns (top win-rate decks with p<0.05, all decks for recommendations)."""
     battles = ClashBattle.objects.filter(tier=tier).only('player_cards', 'player_won')
     stats: dict[tuple, dict] = defaultdict(lambda: {'uses': 0, 'wins': 0})
 
@@ -199,8 +200,13 @@ def _deck_stats_for_tier(tier: int) -> list[dict]:
         }
         _merge_win_stats(row, data['wins'], data['uses'], baseline, min_n=MIN_DECK_BATTLES)
         rows.append(row)
-    rows.sort(key=lambda r: (-r['score'], -r['uses']))
-    return rows[:TOP_N]
+
+    top_win_rate = sorted(
+        [r for r in rows if _significant_win_rate(r)],
+        key=lambda r: (-r['win_rate'], -r['uses']),
+    )[:TOP_N]
+    all_by_score = sorted(rows, key=lambda r: (-r['score'], -r['uses']))
+    return top_win_rate, all_by_score
 
 
 def _deck_swap_suggestions(my_deck: tuple, tier: int, top_cards: list[dict]) -> list[dict]:
@@ -244,11 +250,11 @@ def _deck_swap_suggestions(my_deck: tuple, tier: int, top_cards: list[dict]) -> 
 
 def _recommend_decks(
     tier: int,
-    top_decks: list[dict],
+    all_decks: list[dict],
     top_cards: list[dict],
     my_decks: list[dict],
 ) -> list[dict]:
-    if not top_decks:
+    if not all_decks:
         return []
 
     cards = _card_lookup()
@@ -317,7 +323,7 @@ def _recommend_decks(
                 deck_row=deck,
             )
 
-    for deck in top_decks[:8]:
+    for deck in all_decks[:8]:
         key = tuple(c['card_id'] for c in deck['cards'])
         reason = 'Strong overall win rate in this league'
         if deck.get('sig_advantage'):
@@ -349,7 +355,7 @@ def _recommend_decks(
             deck_row=row,
         )
 
-    for deck in top_decks:
+    for deck in all_decks:
         key = tuple(c['card_id'] for c in deck['cards'])
         overlap = len(set(key) & top_card_ids)
         if overlap >= 2 and deck['win_rate'] >= 52:
@@ -407,12 +413,12 @@ def tier_summary(tier: int) -> dict:
     battle_count = battles_qs.count()
     wins = battles_qs.filter(player_won=True).count()
     card_stats = _card_stats_for_tier(tier) if battle_count else {
-        'by_usage': [], 'by_win_rate': [], 'by_sig': [], 'all': [], 'baseline_wr': 50.0,
+        'by_usage': [], 'by_win_rate': [], 'all': [], 'baseline_wr': 50.0,
     }
-    top_decks = _deck_stats_for_tier(tier) if battle_count else []
+    top_decks, all_decks = _deck_stats_for_tier(tier) if battle_count else ([], [])
     my_decks = my_deck_stats(tier=tier)
     recommendations = (
-        _recommend_decks(tier, top_decks, card_stats['all'], my_decks) if battle_count else []
+        _recommend_decks(tier, all_decks, card_stats['all'], my_decks) if battle_count else []
     )
 
     return {
@@ -422,7 +428,6 @@ def tier_summary(tier: int) -> dict:
         'overall_win_rate': round(100 * wins / battle_count, 1) if battle_count else 0,
         'cards_by_usage': card_stats['by_usage'],
         'cards_by_win_rate': card_stats['by_win_rate'],
-        'cards_by_sig': card_stats['by_sig'],
         'all_cards': card_stats['all'],
         'baseline_wr': card_stats.get('baseline_wr', round(100 * wins / battle_count, 1) if battle_count else 50.0),
         'top_decks': top_decks,

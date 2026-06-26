@@ -5,11 +5,13 @@
       {% if win_rate_first %}
       <th class="text-end">Win %</th>
       <th class="text-end">95% CI</th>
+      <th class="text-end">Sig.</th>
       <th class="text-end">Usage</th>
       {% else %}
       <th class="text-end">Usage</th>
       <th class="text-end">Win %</th>
       <th class="text-end">95% CI</th>
+      <th class="text-end">Sig.</th>
       {% endif %}
     </tr>
   </thead>
@@ -22,21 +24,13 @@
           <span class="clash-elixir">{{ card.elixir }}</span>
           <span class="clash-card-name">{{ card.name }}</span>
         </span>
-        {% if card.sig_advantage %}
-        <span class="clash-sig clash-sig--up clash-sig--inline ms-1" title="p={{ card.p_value_greater }} vs {{ card.baseline_wr }}% league avg">
-          <i class="fas fa-check"></i>
-        </span>
-        {% elif card.sig_disadvantage %}
-        <span class="clash-sig clash-sig--down clash-sig--inline ms-1" title="Below league average">
-          <i class="fas fa-minus"></i>
-        </span>
-        {% endif %}
       </td>
       {% if win_rate_first %}
       <td class="text-end {% if card.win_rate >= 52 %}wr-good{% elif card.win_rate >= 48 %}wr-ok{% else %}wr-bad{% endif %}">
         {{ card.win_rate }}%
       </td>
       <td class="text-end text-muted small">{{ card.ci_low }}–{{ card.ci_high }}%</td>
+      <td class="text-end">{% include 'games/_clash_sig_badge.html' with item=card %}</td>
       <td class="text-end text-muted">{{ card.usage_rate }}%</td>
       {% else %}
       <td class="text-end text-muted">{{ card.usage_rate }}%</td>
@@ -44,10 +38,11 @@
         {{ card.win_rate }}%
       </td>
       <td class="text-end text-muted small">{{ card.ci_low }}–{{ card.ci_high }}%</td>
+      <td class="text-end">{% include 'games/_clash_sig_badge.html' with item=card %}</td>
       {% endif %}
     </tr>
     {% empty %}
-    <tr><td colspan="4" class="text-muted text-center py-4">Not enough data yet</td></tr>
+    <tr><td colspan="5" class="text-muted text-center py-4">No statistically significant cards yet (p &lt; 0.05)</td></tr>
     {% endfor %}
   </tbody>
 </table>

@@ -377,3 +377,13 @@
   border: 1px solid var(--color-border-light);
   font-weight: 500;
 }
+
+.clash-ci {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.clash-ci-wrap .clash-ci::before {
+  content: '';
+}
