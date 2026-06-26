@@ -6,6 +6,7 @@ from django.conf import settings
 from django.db.models import Q
 
 from main.clash_center.api_client import ClashRoyaleClient
+from main.clash_center.stats import analyze_win_rate
 from main.clash_center.tiers import RANKED_TIERS, tier_label
 from main.models import ClashBattle, ClashCard, ClashPlayer
 
@@ -31,10 +32,26 @@ def _deck_key(cards: list) -> tuple:
     return tuple(sorted(int(c) for c in cards))
 
 
-def _win_score(wins: int, battles: int) -> float:
+def _win_score(wins: int, battles: int, ci_low_score: float | None = None) -> float:
     if battles <= 0:
         return 0.0
-    return (wins / battles) * math.sqrt(battles)
+    conservative = ci_low_score if ci_low_score is not None else wins / battles
+    return conservative * math.sqrt(battles)
+
+
+def _tier_baseline(tier: int) -> float:
+    qs = ClashBattle.objects.filter(tier=tier)
+    n = qs.count()
+    if not n:
+        return 0.5
+    return qs.filter(player_won=True).count() / n
+
+
+def _merge_win_stats(row: dict, wins: int, uses: int, baseline: float, *, min_n: int = 1) -> dict:
+    stats = analyze_win_rate(wins, uses, baseline, min_n_for_test=min_n)
+    row.update(stats)
+    row['score'] = _win_score(wins, uses, stats['ci_low_score'])
+    return row
 
 
 def _cards_for_battle(battle: ClashBattle, tag: str) -> tuple[list, bool]:
@@ -74,6 +91,8 @@ def my_deck_stats(tier: int | None = None) -> list[dict]:
     if tier in RANKED_TIERS:
         battles = battles.filter(tier=tier)
 
+    baseline = _tier_baseline(tier) if tier in RANKED_TIERS else 0.5
+
     tag = owner_tag()
     stats: dict[tuple, dict] = defaultdict(lambda: {'uses': 0, 'wins': 0})
     for battle in battles.iterator():
@@ -92,15 +111,15 @@ def my_deck_stats(tier: int | None = None) -> list[dict]:
         if data['uses'] < min_battles:
             continue
         deck_cards = _deck_cards_display(deck, cards)
-        rows.append({
+        row = {
             'cards': deck_cards,
             'uses': data['uses'],
             'wins': data['wins'],
-            'win_rate': round(100 * data['wins'] / data['uses'], 1),
             'avg_elixir': round(sum(c['elixir'] for c in deck_cards) / 8, 1),
-            'score': _win_score(data['wins'], data['uses']),
-        })
-    rows.sort(key=lambda r: (-r['uses'], -r['score']))
+        }
+        _merge_win_stats(row, data['wins'], data['uses'], baseline, min_n=min_battles)
+        rows.append(row)
+    rows.sort(key=lambda r: (-r['score'], -r['uses']))
     return rows[:TOP_N]
 
 
@@ -117,28 +136,39 @@ def _card_stats_for_tier(tier: int) -> dict:
 
     cards = _card_lookup()
     total_battles = battles.count() or 1
+    baseline = _tier_baseline(tier)
     all_rows = []
     for card_id, data in stats.items():
         card = cards.get(card_id)
-        all_rows.append({
+        row = {
             'card_id': card_id,
             'name': card.name if card else f'Card {card_id}',
             'elixir': card.elixir if card else 0,
             'icon_url': card.icon_url if card else '',
             'uses': data['uses'],
             'wins': data['wins'],
-            'win_rate': round(100 * data['wins'] / data['uses'], 1),
             'usage_rate': round(100 * data['uses'] / total_battles, 1),
-        })
+        }
+        _merge_win_stats(row, data['wins'], data['uses'], baseline, min_n=MIN_CARD_BATTLES_WIN_RATE)
+        all_rows.append(row)
 
-    by_usage = sorted(all_rows, key=lambda r: (-r['usage_rate'], -r['win_rate']))
+    by_usage = sorted(all_rows, key=lambda r: (-r['usage_rate'], -r['score']))
     qualified = [r for r in all_rows if r['uses'] >= MIN_CARD_BATTLES_WIN_RATE]
-    by_win_rate = sorted(qualified, key=lambda r: (-r['win_rate'], -r['uses']))
+    by_win_rate = sorted(
+        qualified,
+        key=lambda r: (-r['ci_low_score'], -r['win_rate'], -r['uses']),
+    )
+    by_sig = sorted(
+        [r for r in qualified if r['sig_advantage']],
+        key=lambda r: (-r['score'], -r['win_rate']),
+    )
 
     return {
         'by_usage': by_usage[:TOP_CARDS_N],
         'by_win_rate': by_win_rate[:TOP_CARDS_N],
+        'by_sig': by_sig[:TOP_CARDS_N],
         'all': by_usage,
+        'baseline_wr': round(100 * baseline, 1),
     }
 
 
@@ -155,19 +185,20 @@ def _deck_stats_for_tier(tier: int) -> list[dict]:
             stats[key]['wins'] += 1
 
     cards = _card_lookup()
+    baseline = _tier_baseline(tier)
     rows = []
     for deck, data in stats.items():
         if data['uses'] < MIN_DECK_BATTLES:
             continue
         deck_cards = _deck_cards_display(deck, cards)
-        rows.append({
+        row = {
             'cards': deck_cards,
             'uses': data['uses'],
             'wins': data['wins'],
-            'win_rate': round(100 * data['wins'] / data['uses'], 1),
             'avg_elixir': round(sum(c['elixir'] for c in deck_cards) / 8, 1),
-            'score': _win_score(data['wins'], data['uses']),
-        })
+        }
+        _merge_win_stats(row, data['wins'], data['uses'], baseline, min_n=MIN_DECK_BATTLES)
+        rows.append(row)
     rows.sort(key=lambda r: (-r['score'], -r['uses']))
     return rows[:TOP_N]
 
@@ -187,8 +218,14 @@ def _deck_swap_suggestions(my_deck: tuple, tier: int, top_cards: list[dict]) -> 
             continue
         for out_id in my_deck:
             out_card = cards.get(out_id)
-            out_wr = meta_by_id[out_id]['win_rate'] if out_id in meta_by_id else 40
-            if meta['win_rate'] > out_wr + 3 and meta['usage_rate'] > 8:
+            out_meta = meta_by_id.get(out_id, {})
+            out_wr = out_meta.get('win_rate', 40)
+            if (
+                meta.get('sig_advantage')
+                and meta['win_rate'] > out_wr + 2
+                and meta['usage_rate'] > 8
+            ):
+                ci = f"{meta['ci_low']}–{meta['ci_high']}%"
                 suggestions.append({
                     'swap_out': out_id,
                     'swap_in': card_id,
@@ -196,7 +233,7 @@ def _deck_swap_suggestions(my_deck: tuple, tier: int, top_cards: list[dict]) -> 
                     'swap_in_name': meta['name'],
                     'reason': (
                         f'Swap {out_card.name if out_card else out_id} for {meta["name"]} — '
-                        f'{meta["win_rate"]}% WR, {meta["usage_rate"]}% usage in this league'
+                        f'statistically significant edge ({ci} CI, p={meta["p_value_greater"]})'
                     ),
                 })
                 break
@@ -243,22 +280,28 @@ def _recommend_decks(
     candidates = []
     seen_decks = set()
 
-    def _append(deck_key, reason: str, score: float, uses: int, wins: int, swaps=None):
+    def _append(deck_key, reason: str, score: float, uses: int, wins: int, swaps=None, deck_row=None):
         if deck_key in seen_decks or len(deck_key) < 8:
             return
         seen_decks.add(deck_key)
         deck_cards = _deck_cards_display(deck_key, cards)
-        candidates.append({
+        entry = {
             'cards': deck_cards,
             'reason': reason,
             'uses': uses,
             'wins': wins,
-            'win_rate': round(100 * wins / uses, 1) if uses else 0,
             'avg_elixir': round(sum(c['elixir'] for c in deck_cards) / 8, 1),
             'score': score,
             'swaps': swaps or [],
             'is_my_deck': deck_key in my_deck_keys,
-        })
+        }
+        if deck_row:
+            for k in ('win_rate', 'ci_low', 'ci_high', 'p_value', 'sig_advantage', 'sig_disadvantage', 'sig_label', 'baseline_wr'):
+                entry[k] = deck_row.get(k)
+        else:
+            baseline = _tier_baseline(tier)
+            _merge_win_stats(entry, wins, uses, baseline, min_n=MIN_DECK_BATTLES)
+        candidates.append(entry)
 
     for deck in my_decks[:3]:
         key = tuple(c['card_id'] for c in deck['cards'])
@@ -271,11 +314,18 @@ def _recommend_decks(
                 deck['uses'],
                 deck['wins'],
                 swaps=swaps,
+                deck_row=deck,
             )
 
     for deck in top_decks[:8]:
         key = tuple(c['card_id'] for c in deck['cards'])
-        _append(key, 'Strong overall win rate in this league', deck['score'], deck['uses'], deck['wins'])
+        reason = 'Strong overall win rate in this league'
+        if deck.get('sig_advantage'):
+            reason = (
+                f'Statistically significant advantage vs league avg '
+                f'({deck["ci_low"]}–{deck["ci_high"]}% CI, p={deck["p_value_greater"]})'
+            )
+        _append(key, reason, deck['score'], deck['uses'], deck['wins'], deck_row=deck)
 
     for deck_key, data in sorted(
         matchup_stats.items(),
@@ -284,24 +334,35 @@ def _recommend_decks(
     ):
         if data['uses'] < 5:
             continue
+        baseline = _tier_baseline(tier)
+        row = {'uses': data['uses'], 'wins': data['wins']}
+        _merge_win_stats(row, data['wins'], data['uses'], baseline, min_n=5)
+        reason = 'Counters popular meta decks in this league'
+        if row.get('sig_advantage'):
+            reason += f' (significant, p={row["p_value_greater"]})'
         _append(
             deck_key,
-            'Counters popular meta decks in this league',
-            _win_score(data['wins'], data['uses']),
+            reason,
+            row['score'],
             data['uses'],
             data['wins'],
+            deck_row=row,
         )
 
     for deck in top_decks:
         key = tuple(c['card_id'] for c in deck['cards'])
         overlap = len(set(key) & top_card_ids)
         if overlap >= 2 and deck['win_rate'] >= 52:
+            reason = f'Uses {overlap} of the top meta cards in this league'
+            if deck.get('sig_advantage'):
+                reason += ' with significant win-rate edge'
             _append(
                 key,
-                f'Uses {overlap} of the top meta cards in this league',
+                reason,
                 deck['score'] * (1 + 0.1 * overlap),
                 deck['uses'],
                 deck['wins'],
+                deck_row=deck,
             )
 
     candidates.sort(key=lambda c: -c['score'])
@@ -328,13 +389,16 @@ def my_summary() -> dict:
             if latest:
                 tier = latest.tier
 
+    overall = analyze_win_rate(wins, count, _tier_baseline(tier) if tier in RANKED_TIERS else 0.5, min_n_for_test=MIN_MY_DECK_BATTLES)
+
     return {
         'tag': tag,
         'battle_count': count,
-        'overall_win_rate': round(100 * wins / count, 1) if count else 0,
+        'overall_win_rate': overall['win_rate'],
         'tier': tier,
         'tier_label': tier_label(tier) if tier else 'Unknown',
         'decks': my_deck_stats(),
+        **{k: overall[k] for k in ('ci_low', 'ci_high', 'sig_advantage', 'sig_disadvantage', 'sig_label', 'baseline_wr', 'p_value_greater')},
     }
 
 
@@ -343,7 +407,7 @@ def tier_summary(tier: int) -> dict:
     battle_count = battles_qs.count()
     wins = battles_qs.filter(player_won=True).count()
     card_stats = _card_stats_for_tier(tier) if battle_count else {
-        'by_usage': [], 'by_win_rate': [], 'all': [],
+        'by_usage': [], 'by_win_rate': [], 'by_sig': [], 'all': [], 'baseline_wr': 50.0,
     }
     top_decks = _deck_stats_for_tier(tier) if battle_count else []
     my_decks = my_deck_stats(tier=tier)
@@ -358,7 +422,9 @@ def tier_summary(tier: int) -> dict:
         'overall_win_rate': round(100 * wins / battle_count, 1) if battle_count else 0,
         'cards_by_usage': card_stats['by_usage'],
         'cards_by_win_rate': card_stats['by_win_rate'],
+        'cards_by_sig': card_stats['by_sig'],
         'all_cards': card_stats['all'],
+        'baseline_wr': card_stats.get('baseline_wr', round(100 * wins / battle_count, 1) if battle_count else 50.0),
         'top_decks': top_decks,
         'my_decks': my_decks,
         'recommendations': recommendations,

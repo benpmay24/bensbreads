@@ -64,12 +64,20 @@
           <div class="stat-card">
             <div class="stat-value">{{ my_data.overall_win_rate }}%</div>
             <div class="stat-label">Win Rate</div>
+            {% if my_data.battle_count >= 3 %}
+            <div class="small text-muted mt-1">{{ my_data.ci_low }}–{{ my_data.ci_high }}% CI</div>
+            {% endif %}
           </div>
           <div class="stat-card">
             <div class="stat-value" style="font-size:1.35rem;">{{ my_data.tier_label }}</div>
             <div class="stat-label">League</div>
           </div>
         </div>
+        {% if my_data.sig_advantage or my_data.sig_disadvantage %}
+        <div class="mt-3 text-center">
+          {% include 'games/_clash_sig_badge.html' with item=my_data %}
+        </div>
+        {% endif %}
       {% endif %}
     </div>
   </div>
@@ -130,6 +138,7 @@
   <div class="clash-panel">
     <div class="clash-panel-header">
       <h2 class="clash-panel-title"><i class="fas fa-chart-bar"></i>Card Meta</h2>
+      <span class="clash-panel-subtitle">League avg {{ tier_data.baseline_wr }}% · 95% Wilson CI · p &lt; 0.05 vs baseline</span>
     </div>
     <div class="row g-0">
       <div class="col-lg-6 border-end border-light">
@@ -139,7 +148,7 @@
         </div>
       </div>
       <div class="col-lg-6">
-        <h3 class="clash-subpanel-title">Top 10 Win Rate <span class="fw-normal text-muted">(15+ games)</span></h3>
+        <h3 class="clash-subpanel-title">Top 10 Win Rate <span class="fw-normal text-muted">(ranked by CI lower bound)</span></h3>
         <div class="clash-panel-body--flush px-1 pb-2">
           {% include 'games/_clash_card_table.html' with cards=tier_data.cards_by_win_rate win_rate_first=True %}
         </div>
@@ -162,6 +171,8 @@
               <th class="text-end">Usage</th>
               <th class="text-end">Games</th>
               <th class="text-end">Win %</th>
+              <th class="text-end">95% CI</th>
+              <th class="text-end">Sig.</th>
             </tr>
           </thead>
           <tbody>
@@ -179,6 +190,12 @@
               <td class="text-end text-muted">{{ card.uses }}</td>
               <td class="text-end {% if card.win_rate >= 52 %}wr-good{% elif card.win_rate >= 48 %}wr-ok{% else %}wr-bad{% endif %}">
                 {{ card.win_rate }}%
+              </td>
+              <td class="text-end text-muted small">{{ card.ci_low }}–{{ card.ci_high }}%</td>
+              <td class="text-end">
+                {% if card.sig_advantage %}<span class="clash-sig clash-sig--up clash-sig--inline"><i class="fas fa-check"></i></span>
+                {% elif card.sig_disadvantage %}<span class="clash-sig clash-sig--down clash-sig--inline"><i class="fas fa-minus"></i></span>
+                {% else %}<span class="text-muted">—</span>{% endif %}
               </td>
             </tr>
             {% endfor %}
@@ -205,6 +222,7 @@
           <span class="clash-wr-badge {% if rec.win_rate >= 52 %}wr-good{% elif rec.win_rate >= 48 %}wr-ok{% else %}wr-bad{% endif %}">
             {{ rec.win_rate }}% WR
           </span>
+          {% include 'games/_clash_sig_badge.html' with item=rec %}
           <span class="clash-meta-item">{{ rec.uses }} battles</span>
           <span class="clash-meta-item">{{ rec.avg_elixir }} avg elixir</span>
         </div>

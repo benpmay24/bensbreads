@@ -3,6 +3,7 @@
     <span class="clash-wr-badge {% if deck.win_rate >= 52 %}wr-good{% elif deck.win_rate >= 48 %}wr-ok{% else %}wr-bad{% endif %}">
       {{ deck.win_rate }}% win rate
     </span>
+    {% include 'games/_clash_sig_badge.html' with item=deck %}
     <span class="clash-meta-item"><i class="fas fa-chart-line me-1"></i>{{ deck.uses }} battles</span>
     {% if deck.avg_elixir %}
     <span class="clash-meta-item"><i class="fas fa-bolt me-1"></i>{{ deck.avg_elixir }} avg elixir</span>

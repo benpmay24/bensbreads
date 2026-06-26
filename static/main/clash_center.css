@@ -342,3 +342,38 @@
   .clash-card-chip--compact .clash-card-name { max-width: 90px; }
   .clash-stats-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+.clash-sig {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.clash-sig--inline {
+  padding: 0.1rem 0.35rem;
+  font-size: 0.65rem;
+}
+
+.clash-sig--up {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #c8e6c9;
+}
+
+.clash-sig--down {
+  background: #ffebee;
+  color: #c62828;
+  border: 1px solid #ffcdd2;
+}
+
+.clash-sig--neutral {
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border-light);
+  font-weight: 500;
+}

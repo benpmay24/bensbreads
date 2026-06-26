@@ -1,0 +1,13 @@
+{% if item.sig_advantage %}
+<span class="clash-sig clash-sig--up" title="Win rate significantly above league baseline (p &lt; 0.05, 95% CI above {{ item.baseline_wr }}%)">
+  <i class="fas fa-arrow-up"></i> Significant
+</span>
+{% elif item.sig_disadvantage %}
+<span class="clash-sig clash-sig--down" title="Win rate significantly below league baseline (p &lt; 0.05)">
+  <i class="fas fa-arrow-down"></i> Below avg
+</span>
+{% elif item.uses >= 5 %}
+<span class="clash-sig clash-sig--neutral" title="95% CI: {{ item.ci_low }}–{{ item.ci_high }}% (league avg {{ item.baseline_wr }}%)">
+  {{ item.ci_low }}–{{ item.ci_high }}%
+</span>
+{% endif %}
