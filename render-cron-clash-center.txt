@@ -26,3 +26,7 @@
 #   python manage.py clash_center_sync --clear-lock --force
 #
 # The web UI at /games/clash-center/ reads from the database only — no API calls.
+#
+# Deck Coach (web service only, not cron):
+#   GEMINI_API_KEY=...                    — Google AI Studio key for deck coach
+#   CLASH_CENTER_AGENT_MODEL=...          — optional, default gemini-2.5-flash-lite

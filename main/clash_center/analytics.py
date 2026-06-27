@@ -11,6 +11,7 @@ from main.clash_center.tiers import RANKED_TIERS, tier_label
 from main.models import ClashBattle, ClashCard, ClashPlayer
 
 MIN_DECK_BATTLES = 5
+MIN_TOP_DECK_BATTLES = 20
 MIN_CARD_BATTLES_WIN_RATE = 15
 MIN_MY_DECK_BATTLES = 3
 TOP_N = 15
@@ -202,7 +203,7 @@ def _deck_stats_for_tier(tier: int) -> tuple[list[dict], list[dict]]:
         rows.append(row)
 
     top_win_rate = sorted(
-        [r for r in rows if _significant_win_rate(r)],
+        [r for r in rows if r['uses'] >= MIN_TOP_DECK_BATTLES and _significant_win_rate(r)],
         key=lambda r: (-r['win_rate'], -r['uses']),
     )[:TOP_N]
     all_by_score = sorted(rows, key=lambda r: (-r['score'], -r['uses']))

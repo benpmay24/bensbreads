@@ -139,6 +139,8 @@ def sync_cards(client: ClashRoyaleClient, state: ClashCenterSyncState, force: bo
                 'elixir': int(card.get('elixirCost') or 0),
                 'rarity': card.get('rarity', ''),
                 'card_type': card.get('type', ''),
+                'max_level': int(card.get('maxLevel') or 0),
+                'max_evolution_level': int(card.get('maxEvolutionLevel') or 0),
                 'icon_url': _card_icon_url(card),
             },
         )

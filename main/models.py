@@ -498,6 +498,8 @@ class ClashCard(models.Model):
     elixir = models.PositiveSmallIntegerField(default=0)
     rarity = models.CharField(max_length=30, blank=True)
     card_type = models.CharField(max_length=30, blank=True)
+    max_level = models.PositiveSmallIntegerField(default=0)
+    max_evolution_level = models.PositiveSmallIntegerField(default=0)
     icon_url = models.URLField(max_length=500, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 

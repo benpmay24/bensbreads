@@ -43,12 +43,46 @@ def games(request):
 @user_passes_test(lambda u: u.is_superuser)
 def clash_center(request):
     """Ranked battle analytics (reads DB only)."""
+    from main.clash_center.agent import agent_configured
     from main.clash_center.analytics import build_clash_center_context
 
     tier_param = request.GET.get('tier')
     selected_tier = int(tier_param) if tier_param and tier_param.isdigit() else None
     context = build_clash_center_context(selected_tier=selected_tier)
+    context['agent_enabled'] = agent_configured()
     return render(request, 'games/clash_center.html', context)
+
+
+@require_POST
+@user_passes_test(lambda u: u.is_superuser)
+def clash_center_chat(request):
+    """Gemini agent endpoint for Clash Center coaching."""
+    from main.clash_center.agent import agent_configured, run_agent
+
+    if not agent_configured():
+        return JsonResponse({'error': 'GEMINI_API_KEY is not configured'}, status=503)
+
+    try:
+        body = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+    messages = body.get('messages', [])
+    if not messages or not isinstance(messages, list):
+        return JsonResponse({'error': 'messages array required'}, status=400)
+
+    if messages[-1].get('role') != 'user':
+        return JsonResponse({'error': 'Last message must be from user'}, status=400)
+
+    result = run_agent(messages)
+    if result.get('error') and not result.get('reply'):
+        status = result.get('status', 500)
+        return JsonResponse({'error': result['error']}, status=status)
+
+    return JsonResponse({
+        'reply': result.get('reply', ''),
+        'messages': result.get('messages', messages),
+    })
 
 # Home view (showing public posts)
 def blog(request):

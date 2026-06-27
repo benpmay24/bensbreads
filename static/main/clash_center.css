@@ -387,3 +387,96 @@
 .clash-ci-wrap .clash-ci::before {
   content: '';
 }
+
+/* ===== Deck Coach chat ===== */
+.clash-coach-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.clash-coach-messages {
+  max-height: 420px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.25rem 0.15rem;
+}
+
+.clash-coach-msg {
+  max-width: 92%;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-light);
+  background: var(--color-surface);
+}
+
+.clash-coach-msg--user {
+  align-self: flex-end;
+  background: #fff8e8;
+  border-color: #e8d5a8;
+}
+
+.clash-coach-msg--assistant {
+  align-self: flex-start;
+  background: var(--color-surface-elevated);
+}
+
+.clash-coach-msg--loading {
+  opacity: 0.85;
+}
+
+.clash-coach-msg-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.clash-coach-msg-text {
+  font-size: 0.92rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.clash-coach-form {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-end;
+  border-top: 1px solid var(--color-border-light);
+  padding-top: 0.85rem;
+}
+
+.clash-coach-input {
+  flex: 1;
+  resize: vertical;
+  min-height: 2.75rem;
+  max-height: 8rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.92rem;
+  font-family: inherit;
+  background: var(--color-surface-elevated);
+  transition: border-color var(--transition);
+}
+
+.clash-coach-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(180, 140, 60, 0.15);
+}
+
+.clash-coach-send {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.clash-coach-send:disabled {
+  opacity: 0.65;
+}

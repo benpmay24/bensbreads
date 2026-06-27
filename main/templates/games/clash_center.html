@@ -80,6 +80,43 @@
     </div>
   </div>
 
+  <!-- AI Coach -->
+  <div class="clash-panel clash-coach-panel" id="clash-coach-panel">
+    <div class="clash-panel-header">
+      <h2 class="clash-panel-title"><i class="fas fa-robot"></i>Deck Coach</h2>
+      <span class="clash-panel-subtitle">Gemini · reads your battle data</span>
+    </div>
+    <div class="clash-panel-body clash-coach-body">
+      {% if not agent_enabled %}
+        <p class="text-muted mb-0">
+          Set <code>GEMINI_API_KEY</code> in your environment to enable the deck coach.
+        </p>
+      {% else %}
+        <div class="clash-coach-messages" id="clash-coach-messages" aria-live="polite">
+          <div class="clash-coach-msg clash-coach-msg--assistant">
+            <div class="clash-coach-msg-label">Coach</div>
+            <div class="clash-coach-msg-text">
+              Ask about your win rates, league meta, or how to optimize a deck. I'll pull from your scraped battle data.
+            </div>
+          </div>
+        </div>
+        <form class="clash-coach-form" id="clash-coach-form">
+          {% csrf_token %}
+          <textarea
+            id="clash-coach-input"
+            class="clash-coach-input"
+            rows="2"
+            placeholder="e.g. What are my best decks in Champion league? Should I swap Fireball for Poison?"
+            maxlength="2000"
+          ></textarea>
+          <button type="submit" class="btn btn-primary clash-coach-send" id="clash-coach-send">
+            <i class="fas fa-paper-plane me-1"></i>Ask
+          </button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
   {% if my_data.decks %}
   <div class="clash-panel">
     <div class="clash-panel-header">
@@ -259,13 +296,13 @@
   <div class="clash-panel">
     <div class="clash-panel-header">
       <h2 class="clash-panel-title"><i class="fas fa-crown"></i>Top Win Rate Decks in {{ tier_data.label }}</h2>
-      <span class="clash-panel-subtitle">p &lt; 0.05 vs league avg · sorted by win %</span>
+      <span class="clash-panel-subtitle">20+ battles · p &lt; 0.05 vs league avg · sorted by win %</span>
     </div>
     <div class="clash-panel-body">
       {% for deck in tier_data.top_decks %}
         {% include 'games/_clash_deck_row.html' with deck=deck %}
       {% empty %}
-      <p class="text-muted mb-0">No statistically significant decks yet (p &lt; 0.05).</p>
+      <p class="text-muted mb-0">No decks with 20+ battles and a statistically significant win rate yet.</p>
       {% endfor %}
     </div>
   </div>
@@ -287,4 +324,113 @@
     });
   })();
 </script>
+
+{% if agent_enabled %}
+<script>
+  (function () {
+    const form = document.getElementById('clash-coach-form');
+    const input = document.getElementById('clash-coach-input');
+    const sendBtn = document.getElementById('clash-coach-send');
+    const messagesEl = document.getElementById('clash-coach-messages');
+    if (!form || !input || !messagesEl) return;
+
+    const chatUrl = '{% url "clash_center_chat" %}';
+    let messages = [];
+    let busy = false;
+
+    function csrfToken() {
+      const el = document.querySelector('[name=csrfmiddlewaretoken]');
+      if (el && el.value) return el.value;
+      const match = document.cookie.match(/csrftoken=([^;]+)/);
+      return match ? decodeURIComponent(match[1]) : '';
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function appendMessage(role, text) {
+      const wrap = document.createElement('div');
+      wrap.className = 'clash-coach-msg clash-coach-msg--' + role;
+      const label = role === 'user' ? 'You' : 'Coach';
+      wrap.innerHTML =
+        '<div class="clash-coach-msg-label">' + label + '</div>' +
+        '<div class="clash-coach-msg-text">' + escapeHtml(text).replace(/\n/g, '<br>') + '</div>';
+      messagesEl.appendChild(wrap);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function setLoading(on) {
+      let loading = document.getElementById('clash-coach-loading');
+      if (on) {
+        if (!loading) {
+          loading = document.createElement('div');
+          loading.id = 'clash-coach-loading';
+          loading.className = 'clash-coach-msg clash-coach-msg--assistant clash-coach-msg--loading';
+          loading.innerHTML =
+            '<div class="clash-coach-msg-label">Coach</div>' +
+            '<div class="clash-coach-msg-text"><i class="fas fa-spinner fa-spin me-1"></i>Looking up battle data…</div>';
+          messagesEl.appendChild(loading);
+        }
+      } else if (loading) {
+        loading.remove();
+      }
+      sendBtn.disabled = on;
+      input.disabled = on;
+      busy = on;
+    }
+
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text || busy) return;
+
+      appendMessage('user', text);
+      messages.push({ role: 'user', content: text });
+      input.value = '';
+      setLoading(true);
+
+      try {
+        const res = await fetch(chatUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken(),
+          },
+          body: JSON.stringify({ messages: messages }),
+        });
+        const data = await res.json();
+        setLoading(false);
+
+        if (!res.ok) {
+          appendMessage('assistant', data.error || 'Something went wrong. Try again.');
+          return;
+        }
+
+        if (data.messages && data.messages.length) {
+          messages = data.messages;
+        } else if (data.reply) {
+          messages.push({ role: 'assistant', content: data.reply });
+        }
+
+        if (data.reply) {
+          appendMessage('assistant', data.reply);
+        }
+      } catch (err) {
+        setLoading(false);
+        appendMessage('assistant', 'Network error — could not reach the coach.');
+      }
+    });
+
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        form.requestSubmit();
+      }
+    });
+  })();
+</script>
+{% endif %}
 {% endblock %}
