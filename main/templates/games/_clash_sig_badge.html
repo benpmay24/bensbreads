@@ -1,9 +1,0 @@
-{% if item.sig_advantage %}
-<span class="clash-sig clash-sig--up" title="p={{ item.p_value_greater }} vs {{ item.baseline_wr }}% league avg">
-  <i class="fas fa-arrow-up"></i> Significant
-</span>
-{% elif item.sig_disadvantage %}
-<span class="clash-sig clash-sig--down" title="p={{ item.p_value_less }} vs {{ item.baseline_wr }}% league avg">
-  <i class="fas fa-arrow-down"></i> Below avg
-</span>
-{% endif %}

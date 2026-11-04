@@ -4,7 +4,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
-from .models import BlogPost, Recipe, Ingredient, Instruction, RamseyPhoto, Connect4Result, WordFindScore, Comment, Review, DailyUpdate, RamseyProfile, VaccineRecord, BoardingExperience, DietEntry, VaccineDocument, DietDocument, BoardingDocument, PuppyMillFacility
+from .models import BlogPost, Recipe, Ingredient, Instruction, RamseyPhoto, Connect4Result, WordFindScore, StarholdResult, Comment, Review, DailyUpdate, RamseyProfile, VaccineRecord, BoardingExperience, DietEntry, VaccineDocument, DietDocument, BoardingDocument
 from .forms import BlogPostForm, RecipeForm, RamseyPhotoForm, CustomUserCreationForm, IngredientForm, InstructionForm, ReviewForm, RamseyProfileForm, VaccineRecordForm, BoardingExperienceForm, DietEntryForm, VaccineDocumentForm, DietDocumentForm, BoardingDocumentForm
 from django.db import transaction
 from django.http import JsonResponse
@@ -17,7 +17,6 @@ from django.forms import inlineformset_factory
 import requests
 from django.conf import settings
 from django.views.decorators.http import require_GET, require_POST
-from django.core.cache import cache
 from django.core.management import call_command
 from io import StringIO
 import threading
@@ -39,50 +38,6 @@ def home(request):
 def games(request):
     return render(request, 'games/games.html')
 
-
-@user_passes_test(lambda u: u.is_superuser)
-def clash_center(request):
-    """Ranked battle analytics (reads DB only)."""
-    from main.clash_center.agent import agent_configured
-    from main.clash_center.analytics import build_clash_center_context
-
-    tier_param = request.GET.get('tier')
-    selected_tier = int(tier_param) if tier_param and tier_param.isdigit() else None
-    context = build_clash_center_context(selected_tier=selected_tier)
-    context['agent_enabled'] = agent_configured()
-    return render(request, 'games/clash_center.html', context)
-
-
-@require_POST
-@user_passes_test(lambda u: u.is_superuser)
-def clash_center_chat(request):
-    """Gemini agent endpoint for Clash Center coaching."""
-    from main.clash_center.agent import agent_configured, run_agent
-
-    if not agent_configured():
-        return JsonResponse({'error': 'GEMINI_API_KEY is not configured'}, status=503)
-
-    try:
-        body = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({'error': 'Invalid JSON'}, status=400)
-
-    messages = body.get('messages', [])
-    if not messages or not isinstance(messages, list):
-        return JsonResponse({'error': 'messages array required'}, status=400)
-
-    if messages[-1].get('role') != 'user':
-        return JsonResponse({'error': 'Last message must be from user'}, status=400)
-
-    result = run_agent(messages)
-    if result.get('error') and not result.get('reply'):
-        status = result.get('status', 500)
-        return JsonResponse({'error': result['error']}, status=status)
-
-    return JsonResponse({
-        'reply': result.get('reply', ''),
-        'messages': result.get('messages', messages),
-    })
 
 # Home view (showing public posts)
 def blog(request):
@@ -617,377 +572,6 @@ def download_document(request, doc_type, doc_id):
     return HttpResponse('Document not found', status=404)
 
 
-# Dog Watch (Superuser Only)
-def _report_to_json(report):
-    return {
-        'date': report.inspection_date.isoformat() if report.inspection_date else '',
-        'url': report.report_url,
-        'direct': report.direct_count,
-        'critical': report.critical_count,
-        'non_critical': report.non_critical_count,
-        'teachable': report.teachable_count,
-    }
-
-
-def _violation_to_json(violation):
-    return {
-        'date': violation.inspection_date.isoformat() if violation.inspection_date else '',
-        'category': violation.category,
-        'section': violation.section,
-        'title': violation.title,
-        'description': violation.description,
-        'is_repeat': violation.is_repeat,
-        'report_url': violation.report.report_url,
-    }
-
-
-def _license_class(license_type: str) -> str:
-    if 'Class A' in license_type:
-        return 'A'
-    if 'Class B' in license_type:
-        return 'B'
-    return ''
-
-
-def _facility_violation_totals(facility, *, db_reports=None, violation_items=None):
-    from main.models import FacilityViolation
-
-    if violation_items is None and hasattr(facility, '_prefetched_objects_cache'):
-        violation_items = list(facility.violations.all())
-    if db_reports is None and hasattr(facility, '_prefetched_objects_cache'):
-        db_reports = list(facility.reports.all())
-
-    if violation_items:
-        direct = sum(1 for v in violation_items if v.category == FacilityViolation.Category.DIRECT)
-        critical = sum(1 for v in violation_items if v.category == FacilityViolation.Category.CRITICAL)
-        non_critical = sum(
-            1 for v in violation_items if v.category == FacilityViolation.Category.NON_CRITICAL
-        )
-    elif db_reports:
-        direct = sum(r.direct_count for r in db_reports)
-        critical = sum(r.critical_count for r in db_reports)
-        non_critical = sum(r.non_critical_count for r in db_reports)
-    else:
-        direct = facility.direct_violations or 0
-        critical = facility.critical_violations or 0
-        non_critical = max(0, (facility.violation_count or 0) - direct - critical)
-
-    return direct, critical, non_critical
-
-
-def _facility_summary_to_json(facility):
-    """Lightweight payload for the map and facilities table."""
-    license_type = facility.license_type or ''
-    direct, critical, non_critical = _facility_violation_totals(facility)
-    return {
-        'id': facility.id,
-        'name': facility.name,
-        'dba': facility.dba_name,
-        'license': facility.license_number,
-        'license_type': license_type,
-        'license_class': _license_class(license_type),
-        'city': facility.city,
-        'state': facility.state,
-        'lat': float(facility.latitude) if facility.latitude else None,
-        'lng': float(facility.longitude) if facility.longitude else None,
-        'direct': direct,
-        'critical': critical,
-        'non_critical': non_critical,
-        'violations': direct + critical + non_critical,
-    }
-
-
-def _facility_to_json(facility):
-    db_reports = list(facility.reports.all())
-    violation_items = list(facility.violations.all())
-    license_type = facility.license_type or ''
-
-    if db_reports:
-        reports = [_report_to_json(r) for r in db_reports]
-    else:
-        reports = facility.inspection_reports or []
-
-    direct, critical, non_critical = _facility_violation_totals(
-        facility,
-        db_reports=db_reports,
-        violation_items=violation_items,
-    )
-
-    return {
-        'id': facility.id,
-        'name': facility.name,
-        'dba': facility.dba_name,
-        'license': facility.license_number,
-        'license_type': license_type,
-        'license_class': _license_class(license_type),
-        'address': facility.full_address,
-        'city': facility.city,
-        'state': facility.state,
-        'lat': float(facility.latitude) if facility.latitude else None,
-        'lng': float(facility.longitude) if facility.longitude else None,
-        'owners': facility.owners,
-        'suppliers': facility.suppliers,
-        'breeds': facility.dog_breeds,
-        'news': facility.news_articles,
-        'reports': reports,
-        'violation_items': [_violation_to_json(v) for v in violation_items],
-        'violations': direct + critical + non_critical,
-        'direct': direct,
-        'critical': critical,
-        'non_critical': non_critical,
-        'usda_url': facility.usda_profile_url,
-    }
-
-
-@user_passes_test(lambda u: u.is_superuser)
-def dog_watch(request):
-    """Map visualization of USDA-licensed dog breeding facilities (reads DB only)."""
-    from django.db.models import Count, Q
-
-    from main.dog_watch.sync_state import (
-        get_last_sync_summary,
-        get_sync_state,
-        next_sync_at,
-        refresh_collection_status,
-        sync_interval_hours,
-        sync_status_label,
-    )
-
-    running, progress = refresh_collection_status()
-    sync_state_obj = get_sync_state()
-
-    base_qs = PuppyMillFacility.objects.filter(is_dog_facility=True)
-    stats = base_qs.aggregate(
-        total=Count('id'),
-        mapped=Count('id', filter=Q(coordinates_geocoded=True)),
-        with_violations=Count('id', filter=Q(violation_count__gt=0)),
-    )
-    all_facilities = list(
-        base_qs.only(
-            'id', 'name', 'dba_name', 'license_number', 'license_type',
-            'city', 'state', 'latitude', 'longitude',
-            'direct_violations', 'critical_violations', 'violation_count',
-        ).order_by('name')
-    )
-    facilities_json = json.dumps([_facility_summary_to_json(f) for f in all_facilities])
-
-    last_scraped = (
-        base_qs.filter(last_scraped_at__isnull=False)
-        .order_by('-last_scraped_at')
-        .values_list('last_scraped_at', flat=True)
-        .first()
-    )
-    states = (
-        base_qs.exclude(state='')
-        .values_list('state', flat=True)
-        .distinct()
-        .order_by('state')
-    )
-    license_classes = (
-        base_qs.exclude(license_type='')
-        .values_list('license_type', flat=True)
-        .distinct()
-        .order_by('license_type')
-    )
-    last_sync = get_last_sync_summary()
-
-    return render(request, 'ramsey/dog_watch.html', {
-        'facilities_json': facilities_json,
-        'total_count': stats['total'],
-        'mapped_count': stats['mapped'],
-        'violation_count': stats['with_violations'],
-        'last_scraped': last_scraped,
-        'states': states,
-        'license_classes': license_classes,
-        'scrape_running': running,
-        'scrape_message': progress.get('message', ''),
-        'sync_interval_hours': sync_interval_hours(),
-        'last_sync': last_sync,
-        'last_sync_at': sync_state_obj.last_sync_at,
-        'next_sync_at': next_sync_at(),
-        'sync_status': 'syncing' if running else sync_status_label(),
-    })
-
-
-@require_GET
-@user_passes_test(lambda u: u.is_superuser)
-def dog_watch_facility_detail(request, facility_id):
-    """Load full inspection/violation detail for one facility on demand."""
-    from django.db.models import Prefetch
-
-    from main.models import FacilityInspectionReport, FacilityViolation
-
-    facility = get_object_or_404(
-        PuppyMillFacility.objects.filter(is_dog_facility=True).prefetch_related(
-            Prefetch(
-                'reports',
-                queryset=FacilityInspectionReport.objects.order_by('-inspection_date'),
-            ),
-            Prefetch(
-                'violations',
-                queryset=FacilityViolation.objects.select_related('report').order_by(
-                    '-inspection_date', 'section'
-                ),
-            ),
-        ),
-        pk=facility_id,
-    )
-    return JsonResponse(_facility_to_json(facility))
-
-
-@user_passes_test(lambda u: u.is_superuser)
-def dog_watch_violations(request):
-    """Browse individual USDA inspection violations across all facilities."""
-    from datetime import datetime
-
-    from django.core.paginator import Paginator
-    from django.db.models import Q
-
-    from main.dog_watch.report_sync import pending_violation_reports_queryset
-    from main.models import FacilityViolation
-
-    qs = (
-        FacilityViolation.objects
-        .select_related('facility', 'report')
-        .order_by('-inspection_date', '-id')
-    )
-
-    valid_categories = {c.value for c in FacilityViolation.Category}
-    categories_selected = [
-        c for c in request.GET.getlist('category') if c in valid_categories
-    ]
-    is_filtered = request.GET.get('filtered') == '1'
-    state = request.GET.get('state', '')
-    q = request.GET.get('q', '').strip()
-    repeat_only = request.GET.get('repeat') == '1'
-    date_from_raw = request.GET.get('date_from', '').strip()
-    date_to_raw = request.GET.get('date_to', '').strip()
-
-    def _parse_date(value: str):
-        if not value:
-            return None
-        try:
-            return datetime.strptime(value, '%Y-%m-%d').date()
-        except ValueError:
-            return None
-
-    date_from = _parse_date(date_from_raw)
-    date_to = _parse_date(date_to_raw)
-
-    if is_filtered:
-        if categories_selected:
-            qs = qs.filter(category__in=categories_selected)
-        else:
-            qs = qs.none()
-    if state:
-        qs = qs.filter(facility__state=state)
-    if repeat_only:
-        qs = qs.filter(is_repeat=True)
-    if date_from:
-        qs = qs.filter(inspection_date__gte=date_from)
-    if date_to:
-        qs = qs.filter(inspection_date__lte=date_to)
-    if q:
-        qs = qs.filter(
-            Q(section__icontains=q)
-            | Q(title__icontains=q)
-            | Q(description__icontains=q)
-            | Q(facility__name__icontains=q)
-            | Q(facility__license_number__icontains=q)
-        )
-
-    paginator = Paginator(qs, 50)
-    page_obj = paginator.get_page(request.GET.get('page'))
-
-    states = (
-        FacilityViolation.objects.exclude(facility__state='')
-        .values_list('facility__state', flat=True)
-        .distinct()
-        .order_by('facility__state')
-    )
-
-    query = request.GET.copy()
-    query.pop('page', None)
-    filter_query = query.urlencode()
-
-    has_active_filters = bool(
-        is_filtered and (
-            len(categories_selected) < len(valid_categories)
-            or not categories_selected
-        )
-        or state or q or repeat_only or date_from_raw or date_to_raw
-    )
-
-    return render(request, 'ramsey/dog_watch_violations.html', {
-        'page_obj': page_obj,
-        'violations': page_obj,
-        'categories': FacilityViolation.Category.choices,
-        'states': states,
-        'total_count': paginator.count,
-        'total_all': FacilityViolation.objects.count(),
-        'pending_reports': pending_violation_reports_queryset().count(),
-        'filter_query': filter_query,
-        'has_active_filters': has_active_filters,
-        'filters': {
-            'categories': categories_selected,
-            'filtered': is_filtered,
-            'state': state,
-            'q': q,
-            'repeat': repeat_only,
-            'date_from': date_from_raw,
-            'date_to': date_to_raw,
-        },
-    })
-
-
-@require_GET
-@user_passes_test(lambda u: u.is_superuser)
-def dog_watch_status(request):
-    """JSON endpoint for collection progress (read-only; collector runs via cron)."""
-    from main.dog_watch.sync_state import (
-        get_last_sync_summary,
-        get_sync_state,
-        next_sync_at,
-        refresh_collection_status,
-        sync_interval_hours,
-        sync_status_label,
-    )
-
-    running, progress = refresh_collection_status()
-    state = get_sync_state()
-    last_sync = get_last_sync_summary()
-    mapped_count = PuppyMillFacility.objects.filter(
-        is_dog_facility=True,
-        coordinates_geocoded=True,
-    ).count()
-
-    return JsonResponse({
-        'running': running,
-        'current': progress.get('current', 0),
-        'total': progress.get('total', 0),
-        'message': progress.get('message', ''),
-        'status': 'syncing' if running else sync_status_label(),
-        'sync_interval_hours': sync_interval_hours(),
-        'last_sync_at': state.last_sync_at.isoformat() if state.last_sync_at else None,
-        'next_sync_at': next_sync_at().isoformat(),
-        'last_summary': last_sync,
-        'facility_count': PuppyMillFacility.objects.filter(is_dog_facility=True).count(),
-        'mapped_count': mapped_count,
-    })
-
-
-@require_POST
-@user_passes_test(lambda u: u.is_superuser)
-def dog_watch_clear_lock(request):
-    """Release a ghost sync lock left behind by a killed cron job."""
-    from main.dog_watch.sync_state import force_clear_lock, normalize_progress, get_sync_state
-
-    force_clear_lock()
-    state = get_sync_state()
-    progress = normalize_progress(state)
-    return JsonResponse({'ok': True, 'running': False, 'message': progress.get('message', '')})
-
-
 def connect4 (request):
     return render(request,"games/connect4.html")
 
@@ -1137,6 +721,81 @@ def edit_recipe(request, pk):
 def recipe_detail(request, pk):
     recipe = get_object_or_404(Recipe, pk=pk)
     return render(request, 'recipes/recipe_detail.html', {'recipe': recipe})
+
+@login_required
+def starhold(request):
+    """Starhold hub: mode select + leaderboards. Requires login."""
+    return render(request, 'games/starhold_hub.html')
+
+
+@login_required
+def starhold_play(request):
+    mode = request.GET.get('mode', 'mp')
+    difficulty = request.GET.get('difficulty', 'easy')
+    if mode not in ('sp', 'mp'):
+        mode = 'mp'
+    if difficulty not in ('easy', 'hard'):
+        difficulty = 'easy'
+    return render(request, 'games/starhold.html', {
+        'mode': mode,
+        'difficulty': difficulty,
+    })
+
+
+@login_required
+@require_POST
+def save_starhold_result(request):
+    try:
+        data = json.loads(request.body.decode('utf-8') or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'invalid json'}, status=400)
+
+    result = data.get('result')
+    difficulty = data.get('difficulty')
+    if result not in ('win', 'loss') or difficulty not in ('easy', 'hard'):
+        return JsonResponse({'status': 'invalid payload'}, status=400)
+
+    StarholdResult.objects.create(
+        user=request.user,
+        result=result,
+        difficulty=difficulty,
+    )
+    return JsonResponse({'status': 'success'})
+
+
+@login_required
+def starhold_leaderboard(request):
+    difficulty = request.GET.get('difficulty', 'easy')
+    if difficulty not in ('easy', 'hard'):
+        difficulty = 'easy'
+
+    from django.db.models import Count, F
+
+    rows = User.objects.annotate(
+        wins=Count(
+            'starhold_results',
+            filter=Q(starhold_results__result='win', starhold_results__difficulty=difficulty),
+        ),
+        losses=Count(
+            'starhold_results',
+            filter=Q(starhold_results__result='loss', starhold_results__difficulty=difficulty),
+        ),
+    ).annotate(
+        total_games=F('wins') + F('losses'),
+    ).filter(
+        total_games__gt=0,
+    ).values('username', 'wins', 'losses', 'total_games')
+
+    leaderboard = [
+        {
+            **entry,
+            'win_rate': round((entry['wins'] / entry['total_games']) * 100, 1) if entry['total_games'] else 0,
+        }
+        for entry in rows
+    ]
+    leaderboard.sort(key=lambda x: (x['win_rate'], x['wins']), reverse=True)
+    return JsonResponse({'difficulty': difficulty, 'leaderboard': leaderboard})
+
 
 def word_find(request):
     return render(request, 'games/word_find.html')

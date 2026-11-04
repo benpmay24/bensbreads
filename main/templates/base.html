@@ -38,8 +38,6 @@
               {% if user.is_superuser %}
                 <li><hr class="dropdown-divider"></li>
                 <li><a class="dropdown-item" href="{% url 'ramsey_profile' %}"><i class="fas fa-heart"></i> Profile (Admin)</a></li>
-                <li><a class="dropdown-item" href="{% url 'dog_watch' %}"><i class="fas fa-map-marked-alt"></i> Dog Watch (Admin)</a></li>
-                <li><a class="dropdown-item" href="{% url 'dog_watch_violations' %}"><i class="fas fa-exclamation-triangle"></i> Violations (Admin)</a></li>
               {% endif %}
             </ul>
           </li>
@@ -51,10 +49,7 @@
             <ul class="dropdown-menu" aria-labelledby="gamesDropdown">
               <li><a class="dropdown-item" href="{% url 'connect4' %}">Connect 4</a></li>
               <li><a class="dropdown-item" href="{% url 'word_find' %}">Word Find</a></li>
-              {% if user.is_superuser %}
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="{% url 'clash_center' %}"><i class="fas fa-crown"></i> Clash Center (Admin)</a></li>
-              {% endif %}
+              <li><a class="dropdown-item" href="{% url 'starhold' %}">Starhold</a></li>
             </ul>
           </li>
 

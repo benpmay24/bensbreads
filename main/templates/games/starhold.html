@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Starhold | Ben's Breads{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'main/starhold.css' %}">
+
+<div
+  class="sh-root"
+  id="starhold-app"
+  data-mode="{{ mode }}"
+  data-difficulty="{{ difficulty }}"
+  data-save-url="{% url 'save_starhold_result' %}"
+  data-csrf="{{ csrf_token }}"
+>
+  <header class="sh-hero">
+    <a class="sh-back" href="{% url 'starhold' %}"><i class="fas fa-arrow-left"></i> Starhold</a>
+    <div class="sh-hero-copy">
+      <p class="sh-eyebrow" id="sh-mode-eyebrow">
+        {% if mode == 'sp' %}
+          You are West · CPU is East · {{ difficulty|title }}
+        {% else %}
+          Multiplayer · Hotseat · West vs East
+        {% endif %}
+      </p>
+      <h1 class="sh-title">Starhold</h1>
+      <p class="sh-tagline">Hide three stars. Field twelve shapes. Claim victory by discovery or annihilation.</p>
+    </div>
+    <div class="sh-hero-actions">
+      <button type="button" class="sh-btn sh-btn-ghost" id="sh-howto-btn"><i class="fas fa-question-circle"></i> How to play</button>
+      <a class="sh-btn sh-btn-ghost" href="{% url 'starhold' %}"><i class="fas fa-home"></i> Menu</a>
+    </div>
+  </header>
+
+  <div class="sh-pass" id="sh-pass-screen" hidden>
+    <div class="sh-pass-card">
+      <div class="sh-pass-orb" id="sh-pass-orb"></div>
+      <h2 id="sh-pass-title">Pass the device</h2>
+      <p id="sh-pass-text">Hand the screen to the next player without peeking.</p>
+      <button type="button" class="sh-btn sh-btn-primary" id="sh-pass-ready">I'm ready</button>
+    </div>
+  </div>
+
+  <div class="sh-stage" id="sh-stage">
+    <aside class="sh-panel sh-panel-west" id="sh-panel-p1">
+      <div class="sh-player-badge sh-p1">
+        <span class="sh-player-dot"></span>
+        <div>
+          <strong id="sh-p1-name">West</strong>
+          <small id="sh-p1-role">Selecting army</small>
+        </div>
+      </div>
+      <div class="sh-stars-track" id="sh-p1-stars" aria-label="West stars found"></div>
+      <div class="sh-army-summary" id="sh-p1-army"></div>
+      <div class="sh-panel-controls" id="sh-controls-p1" hidden>
+        <button type="button" class="sh-btn sh-btn-primary sh-deploy-btn" id="sh-deploy-p1">
+          <i class="fas fa-plus"></i> Deploy
+        </button>
+        <div class="sh-builds-left" id="sh-builds-p1" hidden></div>
+        <button type="button" class="sh-btn sh-btn-ghost sh-wall-mode-btn" id="sh-wall-p1" hidden>Walls: build</button>
+        <button type="button" class="sh-btn sh-btn-ghost sh-cancel-btn" id="sh-cancel-p1" hidden>Cancel</button>
+        <button type="button" class="sh-btn sh-btn-ghost sh-end-btn" id="sh-end-p1" disabled>End turn</button>
+        <button type="button" class="sh-btn sh-btn-forfeit" id="sh-forfeit-p1" hidden>Forfeit</button>
+      </div>
+    </aside>
+
+    <main class="sh-main">
+      <div class="sh-status" id="sh-status">
+        <span class="sh-status-pill" id="sh-phase-pill">Setup</span>
+        <p id="sh-status-text">Choose your army.</p>
+      </div>
+
+      <div class="sh-setup" id="sh-setup">
+        <div class="sh-setup-grid" id="sh-piece-picker">
+          <button type="button" class="sh-pick" data-type="circle">
+            <span class="sh-shape circle"></span>
+            <strong>Circle</strong>
+            <small>Move 1 · destroy walls · beats △ □</small>
+            <div class="count" data-count>0</div>
+          </button>
+          <button type="button" class="sh-pick" data-type="triangle">
+            <span class="sh-shape triangle"></span>
+            <strong>Triangle</strong>
+            <small>Move 2 · only beats △</small>
+            <div class="count" data-count>0</div>
+          </button>
+          <button type="button" class="sh-pick" data-type="square">
+            <span class="sh-shape square"></span>
+            <strong>Square</strong>
+            <small>Move 1 · build/destroy 2 walls</small>
+            <div class="count" data-count>0</div>
+          </button>
+          <button type="button" class="sh-pick" data-type="trapezoid">
+            <span class="sh-shape trapezoid"></span>
+            <strong>Trapezoid</strong>
+            <small>Move 1 · beats ○ △ □</small>
+            <div class="count" data-count>0</div>
+          </button>
+        </div>
+        <div class="sh-setup-meta">
+          <div class="sh-count" id="sh-army-count">0 / 12</div>
+          <div class="sh-setup-actions">
+            <button type="button" class="sh-btn sh-btn-ghost" id="sh-clear-army">Clear</button>
+            <button type="button" class="sh-btn sh-btn-primary" id="sh-confirm-army" disabled>Confirm army</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="sh-board-wrap" id="sh-board-wrap" hidden>
+        <div class="sh-board" id="sh-board" role="grid" aria-label="Starhold board"></div>
+        <div class="sh-wall-layer" id="sh-wall-layer" aria-hidden="true"></div>
+      </div>
+
+      <div class="sh-action-bar" id="sh-action-bar" hidden>
+        <p class="sh-turn-hint" id="sh-turn-hint">Select one of your pieces on the board, or deploy from reserve.</p>
+      </div>
+    </main>
+
+    <aside class="sh-panel sh-panel-east" id="sh-panel-p2">
+      <div class="sh-player-badge sh-p2">
+        <span class="sh-player-dot"></span>
+        <div>
+          <strong id="sh-p2-name">East</strong>
+          <small id="sh-p2-role">Waiting</small>
+        </div>
+      </div>
+      <div class="sh-stars-track" id="sh-p2-stars" aria-label="East stars found"></div>
+      <div class="sh-army-summary" id="sh-p2-army"></div>
+      <div class="sh-panel-controls" id="sh-controls-p2" hidden>
+        <button type="button" class="sh-btn sh-btn-primary sh-deploy-btn" id="sh-deploy-p2">
+          <i class="fas fa-plus"></i> Deploy
+        </button>
+        <div class="sh-builds-left" id="sh-builds-p2" hidden></div>
+        <button type="button" class="sh-btn sh-btn-ghost sh-wall-mode-btn" id="sh-wall-p2" hidden>Walls: build</button>
+        <button type="button" class="sh-btn sh-btn-ghost sh-cancel-btn" id="sh-cancel-p2" hidden>Cancel</button>
+        <button type="button" class="sh-btn sh-btn-ghost sh-end-btn" id="sh-end-p2" disabled>End turn</button>
+        <button type="button" class="sh-btn sh-btn-forfeit" id="sh-forfeit-p2" hidden>Forfeit</button>
+      </div>
+    </aside>
+  </div>
+
+  <div class="sh-toast" id="sh-toast" hidden></div>
+
+  <div class="sh-modal" id="sh-deploy-modal" hidden>
+    <div class="sh-modal-card sh-deploy-card">
+      <button type="button" class="sh-modal-close" id="sh-deploy-close" aria-label="Close">&times;</button>
+      <h2>Deploy a piece</h2>
+      <p class="sh-deploy-copy">Choose one from your reserve, then tap an empty tile on your back line.</p>
+      <div class="sh-deploy-picker" id="sh-deploy-picker"></div>
+      <button type="button" class="sh-btn sh-btn-ghost" id="sh-deploy-cancel">Cancel</button>
+    </div>
+  </div>
+
+  <div class="sh-modal" id="sh-forfeit-modal" hidden>
+    <div class="sh-modal-card">
+      <h2>Forfeit match?</h2>
+      <p id="sh-forfeit-text">This will end the game and award the win to your opponent.</p>
+      <div class="sh-forfeit-actions">
+        <button type="button" class="sh-btn sh-btn-ghost" id="sh-forfeit-cancel">Keep playing</button>
+        <button type="button" class="sh-btn sh-btn-forfeit" id="sh-forfeit-confirm">Confirm forfeit</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="sh-modal" id="sh-howto" hidden>
+    <div class="sh-modal-card">
+      <button type="button" class="sh-modal-close" id="sh-howto-close" aria-label="Close">&times;</button>
+      <h2>How to play Starhold</h2>
+      <div class="sh-howto-body">
+        <section>
+          <h3>Goal</h3>
+          <p>Find at least <strong>2 of 3</strong> hidden enemy stars, or eliminate every enemy piece.</p>
+        </section>
+        <section>
+          <h3>Setup</h3>
+          <p>Each player drafts any mix of <strong>12 pieces</strong>, then secretly places <strong>3 stars</strong> on their half of the <strong>10×8</strong> board (West vs East).</p>
+        </section>
+        <section>
+          <h3>Turns</h3>
+          <p>On your turn, either <strong>select a piece</strong> already on the board to command it, or tap <strong>Deploy</strong> to place one reserve piece onto your back line.</p>
+        </section>
+        <section>
+          <h3>Pieces</h3>
+          <ul class="sh-howto-pieces">
+            <li><span class="sh-mini circle"></span><strong>Circle</strong> — move 1 · destroy walls · beats triangle &amp; square</li>
+            <li><span class="sh-mini triangle"></span><strong>Triangle</strong> — move 2 · only beats triangle</li>
+            <li><span class="sh-mini square"></span><strong>Square</strong> — move 1 · build/destroy up to 2 walls</li>
+            <li><span class="sh-mini trapezoid"></span><strong>Trapezoid</strong> — move 1 · beats circle, triangle &amp; square</li>
+          </ul>
+          <p>Same-type clashes: the <em>attacker</em> always wins. Failed attacks destroy the attacker.</p>
+        </section>
+        <section>
+          <h3>Walls</h3>
+          <p>Walls sit on tile edges and block movement until destroyed. Circles may destroy <strong>1</strong> adjacent wall per turn; squares may build or destroy up to <strong>2</strong>. Destroying a wall uses a wall action. Marked coral edges show walls you can break.</p>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <div class="sh-modal" id="sh-winner" hidden>
+    <div class="sh-modal-card sh-win-card">
+      <div class="sh-win-burst" aria-hidden="true"></div>
+      <h2 id="sh-winner-title">Victory</h2>
+      <p id="sh-winner-text"></p>
+      <div class="sh-forfeit-actions">
+        <a class="sh-btn sh-btn-ghost" href="{% url 'starhold' %}">Menu</a>
+        <button type="button" class="sh-btn sh-btn-primary" id="sh-play-again">Play again</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="{% static 'main/starhold.js' %}"></script>
+{% endblock %}

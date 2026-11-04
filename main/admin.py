@@ -4,7 +4,7 @@ from django.contrib import admin
 from .models import (
     BlogPost, Recipe, Comment, Review, DailyUpdate, RamseyProfile, VaccineRecord,
     BoardingExperience, DietEntry, VaccineDocument, DietDocument, BoardingDocument,
-    PuppyMillFacility, FacilityInspectionReport, FacilityViolation,
+    StarholdResult,
 )
 
 admin.site.register(BlogPost)
@@ -105,39 +105,9 @@ class BoardingDocumentAdmin(admin.ModelAdmin):
     readonly_fields = ['uploaded_at']
     ordering = ['-uploaded_at']
 
-@admin.register(PuppyMillFacility)
-class PuppyMillFacilityAdmin(admin.ModelAdmin):
-    list_display = ['name', 'license_number', 'state', 'city', 'violation_count', 'last_scraped_at']
-    list_filter = ['state', 'license_type', 'is_dog_facility']
-    search_fields = ['name', 'dba_name', 'license_number', 'city']
-    readonly_fields = ['created_at', 'updated_at', 'last_scraped_at']
-    ordering = ['-violation_count', 'state', 'name']
-
-
-class FacilityViolationInline(admin.TabularInline):
-    model = FacilityViolation
-    extra = 0
-    fields = ['inspection_date', 'category', 'section', 'title', 'is_repeat']
-    readonly_fields = fields
-    can_delete = False
-    show_change_link = True
-
-
-@admin.register(FacilityInspectionReport)
-class FacilityInspectionReportAdmin(admin.ModelAdmin):
-    list_display = [
-        'facility', 'inspection_date', 'direct_count', 'critical_count',
-        'non_critical_count', 'violations_parsed',
-    ]
-    list_filter = ['violations_parsed', 'inspection_date']
-    search_fields = ['facility__name', 'facility__license_number', 'report_url']
-    readonly_fields = ['created_at', 'updated_at']
-    inlines = [FacilityViolationInline]
-
-
-@admin.register(FacilityViolation)
-class FacilityViolationAdmin(admin.ModelAdmin):
-    list_display = ['facility', 'inspection_date', 'category', 'section', 'title', 'is_repeat']
-    list_filter = ['category', 'is_repeat', 'inspection_date']
-    search_fields = ['facility__name', 'section', 'title', 'description']
-    readonly_fields = ['created_at']
+@admin.register(StarholdResult)
+class StarholdResultAdmin(admin.ModelAdmin):
+    list_display = ['user', 'result', 'difficulty', 'timestamp']
+    list_filter = ['result', 'difficulty', 'timestamp']
+    search_fields = ['user__username']
+    readonly_fields = ['timestamp']

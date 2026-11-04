@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Starhold | Ben's Breads{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'main/starhold.css' %}">
+
+<div class="sh-root sh-hub">
+  <header class="sh-hero">
+    <a class="sh-back" href="{% url 'games' %}"><i class="fas fa-arrow-left"></i> Games</a>
+    <div class="sh-hero-copy">
+      <p class="sh-eyebrow">Tactical grid · Hidden stars</p>
+      <h1 class="sh-title">Starhold</h1>
+      <p class="sh-tagline">Hide three stars. Field twelve shapes. Outmaneuver your rival — or the machine.</p>
+    </div>
+    <div class="sh-hero-actions">
+      <span class="sh-hub-user"><i class="fas fa-user"></i> {{ user.username }}</span>
+    </div>
+  </header>
+
+  <div class="sh-hub-stage">
+    <div class="sh-hub-stack" id="sh-hub-home">
+      <button type="button" class="sh-hub-cta" id="sh-btn-sp">
+        <span class="sh-hub-cta-icon"><i class="fas fa-robot"></i></span>
+        <span class="sh-hub-cta-copy">
+          <strong>Single Player</strong>
+          <small>Play against the CPU · scored on leaderboards</small>
+        </span>
+        <i class="fas fa-chevron-right sh-hub-cta-arrow"></i>
+      </button>
+      <a class="sh-hub-cta" href="{% url 'starhold_play' %}?mode=mp">
+        <span class="sh-hub-cta-icon"><i class="fas fa-users"></i></span>
+        <span class="sh-hub-cta-copy">
+          <strong>Multiplayer</strong>
+          <small>Hotseat duel on one device</small>
+        </span>
+        <i class="fas fa-chevron-right sh-hub-cta-arrow"></i>
+      </a>
+      <button type="button" class="sh-hub-cta" id="sh-btn-lb">
+        <span class="sh-hub-cta-icon"><i class="fas fa-trophy"></i></span>
+        <span class="sh-hub-cta-copy">
+          <strong>Leaderboards</strong>
+          <small>Wins, losses, and win rate by difficulty</small>
+        </span>
+        <i class="fas fa-chevron-right sh-hub-cta-arrow"></i>
+      </button>
+    </div>
+
+    <div class="sh-hub-stack" id="sh-hub-diff" hidden>
+      <button type="button" class="sh-hub-back-inline" id="sh-diff-back"><i class="fas fa-arrow-left"></i> Back</button>
+      <p class="sh-hub-step-label">Choose difficulty</p>
+      <a class="sh-hub-cta" href="{% url 'starhold_play' %}?mode=sp&difficulty=easy">
+        <span class="sh-hub-cta-icon sh-hub-cta-easy"><i class="fas fa-feather"></i></span>
+        <span class="sh-hub-cta-copy">
+          <strong>Easy</strong>
+          <small>A gentler CPU for learning the rules</small>
+        </span>
+        <i class="fas fa-chevron-right sh-hub-cta-arrow"></i>
+      </a>
+      <a class="sh-hub-cta" href="{% url 'starhold_play' %}?mode=sp&difficulty=hard">
+        <span class="sh-hub-cta-icon sh-hub-cta-hard"><i class="fas fa-fire"></i></span>
+        <span class="sh-hub-cta-copy">
+          <strong>Hard</strong>
+          <small>A sharper CPU that presses advantages</small>
+        </span>
+        <i class="fas fa-chevron-right sh-hub-cta-arrow"></i>
+      </a>
+    </div>
+
+    <div class="sh-hub-stack" id="sh-hub-lb" hidden>
+      <button type="button" class="sh-hub-back-inline" id="sh-lb-back"><i class="fas fa-arrow-left"></i> Back</button>
+      <p class="sh-hub-step-label">Leaderboards</p>
+      <div class="sh-lb-tabs">
+        <button type="button" class="sh-lb-tab active" data-diff="easy">Easy</button>
+        <button type="button" class="sh-lb-tab" data-diff="hard">Hard</button>
+      </div>
+      <div class="sh-lb-table-wrap">
+        <table class="sh-lb-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Player</th>
+              <th>Wins</th>
+              <th>Losses</th>
+              <th>Win rate</th>
+            </tr>
+          </thead>
+          <tbody id="sh-lb-body">
+            <tr><td colspan="5" class="sh-lb-empty">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const home = document.getElementById('sh-hub-home');
+  const diff = document.getElementById('sh-hub-diff');
+  const lb = document.getElementById('sh-hub-lb');
+  const lbBody = document.getElementById('sh-lb-body');
+  const lbUrl = "{% url 'starhold_leaderboard' %}";
+  let currentDiff = 'easy';
+
+  function show(view) {
+    home.hidden = view !== 'home';
+    diff.hidden = view !== 'diff';
+    lb.hidden = view !== 'lb';
+  }
+
+  document.getElementById('sh-btn-sp').addEventListener('click', () => show('diff'));
+  document.getElementById('sh-btn-lb').addEventListener('click', () => {
+    show('lb');
+    loadLeaderboard(currentDiff);
+  });
+  document.getElementById('sh-diff-back').addEventListener('click', () => show('home'));
+  document.getElementById('sh-lb-back').addEventListener('click', () => show('home'));
+
+  document.querySelectorAll('.sh-lb-tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.sh-lb-tab').forEach((t) => t.classList.toggle('active', t === tab));
+      currentDiff = tab.dataset.diff;
+      loadLeaderboard(currentDiff);
+    });
+  });
+
+  async function loadLeaderboard(difficulty) {
+    lbBody.innerHTML = '<tr><td colspan="5" class="sh-lb-empty">Loading…</td></tr>';
+    try {
+      const res = await fetch(`${lbUrl}?difficulty=${encodeURIComponent(difficulty)}`);
+      const data = await res.json();
+      const rows = data.leaderboard || [];
+      if (!rows.length) {
+        lbBody.innerHTML = '<tr><td colspan="5" class="sh-lb-empty">No games recorded yet for this difficulty.</td></tr>';
+        return;
+      }
+      lbBody.innerHTML = rows.map((row, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${escapeHtml(row.username)}</td>
+          <td>${row.wins}</td>
+          <td>${row.losses}</td>
+          <td>${row.win_rate}%</td>
+        </tr>
+      `).join('');
+    } catch (err) {
+      lbBody.innerHTML = '<tr><td colspan="5" class="sh-lb-empty">Could not load leaderboard.</td></tr>';
+    }
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+})();
+</script>
+{% endblock %}

@@ -230,6 +230,29 @@ class WordFindScore(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.score} points"
 
+
+class StarholdResult(models.Model):
+    RESULT_CHOICES = [
+        ('win', 'Win'),
+        ('loss', 'Loss'),
+    ]
+    DIFFICULTY_CHOICES = [
+        ('easy', 'Easy'),
+        ('hard', 'Hard'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='starhold_results')
+    result = models.CharField(max_length=4, choices=RESULT_CHOICES)
+    difficulty = models.CharField(max_length=8, choices=DIFFICULTY_CHOICES)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.result} ({self.difficulty}) - {self.timestamp.strftime('%Y-%m-%d %H:%M')}"
+
+
 class Comment(models.Model):
     post = models.ForeignKey('BlogPost', on_delete=models.CASCADE, related_name='comments')
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -346,233 +369,3 @@ class BoardingDocument(models.Model):
         if self.document and os.path.isfile(self.document.path):
             os.remove(self.document.path)
         super().delete(*args, **kwargs)
-
-
-class PuppyMillFacility(models.Model):
-    """USDA-licensed dog breeding/dealing facility tracked on Dog Watch."""
-    license_number = models.CharField(max_length=20, unique=True)
-    name = models.CharField(max_length=300)
-    dba_name = models.CharField(max_length=300, blank=True)
-    license_type = models.CharField(max_length=100, blank=True)
-    street_address = models.CharField(max_length=300, blank=True)
-    city = models.CharField(max_length=100, blank=True)
-    state = models.CharField(max_length=2, blank=True)
-    zip_code = models.CharField(max_length=10, blank=True)
-    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    coordinates_geocoded = models.BooleanField(default=False)
-    owners = models.JSONField(default=list, blank=True)
-    suppliers = models.JSONField(default=list, blank=True)
-    dog_breeds = models.JSONField(default=list, blank=True)
-    news_articles = models.JSONField(default=list, blank=True)
-    violation_count = models.PositiveIntegerField(default=0)
-    direct_violations = models.PositiveIntegerField(default=0)
-    critical_violations = models.PositiveIntegerField(default=0)
-    inspection_reports = models.JSONField(default=list, blank=True)
-    processed_report_urls = models.JSONField(default=list, blank=True)
-    usda_profile_url = models.URLField(blank=True)
-    source_notes = models.TextField(blank=True)
-    is_dog_facility = models.BooleanField(default=True)
-    license_expiration = models.DateField(null=True, blank=True)
-    last_scraped_at = models.DateTimeField(null=True, blank=True)
-    last_checked_at = models.DateTimeField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ['state', 'city', 'name']
-        verbose_name_plural = 'puppy mill facilities'
-
-    def __str__(self):
-        return f"{self.name} ({self.license_number})"
-
-    @property
-    def full_address(self):
-        parts = [self.street_address, self.city, self.state, self.zip_code]
-        return ', '.join(p for p in parts if p)
-
-    @property
-    def has_coordinates(self):
-        return self.latitude is not None and self.longitude is not None
-
-
-class FacilityInspectionReport(models.Model):
-    """A single USDA APHIS inspection report for a facility."""
-    facility = models.ForeignKey(
-        PuppyMillFacility,
-        on_delete=models.CASCADE,
-        related_name='reports',
-    )
-    inspection_date = models.DateField(null=True, blank=True)
-    report_url = models.URLField(max_length=500)
-    inspection_type = models.CharField(max_length=80, blank=True)
-    direct_count = models.PositiveIntegerField(default=0)
-    critical_count = models.PositiveIntegerField(default=0)
-    non_critical_count = models.PositiveIntegerField(default=0)
-    teachable_count = models.PositiveIntegerField(default=0)
-    violations_parsed = models.BooleanField(default=False)
-    parse_attempts = models.PositiveSmallIntegerField(default=0)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ['-inspection_date', '-id']
-        constraints = [
-            models.UniqueConstraint(
-                fields=['facility', 'report_url'],
-                name='unique_facility_report_url',
-            ),
-        ]
-
-    def __str__(self):
-        return f'{self.facility.license_number} — {self.inspection_date or "unknown date"}'
-
-    @property
-    def total_violations(self):
-        return self.direct_count + self.critical_count + self.non_critical_count
-
-
-class FacilityViolation(models.Model):
-    """An individual noncompliance item cited on an inspection report."""
-
-    class Category(models.TextChoices):
-        DIRECT = 'direct', 'Direct'
-        CRITICAL = 'critical', 'Critical'
-        NON_CRITICAL = 'non_critical', 'Non-critical'
-        TEACHABLE = 'teachable', 'Teachable moment'
-
-    facility = models.ForeignKey(
-        PuppyMillFacility,
-        on_delete=models.CASCADE,
-        related_name='violations',
-    )
-    report = models.ForeignKey(
-        FacilityInspectionReport,
-        on_delete=models.CASCADE,
-        related_name='violations',
-    )
-    category = models.CharField(max_length=20, choices=Category.choices)
-    section = models.CharField(max_length=50)
-    title = models.CharField(max_length=300, blank=True)
-    description = models.TextField(blank=True)
-    is_repeat = models.BooleanField(default=False)
-    inspection_date = models.DateField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ['-inspection_date', 'section']
-        indexes = [
-            models.Index(fields=['facility', 'category']),
-            models.Index(fields=['-inspection_date']),
-        ]
-
-    def __str__(self):
-        return f'{self.section} ({self.get_category_display()}) — {self.facility.name}'
-
-
-class DogWatchSyncState(models.Model):
-    """Singleton tracking Dog Watch background sync state."""
-    id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
-    is_running = models.BooleanField(default=False)
-    last_sync_at = models.DateTimeField(null=True, blank=True)
-    last_usda_import_at = models.DateTimeField(null=True, blank=True)
-    last_summary = models.JSONField(default=dict, blank=True)
-    progress = models.JSONField(default=dict, blank=True)
-
-    class Meta:
-        verbose_name = 'Dog Watch sync state'
-
-    @classmethod
-    def load(cls):
-        obj, _ = cls.objects.get_or_create(pk=1)
-        return obj
-
-    def __str__(self):
-        return f'Dog Watch sync (running={self.is_running})'
-
-
-class ClashCard(models.Model):
-    """Clash Royale card catalog (synced from the Royale API)."""
-    card_id = models.PositiveIntegerField(unique=True)
-    name = models.CharField(max_length=100)
-    elixir = models.PositiveSmallIntegerField(default=0)
-    rarity = models.CharField(max_length=30, blank=True)
-    card_type = models.CharField(max_length=30, blank=True)
-    max_level = models.PositiveSmallIntegerField(default=0)
-    max_evolution_level = models.PositiveSmallIntegerField(default=0)
-    icon_url = models.URLField(max_length=500, blank=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ['elixir', 'name']
-
-    def __str__(self):
-        return self.name
-
-
-class ClashPlayer(models.Model):
-    """A player discovered while collecting ranked battle logs."""
-    tag = models.CharField(max_length=20, unique=True)
-    name = models.CharField(max_length=100, blank=True)
-    tier = models.PositiveSmallIntegerField(
-        default=0,
-        help_text='Path of Legends league number (1–7), 0 if unknown',
-    )
-    last_battle_fetch_at = models.DateTimeField(null=True, blank=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ['-updated_at']
-
-    def __str__(self):
-        return self.name or self.tag
-
-
-class ClashBattle(models.Model):
-    """A single Path of Legends ranked battle."""
-    battle_uid = models.CharField(max_length=80, unique=True)
-    battle_time = models.DateTimeField()
-    tier = models.PositiveSmallIntegerField(help_text='Path of Legends league number (1–7)')
-    player_tag = models.CharField(max_length=20, db_index=True)
-    opponent_tag = models.CharField(max_length=20, blank=True, db_index=True)
-    player_won = models.BooleanField()
-    player_cards = models.JSONField(help_text='Sorted list of 8 card IDs (player perspective)')
-    opponent_cards = models.JSONField(help_text='Sorted list of 8 card IDs')
-    player_crowns = models.PositiveSmallIntegerField(default=0)
-    opponent_crowns = models.PositiveSmallIntegerField(default=0)
-    arena_id = models.PositiveIntegerField(null=True, blank=True)
-    game_mode = models.CharField(max_length=50, blank=True)
-    raw_data = models.JSONField(default=dict, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ['-battle_time']
-        indexes = [
-            models.Index(fields=['tier', '-battle_time']),
-            models.Index(fields=['player_tag', '-battle_time']),
-            models.Index(fields=['opponent_tag', '-battle_time']),
-        ]
-
-    def __str__(self):
-        return f'{self.player_tag} vs {self.opponent_tag} @ {self.battle_time:%Y-%m-%d}'
-
-
-class ClashCenterSyncState(models.Model):
-    """Singleton tracking Clash Center background sync state."""
-    id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
-    is_running = models.BooleanField(default=False)
-    last_sync_at = models.DateTimeField(null=True, blank=True)
-    last_cards_sync_at = models.DateTimeField(null=True, blank=True)
-    last_summary = models.JSONField(default=dict, blank=True)
-    progress = models.JSONField(default=dict, blank=True)
-
-    class Meta:
-        verbose_name = 'Clash Center sync state'
-
-    @classmethod
-    def load(cls):
-        obj, _ = cls.objects.get_or_create(pk=1)
-        return obj
-
-    def __str__(self):
-        return f'Clash Center sync (running={self.is_running})'

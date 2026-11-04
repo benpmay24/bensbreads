@@ -155,6 +155,7 @@ STATICFILES_DIRS = [
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGIN_REDIRECT_URL = '/'
+LOGIN_URL = '/login/'
 LOGOUT_REDIRECT_URL = '/'
 
 if DEBUG:
@@ -205,25 +206,3 @@ SITE_URL = os.environ.get('SITE_URL', 'http://localhost:8000')
 
 # Secret token for cron endpoints (e.g. daily reminder trigger from cron-job.org)
 CRON_SECRET_TOKEN = os.environ.get('CRON_SECRET_TOKEN', 'yeet')
-
-# Dog Watch: data collected by Render Cron Job (`python manage.py dog_watch_sync`).
-# The web app only reads from the database.
-DOG_WATCH_SYNC_INTERVAL_HOURS = int(os.environ.get('DOG_WATCH_SYNC_INTERVAL_HOURS', '24'))
-DOG_WATCH_APHIS_DELAY_SECONDS = float(os.environ.get('DOG_WATCH_APHIS_DELAY_SECONDS', '1.5'))
-DOG_WATCH_VIOLATIONS_BATCH_SIZE = int(os.environ.get('DOG_WATCH_VIOLATIONS_BATCH_SIZE', '40'))
-DOG_WATCH_VIOLATIONS_MAX_BATCHES = int(os.environ.get('DOG_WATCH_VIOLATIONS_MAX_BATCHES', '50'))
-
-# Clash Center: data collected by Render Cron Job (`python manage.py clash_center_sync`).
-# The web app only reads from the database.
-CLASH_ROYALE_API_TOKEN = os.environ.get('CLASH_ROYALE_API_TOKEN', '')
-CLASH_ROYALE_API_BASE = 'https://proxy.royaleapi.dev/v1'
-CLASH_CENTER_PLAYER_TAG = os.environ.get('CLASH_CENTER_PLAYER_TAG', '')
-CLASH_CENTER_SYNC_INTERVAL_HOURS = float(os.environ.get('CLASH_CENTER_SYNC_INTERVAL_HOURS', '1'))
-CLASH_CENTER_MAX_BATTLES_PER_SYNC = int(os.environ.get('CLASH_CENTER_MAX_BATTLES_PER_SYNC', '2500'))
-CLASH_CENTER_API_DELAY_SECONDS = float(os.environ.get('CLASH_CENTER_API_DELAY_SECONDS', '0.4'))
-
-# Clash Center AI coach (Gemini + read-only DB tools)
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
-CLASH_CENTER_AGENT_MODEL = os.environ.get('CLASH_CENTER_AGENT_MODEL', 'gemini-2.5-flash-lite')
-CLASH_CENTER_AGENT_MAX_RETRIES = int(os.environ.get('CLASH_CENTER_AGENT_MAX_RETRIES', '5'))
-CLASH_CENTER_AGENT_RETRY_DELAY_SECONDS = float(os.environ.get('CLASH_CENTER_AGENT_RETRY_DELAY_SECONDS', '3'))
