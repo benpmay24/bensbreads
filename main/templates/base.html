@@ -1,4 +1,4 @@
-{% load static %}
+{% load static site_urls %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -16,7 +16,7 @@
 <body>
   <nav class="navbar navbar-expand-lg navbar-modern sticky-top">
     <div class="container-fluid px-4">
-      <a class="navbar-brand" href="{% url 'home' %}">
+      <a class="navbar-brand" href="{% if SITE_ROLE == 'playground' %}{% playground_url 'playground_home' %}{% else %}{% main_url 'home' %}{% endif %}">
         <img src="{% static 'main/logo.png' %}" alt="Bread & Bytes Logo" style="height: 70px;">
       </a>
 
@@ -26,42 +26,46 @@
 
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav ms-3 me-auto">
-          <li class="nav-item"><a class="nav-link" href="{% url 'home' %}">Home</a></li>
-          
+          {% if SITE_ROLE == 'playground' %}
+          <li class="nav-item"><a class="nav-link" href="{% playground_url 'playground_home' %}">Playground</a></li>
+
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle no-caret" href="#" id="ramseyDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               Ramsey
             </a>
             <ul class="dropdown-menu" aria-labelledby="ramseyDropdown">
-              <li><a class="dropdown-item" href="{% url 'ramsey' %}">Bio</a></li>
-              <li><a class="dropdown-item" href="{% url 'ramsey_gallery' %}">Photo Gallery</a></li>
+              <li><a class="dropdown-item" href="{% playground_url 'ramsey' %}">Bio</a></li>
+              <li><a class="dropdown-item" href="{% playground_url 'ramsey_gallery' %}">Photo Gallery</a></li>
               {% if user.is_superuser %}
                 <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="{% url 'ramsey_profile' %}"><i class="fas fa-heart"></i> Profile (Admin)</a></li>
+                <li><a class="dropdown-item" href="{% playground_url 'ramsey_profile' %}"><i class="fas fa-heart"></i> Profile (Admin)</a></li>
               {% endif %}
             </ul>
           </li>
 
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle no-caret" href="#" id="gamesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" ondblclick="window.location.href='{% url 'games' %}'">
+            <a class="nav-link dropdown-toggle no-caret" href="#" id="gamesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" ondblclick="window.location.href='{% playground_url 'games' %}'">
               Games
             </a>
             <ul class="dropdown-menu" aria-labelledby="gamesDropdown">
-              <li><a class="dropdown-item" href="{% url 'connect4' %}">Connect 4</a></li>
-              <li><a class="dropdown-item" href="{% url 'word_find' %}">Word Find</a></li>
-              <li><a class="dropdown-item" href="{% url 'starhold' %}">Starhold</a></li>
+              <li><a class="dropdown-item" href="{% playground_url 'connect4' %}">Connect 4</a></li>
+              <li><a class="dropdown-item" href="{% playground_url 'word_find' %}">Word Find</a></li>
+              <li><a class="dropdown-item" href="{% playground_url 'starhold' %}">Starhold</a></li>
             </ul>
           </li>
 
-          <li class="nav-item"><a class="nav-link" href="{% url 'blog' %}">Blog</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'recipes' %}">Recipes</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'reviews' %}">Reviews</a></li>
+          <li class="nav-item"><a class="nav-link" href="{% playground_url 'blog' %}">Blog</a></li>
+          <li class="nav-item"><a class="nav-link" href="{% main_url 'home' %}">Ben's Breads <i class="fas fa-arrow-up-right-from-square fa-xs"></i></a></li>
+          {% else %}
+          <li class="nav-item"><a class="nav-link" href="{% main_url 'home' %}">Home</a></li>
+          <li class="nav-item"><a class="nav-link" href="{% main_url 'recipes' %}">Recipes</a></li>
+          <li class="nav-item"><a class="nav-link" href="{% playground_url 'playground_home' %}">Playground <i class="fas fa-arrow-up-right-from-square fa-xs"></i></a></li>
+          {% endif %}
         </ul>
 
         <ul class="navbar-nav align-items-center">
           {% if user.is_superuser %}
-            <li class="nav-item"><a class="nav-link" href="{% url 'manage_users' %}">Manage Users</a></li>
-            <li class="nav-item"><a class="nav-link" href="{% url 'daily_update' %}">Daily Update</a></li>
+            <li class="nav-item"><a class="nav-link" href="{% main_url 'manage_users' %}">Manage Users</a></li>
           {% endif %}
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle bg-light border rounded px-3 py-1" href="#" id="accountDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="box-shadow: 0 0 5px rgba(0,0,0,0.1);">
@@ -81,13 +85,14 @@
                   {% endif %}
                 </li>
                 <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="{% url 'logout' %}" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Logout</a></li>
-                <form id="logout-form" method="post" action="{% url 'logout' %}" style="display: none;">
+                <li><a class="dropdown-item" href="{% main_url 'logout' %}" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Logout</a></li>
+                <form id="logout-form" method="post" action="{% main_url 'logout' %}" style="display: none;">
                   {% csrf_token %}
+                  {% if SITE_ROLE == 'playground' %}<input type="hidden" name="next" value="{{ PLAYGROUND_SITE_URL }}/">{% endif %}
                 </form>
               {% else %}
-                <li><a class="dropdown-item" href="{% url 'login' %}">Log In</a></li>
-                <li><a class="dropdown-item" href="{% url 'signup' %}">Create Account</a></li>
+                <li><a class="dropdown-item" href="{% main_url 'login' %}{% if SITE_ROLE == 'playground' %}?next={{ request.build_absolute_uri|urlencode }}{% endif %}">Log In</a></li>
+                <li><a class="dropdown-item" href="{% main_url 'signup' %}">Create Account</a></li>
               {% endif %}
             </ul>
           </li>

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load site_urls %}
 {% load static %}
 
 {% block title %}Home | Ben's Breads{% endblock %}
@@ -14,7 +15,7 @@
     <p class="hero-subtitle text-light mb-4" style="max-width: 700px; margin: 0 auto; text-shadow: 1px 1px 3px rgba(0,0,0,0.5); font-size: 1.2rem;">
     </p>
     <div>
-      <a href="{% url 'blog' %}" class="btn btn-lg btn-outline-light me-3">Read the Blog</a>
+      <a href="{% playground_url 'blog' %}" class="btn btn-lg btn-outline-light me-3">Read the Blog</a>
       <a href="{% url 'recipes' %}" class="btn btn-lg btn-outline-light">Browse Recipes</a>
     </div>
   </div>
@@ -52,7 +53,7 @@
           <div class="card-body">
             <h5 class="card-title" style="font-size: 1.25rem; font-weight: 600;">Blog</h5>
             <p class="card-text" style="font-size: 1rem;">Life updates and opinions</p>
-            <a href="{% url 'blog' %}" class="btn btn-outline-primary">Visit Blog</a>
+            <a href="{% playground_url 'blog' %}" class="btn btn-outline-primary">Visit Blog</a>
           </div>
         </div>
       </div>
@@ -61,7 +62,7 @@
           <div class="card-body">
             <h5 class="card-title" style="font-size: 1.25rem; font-weight: 600;">Ramsey</h5>
             <p class="card-text" style="font-size: 1rem;">Read and be inspired by her story or browse the photo gallery to see the latest happenings</p>
-            <a href="{% url 'ramsey' %}" class="btn btn-outline-primary">Read the Bio</a>
+            <a href="{% playground_url 'ramsey' %}" class="btn btn-outline-primary">Read the Bio</a>
           </div>
         </div>
       </div>
@@ -70,7 +71,7 @@
           <div class="card-body">
             <h5 class="card-title" style="font-size: 1.25rem; font-weight: 600;">Games</h5>
             <p class="card-text" style="font-size: 1rem;">Choose one of our games to play and compete against other users</p>
-            <a href="{% url 'games' %}" class="btn btn-outline-primary">Play</a>
+            <a href="{% playground_url 'games' %}" class="btn btn-outline-primary">Play</a>
           </div>
         </div>
       </div>

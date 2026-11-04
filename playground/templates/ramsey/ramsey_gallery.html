@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load site_urls %}
 {% load static %}
 {% block title %}Photo Gallery | Ben's Breads{% endblock %}
 
@@ -102,7 +103,7 @@
               Upload First Photo
             </a>
           {% else %}
-            <a href="{% url 'login' %}?next={% url 'upload_ramsey_photo' %}" class="btn btn-primary">
+            <a href="{% main_url 'login' %}?next={{ PLAYGROUND_SITE_URL }}{% url 'upload_ramsey_photo' %}" class="btn btn-primary">
               Login to Upload
             </a>
           {% endif %}

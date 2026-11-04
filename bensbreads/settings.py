@@ -40,6 +40,20 @@ DEBUG = debug_bool
 
 ALLOWED_HOSTS = ["*"]
 
+# This codebase serves two sites from the same database:
+#   SITE_ROLE=main        -> bensbreads.com (home, recipes, login, user management)
+#   SITE_ROLE=playground  -> playground subdomain (blog, games, Ramsey)
+SITE_ROLE = os.environ.get('SITE_ROLE', 'main').lower()
+if SITE_ROLE not in ('main', 'playground'):
+    raise ValueError(f"SITE_ROLE must be 'main' or 'playground', got {SITE_ROLE!r}")
+
+MAIN_SITE_URL = os.environ.get(
+    'MAIN_SITE_URL', 'http://localhost:8000' if debug_bool else 'https://bensbreads.com'
+).rstrip('/')
+PLAYGROUND_SITE_URL = os.environ.get(
+    'PLAYGROUND_SITE_URL', 'http://localhost:8001' if debug_bool else 'https://playground.bensbreads.com'
+).rstrip('/')
+
 
 # Application definition
 
@@ -51,6 +65,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     "main.apps.MainConfig",
+    "playground.apps.PlaygroundConfig",
     'widget_tweaks',
     'storages'
 ]
@@ -66,7 +81,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'bensbreads.urls'
+ROOT_URLCONF = 'bensbreads.urls_playground' if SITE_ROLE == 'playground' else 'bensbreads.urls'
 
 TEMPLATES = [
     {
@@ -80,6 +95,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'main.context_processors.sites',
             ],
         },
     },
@@ -155,8 +171,25 @@ STATICFILES_DIRS = [
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGIN_REDIRECT_URL = '/'
-LOGIN_URL = '/login/'
 LOGOUT_REDIRECT_URL = '/'
+# Login lives on the main site only; the playground sends users there and back.
+LOGIN_URL = '/login/' if SITE_ROLE == 'main' else f'{MAIN_SITE_URL}/login/'
+
+# Shared login: both sites must use the same SECRET_KEY and database, and the
+# session/CSRF cookies are scoped to the parent domain so both subdomains see them.
+# Locally (localhost:8000 / :8001) cookies are already shared across ports.
+SESSION_COOKIE_DOMAIN = os.environ.get('SESSION_COOKIE_DOMAIN', None if debug_bool else '.bensbreads.com') or None
+CSRF_COOKIE_DOMAIN = SESSION_COOKIE_DOMAIN
+# New names so stale host-only cookies from before the split can't shadow the shared ones.
+SESSION_COOKIE_NAME = 'bb_sessionid'
+CSRF_COOKIE_NAME = 'bb_csrftoken'
+CSRF_TRUSTED_ORIGINS = [MAIN_SITE_URL, PLAYGROUND_SITE_URL]
+
+if not debug_bool:
+    # Render terminates TLS; trust its header so redirects between the sites stay on https.
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 if DEBUG:
     MEDIA_ROOT = BASE_DIR / 'media'
@@ -179,9 +212,6 @@ else:
     AWS_QUERYSTRING_AUTH = False  # Makes uploaded files public (can be True for private media)
     MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/'
 
-# Google Places API settings
-GOOGLE_PLACES_API_KEY = os.environ.get('GOOGLE_PLACES_API_KEY', '')
-# Use the same API key for Google Maps
 
 # Email Configuration
 # Resend (HTTP API, works on Render) - set RESEND_API_KEY in production
@@ -200,9 +230,3 @@ else:
     EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
     DEFAULT_FROM_EMAIL = 'admin@bensbreads.com'
     EMAIL_SSL_VERIFY = os.environ.get('EMAIL_SSL_VERIFY', 'false').lower() == 'true'
-
-# Site URL for email links
-SITE_URL = os.environ.get('SITE_URL', 'http://localhost:8000')
-
-# Secret token for cron endpoints (e.g. daily reminder trigger from cron-job.org)
-CRON_SECRET_TOKEN = os.environ.get('CRON_SECRET_TOKEN', 'yeet')

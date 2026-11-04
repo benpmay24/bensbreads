@@ -1,89 +1,35 @@
-from django.urls import path
-from . import views
-from django.contrib.auth import views as auth_views
-
+from django.urls import path, re_path
+from django.views.generic import RedirectView
 from django.conf import settings
-from django.conf.urls.static import static
+from . import views
+
+
+class OtherSiteRedirectView(RedirectView):
+    """Permanently redirect a path to the same path on the other site."""
+    permanent = True
+    base_url_setting = None
+
+    def get_redirect_url(self, *args, **kwargs):
+        url = getattr(settings, self.base_url_setting) + self.request.path
+        if self.request.META.get('QUERY_STRING'):
+            url += '?' + self.request.META['QUERY_STRING']
+        return url
+
 
 urlpatterns = [
     path('', views.home, name='home'),
-    path('blog/', views.blog, name='blog'),
-    path('games/', views.games, name='games'),
-    path('games/connect4/', views.connect4, name='connect4'),
-    path('games/word-find/', views.word_find, name='word_find'),
-    path('games/starhold/', views.starhold, name='starhold'),
-    path('games/starhold/play/', views.starhold_play, name='starhold_play'),
-    path('games/starhold/api/save-result/', views.save_starhold_result, name='save_starhold_result'),
-    path('games/starhold/api/leaderboard/', views.starhold_leaderboard, name='starhold_leaderboard'),
-    path('blog/add/', views.add_blog_post, name='add_blog_post'),
     path('manage-users/', views.manage_users, name='manage_users'),
-    path('login/', auth_views.LoginView.as_view(), name='login'),
-    path('logout/', auth_views.LogoutView.as_view(next_page='home'), name='logout'),
+    path('login/', views.LoginView.as_view(), name='login'),
+    path('logout/', views.LogoutView.as_view(next_page='home'), name='logout'),
     path('signup/', views.signup, name='signup'),
-    path('blog/delete/<int:post_id>/', views.delete_blog_post, name='delete_blog_post'),
     path('recipes/', views.recipes, name='recipes'),
     path('recipes/add/', views.add_recipe, name='add_recipe'),
     path('recipes/edit/<int:pk>/', views.edit_recipe, name='edit_recipe'),
     path('recipes/delete/<int:pk>/', views.delete_recipe, name='delete_recipe'),
     path('recipes/<int:pk>/toggle_featured/', views.toggle_featured_recipe, name='toggle_featured_recipe'),
-    path('secrets/', views.secrets, name='secrets'),
-    path('daily-update/', views.daily_update, name='daily_update'),
-    path('daily-update/search/', views.search_daily_update, name='search_daily_update'),
-    path('ramsey/story/', views.ramsey_bio, name='ramsey'),
-    path('ramsey/gallery/', views.ramsey_gallery, name='ramsey_gallery'),
-    path('ramsey/upload/', views.upload_ramsey_photo, name='upload_ramsey_photo'),
-    path('ramsey/photo/<int:pk>/delete/', views.delete_ramsey_photo, name='delete_ramsey_photo'),
-    path('ramsey/profile/', views.ramsey_profile, name='ramsey_profile'),
-    path('ramsey/profile/edit/', views.edit_ramsey_profile, name='edit_ramsey_profile'),
-    
-    # Vaccine Records URLs
-    path('ramsey/vaccines/add/', views.add_vaccine_record, name='add_vaccine_record'),
-    path('ramsey/vaccines/<int:pk>/edit/', views.edit_vaccine_record, name='edit_vaccine_record'),
-    path('ramsey/vaccines/<int:pk>/delete/', views.delete_vaccine_record, name='delete_vaccine_record'),
-    
-    # Boarding Experiences URLs
-    path('ramsey/boarding/add/', views.add_boarding_experience, name='add_boarding_experience'),
-    path('ramsey/boarding/<int:pk>/edit/', views.edit_boarding_experience, name='edit_boarding_experience'),
-    path('ramsey/boarding/<int:pk>/delete/', views.delete_boarding_experience, name='delete_boarding_experience'),
-    
-    # Diet Entries URLs
-    path('ramsey/diet/add/', views.add_diet_entry, name='add_diet_entry'),
-    path('ramsey/diet/<int:pk>/edit/', views.edit_diet_entry, name='edit_diet_entry'),
-    path('ramsey/diet/<int:pk>/delete/', views.delete_diet_entry, name='delete_diet_entry'),
-    
-    # Vaccine Documents URLs
-    path('ramsey/vaccines/documents/upload/', views.upload_vaccine_document, name='upload_vaccine_document'),
-    path('ramsey/vaccines/documents/<int:pk>/delete/', views.delete_vaccine_document, name='delete_vaccine_document'),
-    
-    # Diet Documents URLs
-    path('ramsey/diet/documents/upload/', views.upload_diet_document, name='upload_diet_document'),
-    path('ramsey/diet/documents/<int:pk>/delete/', views.delete_diet_document, name='delete_diet_document'),
-    
-    # Boarding Documents URLs
-    path('ramsey/boarding/documents/upload/', views.upload_boarding_document, name='upload_boarding_document'),
-    path('ramsey/boarding/documents/<int:pk>/delete/', views.delete_boarding_document, name='delete_boarding_document'),
-    
-    # Document Download
-    path('ramsey/documents/download/<str:doc_type>/<int:doc_id>/', views.download_document, name='download_document'),
-
-    path('api/cpu-move/', views.cpu_move, name='cpu_move'),
-    path('api/save-result/', views.save_connect4_result, name='save_connect4_result'),
-    path('api/leaderboard/', views.connect4_leaderboard, name='connect4_leaderboard'),
-    path('health/', views.health, name='health_check'),
-    path('cron/daily-reminder/', views.cron_daily_reminder, name='cron_daily_reminder'),
     path('recipes/<int:pk>/', views.recipe_detail, name='recipe_detail'),
-    path('api/validate-word/', views.validate_word, name='validate_word'),
-    path('api/word-find-leaderboard/', views.word_find_leaderboard, name='word_find_leaderboard'),
-    path('api/save-word-find-result/', views.save_word_find_result, name='save_word_find_result'),
+    path('health/', views.health, name='health_check'),
 
-    # Reviews URLs
-    path('reviews/', views.reviews, name='reviews'),
-    path('reviews/<int:pk>/', views.review_detail, name='review_detail'),
-    path('reviews/add/', views.add_review, name='add_review'),
-    path('reviews/<int:pk>/edit/', views.edit_review, name='edit_review'),
-    path('reviews/<int:pk>/delete/', views.delete_review, name='delete_review'),
-    
-    # Google Places API proxy
-    path('api/place-search/', views.place_search, name='place_search'),
-    path('api/place-photo/', views.place_photo, name='place_photo'),
+    # Moved to the playground site
+    re_path(r'^(blog|games|ramsey|secrets)(/.*)?$', OtherSiteRedirectView.as_view(base_url_setting='PLAYGROUND_SITE_URL')),
 ]

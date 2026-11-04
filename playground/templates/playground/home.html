@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Playground | Ben's Breads{% endblock %}
+
+{% block content %}
+<section class="hero text-white d-flex align-items-center" style="background: url('{% static 'main/home-background-2.jpg' %}') center center / cover no-repeat; min-height: 45vh; position: relative;">
+  <div class="position-absolute top-0 start-0 w-100 h-100" style="background-color: rgba(0, 0, 0, 0.5); z-index: 0;"></div>
+
+  <div class="container position-relative z-1 text-center">
+    <h1 class="hero-title mb-3 text-light" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.6); font-size: 3rem;">
+      Welcome to the <span style="color: #FFD580;">Playground</span>
+    </h1>
+    <p class="hero-subtitle text-light mb-0" style="max-width: 700px; margin: 0 auto; text-shadow: 1px 1px 3px rgba(0,0,0,0.5); font-size: 1.2rem;">
+      Games, life updates, and everything Ramsey.
+    </p>
+  </div>
+</section>
+
+<section class="py-5 bg-light text-center">
+  <div class="container">
+    <div class="row text-center">
+      <div class="col-md-4 mb-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <h5 class="card-title" style="font-size: 1.25rem; font-weight: 600;">Blog</h5>
+            <p class="card-text" style="font-size: 1rem;">Life updates and opinions</p>
+            <a href="{% url 'blog' %}" class="btn btn-outline-primary">Visit Blog</a>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4 mb-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <h5 class="card-title" style="font-size: 1.25rem; font-weight: 600;">Ramsey</h5>
+            <p class="card-text" style="font-size: 1rem;">Read and be inspired by her story or browse the photo gallery to see the latest happenings</p>
+            <a href="{% url 'ramsey' %}" class="btn btn-outline-primary">Read the Bio</a>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4 mb-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <h5 class="card-title" style="font-size: 1.25rem; font-weight: 600;">Games</h5>
+            <p class="card-text" style="font-size: 1rem;">Choose one of our games to play and compete against other users</p>
+            <a href="{% url 'games' %}" class="btn btn-outline-primary">Play</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
