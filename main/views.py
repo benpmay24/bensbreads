@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
 from django.contrib.auth import views as auth_views
@@ -8,22 +9,52 @@ from .forms import RecipeForm, CustomUserCreationForm, IngredientForm, Instructi
 from django.db import transaction
 from django.http import HttpResponse
 from django.forms import inlineformset_factory
+from django.utils.http import url_has_allowed_host_and_scheme, urlencode
+from urllib.parse import urlparse
+import logging
+
+logger = logging.getLogger(__name__)
 
 
-def _site_hosts():
-    """Hosts the login/logout views may redirect back to (i.e. the playground)."""
-    from urllib.parse import urlparse
-    return {urlparse(settings.PLAYGROUND_SITE_URL).netloc}
+def safe_next_url(request, url):
+    """Return `url` if it's safe to redirect to after login/logout, else ''.
+
+    Allows the current host, both configured site URLs, and any host under the
+    shared cookie domain (e.g. *.bensbreads.com) so the playground always gets
+    users back regardless of the exact subdomain or www/apex form in use.
+    """
+    if not url:
+        return ''
+    allowed = {request.get_host()}
+    for site_url in (settings.MAIN_SITE_URL, settings.PLAYGROUND_SITE_URL):
+        allowed.add(urlparse(site_url).netloc)
+    if url_has_allowed_host_and_scheme(url, allowed_hosts=allowed):
+        return url
+    parsed = urlparse(url)
+    domain = (settings.SESSION_COOKIE_DOMAIN or '').lstrip('.')
+    host = parsed.hostname or ''
+    if parsed.scheme in ('http', 'https') and domain and (host == domain or host.endswith('.' + domain)):
+        return url
+    logger.warning('Rejected post-login redirect to %r (allowed: %s, cookie domain: %r)', url, sorted(allowed), domain)
+    return ''
 
 
-class LoginView(auth_views.LoginView):
-    def get_success_url_allowed_hosts(self):
-        return super().get_success_url_allowed_hosts() | _site_hosts()
+class CrossSiteRedirectMixin:
+    """Let login/logout send users back to the playground site."""
+
+    def get_redirect_url(self):
+        redirect_to = self.request.POST.get(
+            self.redirect_field_name, self.request.GET.get(self.redirect_field_name)
+        )
+        return safe_next_url(self.request, redirect_to)
 
 
-class LogoutView(auth_views.LogoutView):
-    def get_success_url_allowed_hosts(self):
-        return super().get_success_url_allowed_hosts() | _site_hosts()
+class LoginView(CrossSiteRedirectMixin, auth_views.LoginView):
+    pass
+
+
+class LogoutView(CrossSiteRedirectMixin, auth_views.LogoutView):
+    pass
 
 
 def staff_or_superuser(user):
@@ -37,6 +68,8 @@ def home(request):
 
 
 def signup(request):
+    # Carry ?next= through signup so new users still end up back where they started.
+    next_url = safe_next_url(request, request.POST.get('next', request.GET.get('next')))
     if request.method == 'POST':
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
@@ -45,10 +78,13 @@ def signup(request):
             user.last_name = form.cleaned_data['last_name']
             user.email = form.cleaned_data['email']
             user.save()
-            return redirect('login')
+            login_url = reverse('login')
+            if next_url:
+                login_url += '?' + urlencode({'next': next_url})
+            return redirect(login_url)
     else:
         form = CustomUserCreationForm()
-    return render(request, 'registration/signup.html', {'form': form})
+    return render(request, 'registration/signup.html', {'form': form, 'next': next_url})
 
 
 @user_passes_test(lambda u: u.is_superuser)

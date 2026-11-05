@@ -1,6 +1,6 @@
 from django.urls import path, re_path
 from main.urls import OtherSiteRedirectView
-from main.views import health
+from main.views import health, LogoutView
 from . import views
 
 urlpatterns = [
@@ -45,7 +45,9 @@ urlpatterns = [
     path('api/word-find-leaderboard/', views.word_find_leaderboard, name='word_find_leaderboard'),
     path('api/save-word-find-result/', views.save_word_find_result, name='save_word_find_result'),
     path('health/', health, name='health_check'),
+    # Logging out here clears the shared session, so it logs you out of both sites.
+    path('logout/', LogoutView.as_view(next_page='playground_home'), name='logout'),
 
     # Lives on the main site
-    re_path(r'^(recipes|login|logout|signup|manage-users)(/.*)?$', OtherSiteRedirectView.as_view(base_url_setting='MAIN_SITE_URL')),
+    re_path(r'^(recipes|login|signup|manage-users|accounts)(/.*)?$', OtherSiteRedirectView.as_view(base_url_setting='MAIN_SITE_URL')),
 ]

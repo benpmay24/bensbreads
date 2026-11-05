@@ -184,6 +184,9 @@ CSRF_COOKIE_DOMAIN = SESSION_COOKIE_DOMAIN
 SESSION_COOKIE_NAME = 'bb_sessionid'
 CSRF_COOKIE_NAME = 'bb_csrftoken'
 CSRF_TRUSTED_ORIGINS = [MAIN_SITE_URL, PLAYGROUND_SITE_URL]
+if SESSION_COOKIE_DOMAIN:
+    _domain = SESSION_COOKIE_DOMAIN.lstrip('.')
+    CSRF_TRUSTED_ORIGINS += [f'https://{_domain}', f'https://*.{_domain}']
 
 if not debug_bool:
     # Render terminates TLS; trust its header so redirects between the sites stay on https.

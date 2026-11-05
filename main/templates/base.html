@@ -59,7 +59,6 @@
           {% else %}
           <li class="nav-item"><a class="nav-link" href="{% main_url 'home' %}">Home</a></li>
           <li class="nav-item"><a class="nav-link" href="{% main_url 'recipes' %}">Recipes</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% playground_url 'playground_home' %}">Playground <i class="fas fa-arrow-up-right-from-square fa-xs"></i></a></li>
           {% endif %}
         </ul>
 
@@ -85,10 +84,9 @@
                   {% endif %}
                 </li>
                 <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="{% main_url 'logout' %}" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Logout</a></li>
-                <form id="logout-form" method="post" action="{% main_url 'logout' %}" style="display: none;">
+                <li><a class="dropdown-item" href="{% url 'logout' %}" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Logout</a></li>
+                <form id="logout-form" method="post" action="{% url 'logout' %}" style="display: none;">
                   {% csrf_token %}
-                  {% if SITE_ROLE == 'playground' %}<input type="hidden" name="next" value="{{ PLAYGROUND_SITE_URL }}/">{% endif %}
                 </form>
               {% else %}
                 <li><a class="dropdown-item" href="{% main_url 'login' %}{% if SITE_ROLE == 'playground' %}?next={{ request.build_absolute_uri|urlencode }}{% endif %}">Log In</a></li>
