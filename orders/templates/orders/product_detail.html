@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{{ product.name }} | Ben's Breads{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'main/orders.css' %}">{% endblock %}
+
+{% block content %}
+<div class="container py-4 pb-5">
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+    <a href="{% url 'order_menu' %}" class="btn btn-link px-0"><i class="fas fa-arrow-left me-1"></i>Back to Order</a>
+    {% if user.is_superuser %}
+      <div class="d-flex gap-2">
+        <a href="{% url 'order_product_edit' product.pk %}" class="btn btn-outline-primary btn-sm"><i class="fas fa-pen me-1"></i>Edit</a>
+        <form method="post" action="{% url 'order_product_delete' product.pk %}" onsubmit="return confirm('Delete {{ product.name|escapejs }}? Past orders will still list it by name.');">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-outline-danger btn-sm"><i class="fas fa-trash me-1"></i>Delete</button>
+        </form>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="row g-4 g-lg-5">
+    <div class="col-lg-7">
+      {% with images=product.images.all %}
+        <div class="gallery">
+          <div class="gallery-main">
+            {% if images %}
+              <img id="gallery-main" src="{{ images.0.image.url }}" alt="{{ product.name }}">
+            {% else %}
+              <div class="shop-card-placeholder"><i class="fas fa-bread-slice"></i></div>
+            {% endif %}
+          </div>
+          {% if images|length > 1 %}
+            <div class="gallery-thumbs">
+              {% for img in images %}
+                <button type="button" class="gallery-thumb{% if forloop.first %} active{% endif %}" data-src="{{ img.image.url }}" aria-label="Show photo {{ forloop.counter }}">
+                  <img src="{{ img.image.url }}" alt="" loading="lazy">
+                </button>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+      {% endwith %}
+    </div>
+
+    <div class="col-lg-5">
+      <div class="product-panel">
+        <span class="product-category">{{ product.get_category_display }}</span>
+        <h1 class="product-title">{{ product.name }}</h1>
+        {% if not product.is_available %}
+          <div class="alert alert-warning py-2"><i class="fas fa-eye-slash me-1"></i>Hidden from customers. Only admins can see this item.</div>
+        {% endif %}
+        <p class="product-description">{{ product.description|linebreaksbr }}</p>
+
+        {% if product.is_available %}
+          <form method="post" action="{% url 'order_cart_add' product.pk %}" class="add-to-cart">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <label class="form-label" for="qty">Quantity</label>
+            <div class="add-to-cart-row">
+              <div class="qty-stepper">
+                <button type="button" class="qty-btn" data-step="-1" aria-label="Decrease quantity"><i class="fas fa-minus"></i></button>
+                <input type="number" id="qty" name="quantity" value="1" min="1" max="{{ max_quantity }}" class="form-control qty-input">
+                <button type="button" class="qty-btn" data-step="1" aria-label="Increase quantity"><i class="fas fa-plus"></i></button>
+              </div>
+              <button type="submit" class="btn btn-primary flex-grow-1"><i class="fas fa-basket-shopping me-2"></i>Add to cart</button>
+            </div>
+          </form>
+          {% if cart_count %}
+            <a href="{% url 'order_cart' %}" class="btn btn-link px-0 mt-2">View cart ({{ cart_count }}) <i class="fas fa-arrow-right ms-1"></i></a>
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.gallery-thumb').forEach(btn => btn.addEventListener('click', () => {
+  document.getElementById('gallery-main').src = btn.dataset.src;
+  document.querySelectorAll('.gallery-thumb').forEach(b => b.classList.toggle('active', b === btn));
+}));
+document.querySelectorAll('.qty-stepper').forEach(stepper => {
+  const input = stepper.querySelector('input');
+  stepper.querySelectorAll('.qty-btn').forEach(btn => btn.addEventListener('click', () => {
+    const v = (parseInt(input.value, 10) || 0) + parseInt(btn.dataset.step, 10);
+    input.value = Math.min(Math.max(v, parseInt(input.min, 10)), parseInt(input.max, 10));
+    input.dispatchEvent(new Event('change', {bubbles: true}));
+  }));
+});
+</script>
+{% endblock %}

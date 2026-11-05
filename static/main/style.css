@@ -1911,3 +1911,28 @@ h1, h2, h3, h4, h5, h6 {
     height: 100px;
   }
 }
+
+/* ===== Cart link in navbar ===== */
+.navbar-modern .nav-cart {
+  position: relative;
+  font-size: 1.1rem;
+}
+.nav-cart-count {
+  position: absolute;
+  top: 0.1rem;
+  right: 0.35rem;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.15rem;
+  text-align: center;
+}
+
+/* ===== Flash messages ===== */
+.site-messages { padding-top: 1rem; }
+.site-messages .alert { border-radius: var(--radius-md); margin-bottom: 0.5rem; }

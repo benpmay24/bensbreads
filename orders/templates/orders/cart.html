@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Your Cart | Ben's Breads{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'main/orders.css' %}">{% endblock %}
+
+{% block content %}
+<div class="hero-header text-center">
+  <div class="hero-content">
+    <h1 class="hero-title">Your Cart</h1>
+    <div class="hero-divider"></div>
+  </div>
+</div>
+
+<div class="container pb-5">
+  {% if lines %}
+    <div class="row g-4">
+      <div class="col-lg-8">
+        <form method="post" id="cart-form" class="order-panel">
+          {% csrf_token %}
+          {# First submit button = what Enter triggers, so Enter in a quantity box updates instead of removing a line. #}
+          <button type="submit" class="d-none" tabindex="-1" aria-hidden="true"></button>
+          <ul class="cart-list">
+            {% for product, quantity in lines %}
+              <li class="cart-line">
+                <a href="{% url 'order_product' product.pk %}" class="cart-thumb">
+                  {% with cover=product.cover_image %}
+                    {% if cover %}<img src="{{ cover.image.url }}" alt="">{% else %}<i class="fas fa-bread-slice"></i>{% endif %}
+                  {% endwith %}
+                </a>
+                <div class="cart-info">
+                  <a href="{% url 'order_product' product.pk %}" class="cart-name">{{ product.name }}</a>
+                  <span class="cart-category">{{ product.get_category_display }}</span>
+                </div>
+                <div class="qty-stepper qty-stepper-sm">
+                  <button type="button" class="qty-btn" data-step="-1" aria-label="Decrease {{ product.name }}"><i class="fas fa-minus"></i></button>
+                  <input type="number" name="qty_{{ product.pk }}" value="{{ quantity }}" min="1" max="{{ max_quantity }}" class="form-control qty-input" aria-label="Quantity of {{ product.name }}">
+                  <button type="button" class="qty-btn" data-step="1" aria-label="Increase {{ product.name }}"><i class="fas fa-plus"></i></button>
+                </div>
+                <button type="submit" name="remove" value="{{ product.pk }}" class="row-btn cart-remove" aria-label="Remove {{ product.name }}"><i class="fas fa-times"></i></button>
+              </li>
+            {% endfor %}
+          </ul>
+          <div class="cart-footer">
+            <a href="{% url 'order_menu' %}" class="btn btn-link px-0"><i class="fas fa-arrow-left me-1"></i>Keep browsing</a>
+            <button type="submit" class="btn btn-outline-primary btn-sm" id="cart-update">Update cart</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="col-lg-4">
+        <div class="order-panel checkout-panel">
+          <h2 class="order-panel-title">Summary</h2>
+          <div class="summary-row"><span>Items</span><strong>{{ total_items }}</strong></div>
+          <p class="checkout-note">No payment is taken online. We'll confirm your order once it's placed.</p>
+          {% if user.is_authenticated %}
+            <form method="post" action="{% url 'order_checkout' %}" id="checkout-form">
+              {% csrf_token %}
+              <label class="form-label" for="{{ checkout_form.notes.id_for_label }}">Notes <span class="text-muted fw-normal">(optional)</span></label>
+              {{ checkout_form.notes.as_widget }}
+              <button type="submit" class="btn btn-primary btn-lg w-100 mt-3" id="place-order"><i class="fas fa-check me-2"></i>Place order</button>
+            </form>
+          {% else %}
+            <a href="{% url 'login' %}?next={{ request.path|urlencode }}" class="btn btn-primary btn-lg w-100"><i class="fas fa-sign-in-alt me-2"></i>Log in to place order</a>
+            <p class="text-center mt-2 mb-0 small">New here? <a href="{% url 'signup' %}?next={{ request.path|urlencode }}">Create an account</a></p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <div class="empty-recipes-state text-center">
+      <div class="empty-icon"><i class="fas fa-shopping-basket"></i></div>
+      <h3>Your cart is empty</h3>
+      <p>Browse what's available and add something tasty.</p>
+      <a href="{% url 'order_menu' %}" class="btn btn-primary mt-3">Start an order</a>
+      {% if user.is_authenticated %}<p class="mt-3 mb-0"><a href="{% url 'my_orders' %}">View past orders</a></p>{% endif %}
+    </div>
+  {% endif %}
+</div>
+
+<script>
+(function () {
+  const form = document.getElementById('cart-form');
+  if (!form) return;
+  form.querySelectorAll('.qty-stepper').forEach(stepper => {
+    const input = stepper.querySelector('input');
+    stepper.querySelectorAll('.qty-btn').forEach(btn => btn.addEventListener('click', () => {
+      const v = (parseInt(input.value, 10) || 0) + parseInt(btn.dataset.step, 10);
+      input.value = Math.min(Math.max(v, 1), parseInt(input.max, 10));
+      input.dispatchEvent(new Event('change', {bubbles: true}));
+    }));
+  });
+  // Quantities save automatically; the button stays as a no-JS fallback.
+  let timer;
+  form.addEventListener('change', () => { clearTimeout(timer); timer = setTimeout(() => form.submit(), 400); });
+  document.getElementById('cart-update').hidden = true;
+  const checkout = document.getElementById('checkout-form');
+  if (checkout) checkout.addEventListener('submit', () => { document.getElementById('place-order').disabled = true; });
+})();
+</script>
+{% endblock %}

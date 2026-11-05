@@ -49,5 +49,5 @@ urlpatterns = [
     path('logout/', LogoutView.as_view(next_page='playground_home'), name='logout'),
 
     # Lives on the main site
-    re_path(r'^(recipes|login|signup|manage-users|accounts)(/.*)?$', OtherSiteRedirectView.as_view(base_url_setting='MAIN_SITE_URL')),
+    re_path(r'^(recipes|order|login|signup|manage-users|accounts)(/.*)?$', OtherSiteRedirectView.as_view(base_url_setting='MAIN_SITE_URL')),
 ]

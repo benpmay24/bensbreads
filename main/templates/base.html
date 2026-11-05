@@ -60,12 +60,25 @@
           {% else %}
           <li class="nav-item"><a class="nav-link" href="{% main_url 'home' %}">Home</a></li>
           <li class="nav-item"><a class="nav-link" href="{% main_url 'recipes' %}">Recipes</a></li>
+          <li class="nav-item"><a class="nav-link" href="{% main_url 'order_menu' %}">Order</a></li>
           {% endif %}
         </ul>
 
         <ul class="navbar-nav align-items-center">
+          {% if SITE_ROLE == 'main' %}
+            {% if user.is_staff or user.is_superuser %}
+              <li class="nav-item"><a class="nav-link" href="{% main_url 'manage_orders' %}">Manage Orders</a></li>
+            {% endif %}
+          {% endif %}
           {% if user.is_superuser %}
             <li class="nav-item"><a class="nav-link" href="{% main_url 'manage_users' %}">Manage Users</a></li>
+          {% endif %}
+          {% if SITE_ROLE == 'main' %}
+            <li class="nav-item">
+              <a class="nav-link nav-cart" href="{% main_url 'order_cart' %}" aria-label="Cart, {{ cart_count }} item{{ cart_count|pluralize }}">
+                <i class="fas fa-shopping-basket"></i>{% if cart_count %}<span class="nav-cart-count">{{ cart_count }}</span>{% endif %}
+              </a>
+            </li>
           {% endif %}
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle bg-light border rounded px-3 py-1" href="#" id="accountDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="box-shadow: 0 0 5px rgba(0,0,0,0.1);">
@@ -85,6 +98,7 @@
                   {% endif %}
                 </li>
                 <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{% main_url 'my_orders' %}"><i class="fas fa-receipt me-2"></i>My Orders</a></li>
                 <li><a class="dropdown-item" href="{% url 'logout' %}" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Logout</a></li>
                 <form id="logout-form" method="post" action="{% url 'logout' %}" style="display: none;">
                   {% csrf_token %}
@@ -101,6 +115,16 @@
   </nav>
 
   <main>
+    {% if messages %}
+      <div class="container site-messages">
+        {% for message in messages %}
+          <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags|default:'info' }}{% endif %} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
     {% block content %}{% endblock %}
   </main>
 

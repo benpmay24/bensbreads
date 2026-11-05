@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Order #{{ order.pk }} | Ben's Breads{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'main/orders.css' %}">{% endblock %}
+
+{% block content %}
+<div class="container py-4 pb-5 orders-narrow">
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    {% if order.user == user %}
+      <a href="{% url 'my_orders' %}" class="btn btn-link px-0"><i class="fas fa-arrow-left me-1"></i>My Orders</a>
+    {% else %}
+      <a href="{% url 'manage_orders' %}" class="btn btn-link px-0"><i class="fas fa-arrow-left me-1"></i>Manage Orders</a>
+    {% endif %}
+  </div>
+
+  <div class="order-panel">
+    <div class="order-detail-head">
+      <div>
+        <h1 class="order-detail-title">Order #{{ order.pk }}</h1>
+        <div class="text-muted">Placed {{ order.created_at|date:"M j, Y \a\t g:i A" }}{% if order.user != user %} by <strong>{{ order.user.get_full_name|default:order.user.username }}</strong>{% if order.user.email %} · <a href="mailto:{{ order.user.email }}">{{ order.user.email }}</a>{% endif %}{% endif %}</div>
+      </div>
+      {% include 'orders/_status_badge.html' %}
+    </div>
+
+    <ol class="status-track" aria-label="Order status">
+      {% for label, state in status_steps %}
+        <li class="{{ state }}"{% if state == 'current' %} aria-current="step"{% endif %}>{{ label }}</li>
+      {% endfor %}
+    </ol>
+
+    <h2 class="order-panel-title mt-4">Items</h2>
+    <ul class="cart-list">
+      {% for item in order.items.all %}
+        <li class="cart-line cart-line-static">
+          <div class="cart-thumb">
+            {% with cover=item.product.cover_image %}
+              {% if cover %}<img src="{{ cover.image.url }}" alt="">{% else %}<i class="fas fa-bread-slice"></i>{% endif %}
+            {% endwith %}
+          </div>
+          <div class="cart-info">
+            {% if item.product and item.product.is_available %}
+              <a href="{% url 'order_product' item.product.pk %}" class="cart-name">{{ item.product_name }}</a>
+            {% else %}
+              <span class="cart-name">{{ item.product_name }}</span>
+            {% endif %}
+          </div>
+          <span class="item-qty">× {{ item.quantity }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+
+    {% if order.notes %}
+      <h2 class="order-panel-title mt-4">Notes</h2>
+      <p class="order-notes">{{ order.notes|linebreaksbr }}</p>
+    {% endif %}
+
+    {% if user.is_staff or user.is_superuser %}
+      <form method="post" action="{% url 'order_update_status' order.pk %}" class="status-form mt-4">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <label class="form-label mb-0" for="status-{{ order.pk }}">Update status</label>
+        <select name="status" id="status-{{ order.pk }}" class="form-select status-select">
+          {% for value, label in status_choices %}<option value="{{ value }}"{% if value == order.status %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

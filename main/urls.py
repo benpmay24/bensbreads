@@ -1,4 +1,4 @@
-from django.urls import path, re_path
+from django.urls import include, path, re_path
 from django.views.generic import RedirectView
 from django.conf import settings
 from . import views
@@ -29,6 +29,7 @@ urlpatterns = [
     path('recipes/<int:pk>/toggle_featured/', views.toggle_featured_recipe, name='toggle_featured_recipe'),
     path('recipes/<int:pk>/', views.recipe_detail, name='recipe_detail'),
     path('health/', views.health, name='health_check'),
+    path('order/', include('orders.urls')),
 
     # Moved to the playground site
     re_path(r'^(blog|games|ramsey|secrets)(/.*)?$', OtherSiteRedirectView.as_view(base_url_setting='PLAYGROUND_SITE_URL')),

@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     "main.apps.MainConfig",
     "playground.apps.PlaygroundConfig",
+    "orders.apps.OrdersConfig",
     'widget_tweaks',
     'storages'
 ]
@@ -96,6 +97,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'main.context_processors.sites',
+                'orders.context_processors.cart',
             ],
         },
     },

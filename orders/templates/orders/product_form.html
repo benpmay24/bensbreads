@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% load static widget_tweaks %}
+{% block title %}{% if is_edit %}Edit {{ product.name }}{% else %}New Item{% endif %} | Ben's Breads{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'main/orders.css' %}">{% endblock %}
+
+{% block content %}
+<div class="hero-header text-center">
+  <div class="hero-content">
+    <h1 class="hero-title">{% if is_edit %}Edit Item{% else %}New Item{% endif %}</h1>
+    <div class="hero-divider"></div>
+  </div>
+</div>
+
+<div class="container pb-5">
+  <form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    {% if form.errors %}
+      <div class="alert alert-danger" role="alert"><i class="fas fa-exclamation-circle me-2"></i>Please fix the highlighted fields below.{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <div class="row g-4">
+      <div class="col-lg-7">
+        <section class="order-panel">
+          <h2 class="order-panel-title">Details</h2>
+          <div class="mb-3">
+            <label class="form-label" for="{{ form.name.id_for_label }}">Name</label>
+            {% render_field form.name class+="form-control" %}
+            {% for e in form.name.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="{{ form.description.id_for_label }}">Description</label>
+            {% render_field form.description class+="form-control" %}
+            {% for e in form.description.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="mb-3">
+            <span class="form-label d-block">Category</span>
+            <div class="category-picker" role="radiogroup">
+              {% for value, label in form.fields.category.choices %}
+                <input type="radio" class="btn-check" name="{{ form.category.html_name }}" id="cat-{{ value }}" value="{{ value }}" {% if form.category.value == value %}checked{% endif %}>
+                <label class="shop-chip" for="cat-{{ value }}">{{ label }}</label>
+              {% endfor %}
+            </div>
+            {% for e in form.category.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="form-check form-switch featured-switch">
+            {% render_field form.is_available class+="form-check-input" role="switch" %}
+            <label class="form-check-label" for="{{ form.is_available.id_for_label }}">{{ form.is_available.label }}</label>
+          </div>
+        </section>
+      </div>
+
+      <div class="col-lg-5">
+        <section class="order-panel">
+          <h2 class="order-panel-title">Photos</h2>
+          {% if form.existing_images %}
+            <p class="form-hint">The first photo is used on the order page. Tick any photos to remove.</p>
+            <div class="photo-grid">
+              {% for img in form.existing_images %}
+                <label class="photo-tile">
+                  <img src="{{ img.image.url }}" alt="">
+                  <input type="checkbox" name="{{ form.remove_images.html_name }}" value="{{ img.pk }}" class="form-check-input photo-remove"{% if img.pk|stringformat:"s" in form.remove_images.value %} checked{% endif %}>
+                  <span class="photo-remove-label">Remove</span>
+                </label>
+              {% endfor %}
+            </div>
+          {% endif %}
+          <label class="photo-drop" id="photo-drop" for="{{ form.new_images.id_for_label }}">
+            <span class="photo-drop-empty">
+              <i class="fas fa-images"></i>
+              <span>{% if form.existing_images %}Add more photos{% else %}Click or drop photos{% endif %}</span>
+              <small>You can choose several at once</small>
+            </span>
+          </label>
+          <input type="file" name="{{ form.new_images.html_name }}" id="{{ form.new_images.id_for_label }}" accept="image/*" multiple class="visually-hidden">
+          <div class="photo-grid mt-2" id="new-previews"></div>
+          {% for e in form.new_images.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+        </section>
+
+        <div class="mt-4">
+          <button type="submit" class="btn btn-primary btn-lg w-100"><i class="fas fa-check me-2"></i>{% if is_edit %}Save Changes{% else %}Add to Order Page{% endif %}</button>
+          <a href="{% if is_edit %}{% url 'order_product' product.pk %}{% else %}{% url 'order_menu' %}{% endif %}" class="btn btn-link w-100">Cancel</a>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+
+<script>
+(function () {
+  const input = document.getElementById('{{ form.new_images.id_for_label }}');
+  const drop = document.getElementById('photo-drop');
+  const previews = document.getElementById('new-previews');
+
+  function render() {
+    previews.innerHTML = '';
+    Array.from(input.files).forEach(file => {
+      const tile = document.createElement('div');
+      tile.className = 'photo-tile is-new';
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(file);
+      tile.appendChild(img);
+      previews.appendChild(tile);
+    });
+  }
+  input.addEventListener('change', render);
+  ['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('dragging'); }));
+  ['dragleave', 'drop'].forEach(t => drop.addEventListener(t, () => drop.classList.remove('dragging')));
+  drop.addEventListener('drop', e => {
+    e.preventDefault();
+    const dt = new DataTransfer();
+    Array.from(input.files).forEach(f => dt.items.add(f));
+    Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/')).forEach(f => dt.items.add(f));
+    input.files = dt.files;
+    render();
+  });
+})();
+</script>
+{% endblock %}

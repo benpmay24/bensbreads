@@ -4,7 +4,7 @@ One Django codebase that serves two sites from the same database and login:
 
 | Site | `SITE_ROLE` | Contents |
 |------|-------------|----------|
-| bensbreads.com | `main` (default) | Home, recipes, login/signup, user management, Django admin |
+| bensbreads.com | `main` (default) | Home, recipes, ordering, login/signup, user management, Django admin |
 | playground.bensbreads.com | `playground` | Blog, games (Connect 4, Word Find, Starhold), Ramsey |
 
 Login only happens on the main site. The playground sends users to the main
@@ -54,6 +54,7 @@ Run `python manage.py migrate` from the main service only.
 ## Project layout
 
 - **bensbreads/** — Django project: settings, `urls.py` (main site), `urls_playground.py` (playground)
-- **main/** — All models and migrations (shared by both sites), plus the main site's views, forms, URLs and templates (home, recipes, auth, user management). `templatetags/site_urls.py` provides `{% main_url %}` / `{% playground_url %}` for links between the sites.
+- **main/** — Models and migrations shared by both sites (recipes, blog, games, Ramsey), plus the main site's views, forms, URLs and templates (home, recipes, auth, user management). `templatetags/site_urls.py` provides `{% main_url %}` / `{% playground_url %}` for links between the sites.
+- **orders/** — Order page on the main site (`/order/`): products with photos and categories, a session cart, checkout (login required, no payment), order history, and staff order management. Superusers manage products; staff and superusers manage orders.
 - **playground/** — The playground's views, forms, URLs and templates (blog, games, Ramsey), plus the Connect 4 engine
 - **static/main/** — CSS, JS and images used by both sites

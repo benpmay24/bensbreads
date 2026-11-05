@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}My Orders | Ben's Breads{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'main/orders.css' %}">{% endblock %}
+
+{% block content %}
+<div class="hero-header text-center">
+  <div class="hero-content">
+    <h1 class="hero-title">My Orders</h1>
+    <div class="hero-divider"></div>
+  </div>
+</div>
+
+<div class="container pb-5 orders-narrow">
+  {% if orders %}
+    <div class="order-list">
+      {% for order in orders %}
+        <a href="{% url 'order_detail' order.pk %}" class="order-row">
+          <div class="order-row-main">
+            <div class="order-row-head">
+              <span class="order-number">Order #{{ order.pk }}</span>
+              {% include 'orders/_status_badge.html' %}
+            </div>
+            <div class="order-row-items">
+              {% for item in order.items.all %}{{ item.quantity }} × {{ item.product_name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+            </div>
+          </div>
+          <div class="order-row-date">{{ order.created_at|date:"M j, Y" }}<i class="fas fa-chevron-right ms-2"></i></div>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-recipes-state text-center">
+      <div class="empty-icon"><i class="fas fa-receipt"></i></div>
+      <h3>No orders yet</h3>
+      <p>Your orders and their status will show up here.</p>
+      <a href="{% url 'order_menu' %}" class="btn btn-primary mt-3">Start an order</a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

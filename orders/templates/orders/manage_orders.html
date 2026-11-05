@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Manage Orders | Ben's Breads{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'main/orders.css' %}">{% endblock %}
+
+{% block content %}
+<div class="hero-header text-center">
+  <div class="hero-content">
+    <h1 class="hero-title">Manage Orders</h1>
+    <div class="hero-divider"></div>
+  </div>
+</div>
+
+<div class="container pb-5">
+  <nav class="shop-filters mb-4" aria-label="Filter by status">
+    <a href="?status=open" class="shop-chip{% if status_filter == 'open' %} active{% endif %}">Open <span class="chip-count">{{ open_count }}</span></a>
+    {% for value, label, count in status_tabs %}
+      <a href="?status={{ value }}" class="shop-chip{% if status_filter == value %} active{% endif %}">{{ label }} <span class="chip-count">{{ count }}</span></a>
+    {% endfor %}
+    <a href="?status=all" class="shop-chip{% if status_filter == 'all' %} active{% endif %}">All <span class="chip-count">{{ all_count }}</span></a>
+  </nav>
+
+  {% if orders %}
+    <div class="manage-grid">
+      {% for order in orders %}
+        <div class="order-panel manage-card">
+          <div class="manage-card-head">
+            <a href="{% url 'order_detail' order.pk %}" class="order-number">Order #{{ order.pk }}</a>
+            {% include 'orders/_status_badge.html' %}
+          </div>
+          <div class="manage-customer">
+            <i class="fas fa-user me-1"></i>{{ order.user.get_full_name|default:order.user.username }}
+            {% if order.user.email %}· <a href="mailto:{{ order.user.email }}">{{ order.user.email }}</a>{% endif %}
+          </div>
+          <div class="manage-date">{{ order.created_at|date:"M j, Y \a\t g:i A" }}</div>
+          <ul class="manage-items">
+            {% for item in order.items.all %}<li><strong>{{ item.quantity }}</strong> × {{ item.product_name }}</li>{% endfor %}
+          </ul>
+          {% if order.notes %}<p class="manage-notes"><i class="fas fa-comment-dots me-1"></i>{{ order.notes|truncatechars:160 }}</p>{% endif %}
+          <form method="post" action="{% url 'order_update_status' order.pk %}" class="status-buttons">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            {% for value, label in status_choices %}
+              <button type="submit" name="status" value="{{ value }}" class="status-btn status-{{ value }}{% if value == order.status %} active{% endif %}"{% if value == order.status %} aria-pressed="true"{% endif %}>{{ label }}</button>
+            {% endfor %}
+          </form>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-recipes-state text-center">
+      <div class="empty-icon"><i class="fas fa-clipboard-check"></i></div>
+      <h3>No orders here</h3>
+      <p>{% if status_filter == 'open' %}All caught up. There are no open orders.{% else %}No orders match this filter.{% endif %}</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
