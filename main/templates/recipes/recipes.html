@@ -1,9 +1,9 @@
 {% extends 'base.html' %}
 {% load static %}
 {% block title %}Recipes | Ben's Breads{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'main/recipes.css' %}">{% endblock %}
 
 {% block content %}
-<!-- Hero Header -->
 <div class="hero-header text-center">
   <div class="hero-content">
     <h1 class="hero-title">Recipes</h1>
@@ -11,224 +11,101 @@
   </div>
 </div>
 
-<div class="container-fluid">
-  <div class="container py-4">
-    <!-- Admin Controls -->
-    {% if user.is_staff or user.is_superuser %}
-      <div class="row">
-        <div class="col-12">
-          <div class="d-flex justify-content-end mb-4">
-            <a href="{% url 'add_recipe' %}" class="btn btn-outline-primary">
-              <i class="fas fa-plus me-1"></i>Add Recipe
-            </a>
-          </div>
-        </div>
+<div class="container pb-5">
+  {% if recipes %}
+    <div class="recipe-toolbar">
+      <div class="recipe-search">
+        <i class="fas fa-search" aria-hidden="true"></i>
+        <input type="search" id="recipe-search" class="form-control" placeholder="Search recipes" aria-label="Search recipes">
       </div>
-    {% endif %}
+      <select id="recipe-sort" class="form-select recipe-sort" aria-label="Sort recipes">
+        <option value="newest">Newest first</option>
+        <option value="title">A–Z</option>
+      </select>
+      <span class="recipe-count" id="recipe-count">{{ recipes|length }} recipe{{ recipes|length|pluralize }}</span>
+      {% if user.is_staff %}
+        <a href="{% url 'add_recipe' %}" class="btn btn-primary recipe-add-btn">
+          <i class="fas fa-plus me-1"></i>Add Recipe
+        </a>
+      {% endif %}
+    </div>
 
-    {% if recipes %}
-      <!-- Recent Recipes Section -->
-      <div class="recent-recipes-section mb-5">
-        <div class="row">
-          <div class="col-12">
-            <h2 class="section-title mb-4">
-              <i class="fas fa-star me-2"></i>Recent Recipes
-            </h2>
-          </div>
-        </div>
-        <div class="row">
-          {% for recipe in recipes|slice:":3" %}
-            <div class="col-lg-4 col-md-6 mb-4">
-              <div class="featured-recipe-card" onclick="window.location.href='{% url 'recipe_detail' recipe.id %}';" style="cursor: pointer;">
-                {% if recipe.image %}
-                  <div class="featured-recipe-image">
-                    <img src="{{ recipe.image.url }}" alt="{{ recipe.title }}" class="img-fluid">
-                  </div>
-                {% endif %}
-                <div class="featured-recipe-content">
-                  {% if recipe.time_required %}
-                    <div class="recipe-time">
-                      <i class="fas fa-clock me-1"></i>
-                      {{ recipe.time_required }}
-                    </div>
-                  {% endif %}
-                  <h3 class="featured-recipe-title">{{ recipe.title }}</h3>
-                  {% if recipe.description %}
-                    <p class="featured-recipe-description">{{ recipe.description|truncatewords:20 }}</p>
-                  {% endif %}
-                  <div class="recipe-author mb-2">
-                    <i class="fas fa-user me-1"></i>
-                    <small class="text-muted">by {{ recipe.author.get_full_name|default:recipe.author.username }}</small>
-                  </div>
-                  <div class="view-recipe-link">
-                    View Recipe <i class="fas fa-arrow-right ms-1"></i>
-                  </div>
-                </div>
-              </div>
-            </div>
-          {% endfor %}
-        </div>
-      </div>
-
-      <!-- All Recipes Section -->
-      <div class="all-recipes-section">
-        <div class="row">
-          <div class="col-12">
-            <h2 class="section-title mb-4">
-              <i class="fas fa-list me-2"></i>All Recipes
-            </h2>
-            
-            <!-- Category Tabs -->
-            <ul class="nav nav-tabs recipe-tabs mb-4" id="recipeTabs" role="tablist">
-              <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all-recipes" type="button" role="tab">
-                  All Recipes ({{ recipes.count }})
-                </button>
-              </li>
-              <li class="nav-item" role="presentation">
-                <button class="nav-link" id="bread-tab" data-bs-toggle="tab" data-bs-target="#bread-recipes" type="button" role="tab">
-                  Bread ({{ bread_recipes.count }})
-                </button>
-              </li>
-              <li class="nav-item" role="presentation">
-                <button class="nav-link" id="other-tab" data-bs-toggle="tab" data-bs-target="#other-recipes" type="button" role="tab">
-                  Other ({{ other_recipes.count }})
-                </button>
-              </li>
-            </ul>
-
-            <!-- Tab Content -->
-            <div class="tab-content" id="recipeTabContent">
-              <!-- All Recipes Tab -->
-              <div class="tab-pane fade show active" id="all-recipes" role="tabpanel">
-                <div class="row">
-                  {% for recipe in recipes|dictsort:"title" %}
-                    <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
-                      <div class="recipe-item" onclick="window.location.href='{% url 'recipe_detail' recipe.id %}';" style="cursor: pointer;">
-                        {% if recipe.image %}
-                          <div class="recipe-item-image">
-                            <img src="{{ recipe.image.url }}" alt="{{ recipe.title }}" class="img-fluid">
-                          </div>
-                        {% endif %}
-                        <div class="recipe-item-content">
-                          <h4 class="recipe-item-title">{{ recipe.title }}</h4>
-                          {% if recipe.time_required %}
-                            <div class="recipe-item-time">
-                              <i class="fas fa-clock me-1"></i>
-                              {{ recipe.time_required }}
-                            </div>
-                          {% endif %}
-                        </div>
-                      </div>
-                    </div>
-                  {% endfor %}
-                </div>
-              </div>
-
-              <!-- Bread Recipes Tab -->
-              <div class="tab-pane fade" id="bread-recipes" role="tabpanel">
-                <div class="row">
-                  {% for recipe in bread_recipes|dictsort:"title" %}
-                    <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
-                      <div class="recipe-item" onclick="window.location.href='{% url 'recipe_detail' recipe.id %}';" style="cursor: pointer;">
-                        {% if recipe.image %}
-                          <div class="recipe-item-image">
-                            <img src="{{ recipe.image.url }}" alt="{{ recipe.title }}" class="img-fluid">
-                          </div>
-                        {% endif %}
-                        <div class="recipe-item-content">
-                          <h4 class="recipe-item-title">{{ recipe.title }}</h4>
-                          {% if recipe.time_required %}
-                            <div class="recipe-item-time">
-                              <i class="fas fa-clock me-1"></i>
-                              {{ recipe.time_required }}
-                            </div>
-                          {% endif %}
-                        </div>
-                      </div>
-                    </div>
-                  {% endfor %}
-                </div>
-              </div>
-
-              <!-- Other Recipes Tab -->
-              <div class="tab-pane fade" id="other-recipes" role="tabpanel">
-                <div class="row">
-                  {% for recipe in other_recipes|dictsort:"title" %}
-                    <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
-                      <div class="recipe-item" onclick="window.location.href='{% url 'recipe_detail' recipe.id %}';" style="cursor: pointer;">
-                        {% if recipe.image %}
-                          <div class="recipe-item-image">
-                            <img src="{{ recipe.image.url }}" alt="{{ recipe.title }}" class="img-fluid">
-                          </div>
-                        {% endif %}
-                        <div class="recipe-item-content">
-                          <h4 class="recipe-item-title">{{ recipe.title }}</h4>
-                          {% if recipe.time_required %}
-                            <div class="recipe-item-time">
-                              <i class="fas fa-clock me-1"></i>
-                              {{ recipe.time_required }}
-                            </div>
-                          {% endif %}
-                        </div>
-                      </div>
-                    </div>
-                  {% endfor %}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-    {% else %}
-      <!-- Empty State -->
-      <div class="row justify-content-center">
-        <div class="col-md-6">
-          <div class="empty-recipes-state text-center">
-            <div class="empty-icon">
-              <i class="fas fa-utensils"></i>
-            </div>
-            <h3>No Recipes Yet</h3>
-            <p>Start building your collection of delicious bread recipes!</p>
-            {% if user.is_staff or user.is_superuser %}
-              <a href="{% url 'add_recipe' %}" class="btn btn-outline-primary mt-3">
-                <i class="fas fa-plus me-1"></i>Add First Recipe
-              </a>
+    <div class="recipe-grid" id="recipe-grid">
+      {% for recipe in recipes %}
+        <a href="{% url 'recipe_detail' recipe.id %}" class="recipe-card"
+           data-title="{{ recipe.title|lower }}"
+           data-search="{{ recipe.title|lower }} {{ recipe.description|lower }}"
+           data-order="{{ forloop.counter0 }}">
+          <div class="recipe-card-media">
+            {% if recipe.image %}
+              <img src="{{ recipe.image.url }}" alt="{{ recipe.title }}" loading="lazy">
+            {% else %}
+              <div class="recipe-card-placeholder"><i class="fas fa-bread-slice" aria-hidden="true"></i></div>
+            {% endif %}
+            {% if recipe.featured %}
+              <span class="recipe-card-badge"><i class="fas fa-star me-1"></i>Featured</span>
             {% endif %}
           </div>
-        </div>
-      </div>
-    {% endif %}
-  </div>
+          <div class="recipe-card-body">
+            <h2 class="recipe-card-title">{{ recipe.title }}</h2>
+            {% if recipe.description %}
+              <p class="recipe-card-text">{{ recipe.description }}</p>
+            {% endif %}
+            <div class="recipe-card-meta">
+              {% if recipe.time_required %}
+                <span><i class="fas fa-clock me-1"></i>{{ recipe.time_required }}</span>
+              {% endif %}
+              <span class="recipe-card-cta">View <i class="fas fa-arrow-right ms-1"></i></span>
+            </div>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+
+    <p class="recipe-no-results" id="recipe-no-results" hidden>No recipes match your search.</p>
+  {% else %}
+    <div class="empty-recipes-state text-center">
+      <div class="empty-icon"><i class="fas fa-bread-slice"></i></div>
+      <h3>No Recipes Yet</h3>
+      <p>Start building your collection of bread recipes!</p>
+      {% if user.is_staff %}
+        <a href="{% url 'add_recipe' %}" class="btn btn-primary mt-3">
+          <i class="fas fa-plus me-1"></i>Add First Recipe
+        </a>
+      {% endif %}
+    </div>
+  {% endif %}
 </div>
 
-<style>
-/* ...existing styles... */
+{% if recipes %}
+<script>
+(function () {
+  const grid = document.getElementById('recipe-grid');
+  const cards = Array.from(grid.children);
+  const search = document.getElementById('recipe-search');
+  const sort = document.getElementById('recipe-sort');
+  const count = document.getElementById('recipe-count');
+  const noResults = document.getElementById('recipe-no-results');
 
-.recipe-tabs .nav-link {
-  color: #8B4513;
-  border: 2px solid transparent;
-  border-radius: 8px 8px 0 0;
-  font-weight: 600;
-  padding: 0.75rem 1.5rem;
-  margin-right: 0.25rem;
-}
+  function apply() {
+    const q = search.value.trim().toLowerCase();
+    let shown = 0;
+    cards.forEach(card => {
+      const match = !q || card.dataset.search.includes(q);
+      card.hidden = !match;
+      if (match) shown++;
+    });
+    const sorted = cards.slice().sort(sort.value === 'title'
+      ? (a, b) => a.dataset.title.localeCompare(b.dataset.title)
+      : (a, b) => a.dataset.order - b.dataset.order);
+    sorted.forEach(card => grid.appendChild(card));
+    count.textContent = shown + (shown === 1 ? ' recipe' : ' recipes');
+    noResults.hidden = shown > 0;
+  }
 
-.recipe-tabs .nav-link:hover {
-  color: #D2691E;
-  border-color: #e9ecef #e9ecef #dee2e6;
-}
-
-.recipe-tabs .nav-link.active {
-  color: #8B4513;
-  background-color: white;
-  border-color: #dee2e6 #dee2e6 white;
-}
-
-.tab-content {
-  border-top: 2px solid #dee2e6;
-  padding-top: 2rem;
-}
-</style>
+  search.addEventListener('input', apply);
+  sort.addEventListener('change', apply);
+})();
+</script>
+{% endif %}
 {% endblock %}

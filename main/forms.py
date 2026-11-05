@@ -6,7 +6,7 @@ from django.contrib.auth.models import User
 class RecipeForm(forms.ModelForm):
     class Meta:
         model = Recipe
-        fields = ['title', 'description', 'time_required', 'category', 'image']
+        fields = ['title', 'description', 'time_required', 'image']
 
 class CustomUserCreationForm(UserCreationForm):
     first_name = forms.CharField(required=True, max_length=30)
@@ -18,35 +18,24 @@ class CustomUserCreationForm(UserCreationForm):
         fields = ['username', 'first_name', 'last_name', 'email', 'password1', 'password2']
 
 class IngredientForm(forms.ModelForm):
-    DELETE = forms.BooleanField(
-        required=False,
-        widget=forms.CheckboxInput(attrs={
-            'class': 'form-check-input delete-checkbox'
-        })
-    )
-    
     class Meta:
         model = Ingredient
         fields = ['quantity', 'name']
         widgets = {
-            'quantity': forms.TextInput(attrs={'class': 'form-control'}),
-            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'quantity': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. 500 g', 'aria-label': 'Amount'}),
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. bread flour', 'aria-label': 'Ingredient'}),
         }
 
+
 class InstructionForm(forms.ModelForm):
-    DELETE = forms.BooleanField(
-        required=False,
-        widget=forms.CheckboxInput(attrs={
-            'class': 'form-check-input delete-checkbox'
-        })
-    )
-    
     class Meta:
         model = Instruction
         fields = ['step_text']
         widgets = {
             'step_text': forms.Textarea(attrs={
                 'class': 'form-control',
-                'rows': 3
+                'rows': 2,
+                'placeholder': 'Describe this step...',
+                'aria-label': 'Step instructions',
             }),
         }

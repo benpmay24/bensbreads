@@ -1,0 +1,297 @@
+{% extends 'base.html' %}
+{% load static widget_tweaks %}
+{% block title %}{% if is_edit %}Edit {{ recipe.title }}{% else %}New Recipe{% endif %} | Ben's Breads{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'main/recipes.css' %}">{% endblock %}
+
+{% block content %}
+<div class="hero-header text-center">
+  <div class="hero-content">
+    <h1 class="hero-title">{% if is_edit %}Edit Recipe{% else %}New Recipe{% endif %}</h1>
+    <div class="hero-divider"></div>
+  </div>
+</div>
+
+<div class="container pb-5">
+  <form method="post" enctype="multipart/form-data" id="recipe-form" novalidate>
+    {% csrf_token %}
+
+    {% if form.errors or ingredient_formset.total_error_count or instruction_formset.total_error_count %}
+      <div class="alert alert-danger recipe-form-alert" role="alert">
+        <i class="fas fa-exclamation-circle me-2"></i>Please fix the highlighted fields below.
+        {{ form.non_field_errors }}
+        {{ ingredient_formset.non_form_errors }}
+        {{ instruction_formset.non_form_errors }}
+      </div>
+    {% endif %}
+
+    <div class="row g-4">
+      <div class="col-lg-8">
+        <!-- Details -->
+        <section class="recipe-panel">
+          <h2 class="recipe-panel-title">Details</h2>
+          <div class="mb-3">
+            <label class="form-label" for="{{ form.title.id_for_label }}">Title</label>
+            {% render_field form.title class+="form-control" placeholder="e.g. Country Sourdough" %}
+            {% for e in form.title.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="{{ form.description.id_for_label }}">Description</label>
+            {% render_field form.description class+="form-control" rows="3" placeholder="What makes this loaf special?" %}
+            {% for e in form.description.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+          </div>
+          <div>
+            <label class="form-label" for="{{ form.time_required.id_for_label }}">Total time</label>
+            {% render_field form.time_required class+="form-control recipe-time-input" placeholder="e.g. 24 hours" %}
+            {% for e in form.time_required.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+          </div>
+        </section>
+
+        <!-- Ingredients -->
+        <section class="recipe-panel">
+          <div class="recipe-panel-head">
+            <h2 class="recipe-panel-title">Ingredients</h2>
+            <span class="recipe-panel-hint">Press Enter to add another</span>
+          </div>
+          {{ ingredient_formset.management_form }}
+          <div class="ing-head" aria-hidden="true"><span>Amount</span><span>Ingredient</span></div>
+          <div id="ingredient-rows" class="row-list">
+            {% for f in ingredient_formset %}
+              <div class="ing-row" data-row>
+                {% for h in f.hidden_fields %}{{ h }}{% endfor %}
+                {{ f.DELETE|add_class:"d-none delete-flag" }}
+                {{ f.quantity }}
+                {{ f.name }}
+                <button type="button" class="row-btn row-remove" aria-label="Remove ingredient"><i class="fas fa-times"></i></button>
+                {% for field in f %}{% for e in field.errors %}<div class="field-error row-error">{{ field.label }}: {{ e }}</div>{% endfor %}{% endfor %}
+              </div>
+            {% endfor %}
+          </div>
+          <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="add-ingredient">
+            <i class="fas fa-plus me-1"></i>Add ingredient
+          </button>
+          <template id="ingredient-template">
+            <div class="ing-row" data-row>
+              {% with f=ingredient_formset.empty_form %}
+                {% for h in f.hidden_fields %}{{ h }}{% endfor %}
+                {{ f.DELETE|add_class:"d-none delete-flag" }}
+                {{ f.quantity }}
+                {{ f.name }}
+              {% endwith %}
+              <button type="button" class="row-btn row-remove" aria-label="Remove ingredient"><i class="fas fa-times"></i></button>
+            </div>
+          </template>
+        </section>
+
+        <!-- Steps -->
+        <section class="recipe-panel">
+          <h2 class="recipe-panel-title">Steps</h2>
+          {{ instruction_formset.management_form }}
+          <div id="step-rows" class="row-list">
+            {% for f in instruction_formset %}
+              <div class="step-row" data-row>
+                {% for h in f.hidden_fields %}{{ h }}{% endfor %}
+                {{ f.DELETE|add_class:"d-none delete-flag" }}
+                <input type="hidden" name="{{ f.ORDER.html_name }}" value="{{ f.ORDER.value|default_if_none:'' }}" class="step-order">
+                <span class="step-num"></span>
+                {{ f.step_text }}
+                <div class="step-actions">
+                  <button type="button" class="row-btn step-up" aria-label="Move step up"><i class="fas fa-chevron-up"></i></button>
+                  <button type="button" class="row-btn step-down" aria-label="Move step down"><i class="fas fa-chevron-down"></i></button>
+                  <button type="button" class="row-btn row-remove" aria-label="Remove step"><i class="fas fa-times"></i></button>
+                </div>
+                {% for e in f.step_text.errors %}<div class="field-error row-error">{{ e }}</div>{% endfor %}
+              </div>
+            {% endfor %}
+          </div>
+          <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="add-step">
+            <i class="fas fa-plus me-1"></i>Add step
+          </button>
+          <template id="step-template">
+            <div class="step-row" data-row>
+              {% with f=instruction_formset.empty_form %}
+                {% for h in f.hidden_fields %}{{ h }}{% endfor %}
+                {{ f.DELETE|add_class:"d-none delete-flag" }}
+                <input type="hidden" name="{{ f.ORDER.html_name }}" value="" class="step-order">
+                <span class="step-num"></span>
+                {{ f.step_text }}
+              {% endwith %}
+              <div class="step-actions">
+                <button type="button" class="row-btn step-up" aria-label="Move step up"><i class="fas fa-chevron-up"></i></button>
+                <button type="button" class="row-btn step-down" aria-label="Move step down"><i class="fas fa-chevron-down"></i></button>
+                <button type="button" class="row-btn row-remove" aria-label="Remove step"><i class="fas fa-times"></i></button>
+              </div>
+            </div>
+          </template>
+        </section>
+      </div>
+
+      <!-- Sidebar -->
+      <div class="col-lg-4">
+        <div class="recipe-sidebar">
+          <section class="recipe-panel">
+            <h2 class="recipe-panel-title">Photo</h2>
+            <label class="photo-drop{% if recipe.image %} has-image{% endif %}" id="photo-drop" for="{{ form.image.id_for_label }}">
+              <img id="photo-preview" alt="" {% if recipe.image %}src="{{ recipe.image.url }}"{% endif %}>
+              <span class="photo-drop-empty">
+                <i class="fas fa-camera"></i>
+                <span>Click or drop a photo</span>
+              </span>
+              <span class="photo-drop-change">Change photo</span>
+            </label>
+            <input type="file" name="{{ form.image.html_name }}" id="{{ form.image.id_for_label }}" accept="image/*" class="visually-hidden">
+            {% if is_edit and recipe.image %}
+              <div class="form-check mt-2">
+                <input class="form-check-input" type="checkbox" name="{{ form.image.html_name }}-clear" id="photo-clear">
+                <label class="form-check-label" for="photo-clear">Remove photo</label>
+              </div>
+            {% endif %}
+            {% for e in form.image.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+          </section>
+
+          <section class="recipe-panel">
+            <div class="form-check form-switch featured-switch">
+              <input class="form-check-input" type="checkbox" role="switch" name="featured" id="featured" {% if featured %}checked{% endif %}>
+              <label class="form-check-label" for="featured">
+                <span class="featured-label"><i class="fas fa-star me-1"></i>Feature on home page</span>
+              </label>
+            </div>
+          </section>
+
+          <div class="recipe-actions">
+            <button type="submit" class="btn btn-primary btn-lg w-100" id="recipe-submit">
+              <i class="fas fa-check me-2"></i>{% if is_edit %}Save Changes{% else %}Create Recipe{% endif %}
+            </button>
+            <a href="{% if is_edit %}{% url 'recipe_detail' recipe.pk %}{% else %}{% url 'recipes' %}{% endif %}" class="btn btn-link w-100">Cancel</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+
+<script>
+(function () {
+  const form = document.getElementById('recipe-form');
+
+  // ---------- Formset rows ----------
+  function setupList(prefix, listId, templateId, addBtnId, focusSelector) {
+    const list = document.getElementById(listId);
+    const template = document.getElementById(templateId);
+    const total = form.querySelector(`input[name="${prefix}-TOTAL_FORMS"]`);
+
+    function addRow() {
+      const index = parseInt(total.value, 10);
+      const html = template.innerHTML.replace(/__prefix__/g, index);
+      list.insertAdjacentHTML('beforeend', html);
+      total.value = index + 1;
+      const row = list.lastElementChild;
+      refresh();
+      return row;
+    }
+
+    document.getElementById(addBtnId).addEventListener('click', () => {
+      addRow().querySelector(focusSelector).focus();
+    });
+
+    list.addEventListener('click', e => {
+      const row = e.target.closest('[data-row]');
+      if (!row) return;
+      if (e.target.closest('.row-remove')) {
+        row.querySelector('.delete-flag').checked = true;
+        row.hidden = true;
+        if (!visibleRows().length) addRow();
+        refresh();
+      } else if (e.target.closest('.step-up')) {
+        const prev = previousVisible(row);
+        if (prev) list.insertBefore(row, prev);
+        refresh();
+      } else if (e.target.closest('.step-down')) {
+        const next = nextVisible(row);
+        if (next) list.insertBefore(next, row);
+        refresh();
+      }
+    });
+
+    function visibleRows() { return Array.from(list.children).filter(r => !r.hidden); }
+    function previousVisible(row) { let r = row.previousElementSibling; while (r && r.hidden) r = r.previousElementSibling; return r; }
+    function nextVisible(row) { let r = row.nextElementSibling; while (r && r.hidden) r = r.nextElementSibling; return r; }
+
+    function refresh() {
+      visibleRows().forEach((row, i, rows) => {
+        const num = row.querySelector('.step-num');
+        if (num) num.textContent = i + 1;
+        const up = row.querySelector('.step-up'), down = row.querySelector('.step-down');
+        if (up) up.disabled = i === 0;
+        if (down) down.disabled = i === rows.length - 1;
+      });
+    }
+
+    // Rows marked for deletion before a failed submit stay hidden.
+    Array.from(list.children).forEach(row => {
+      if (row.querySelector('.delete-flag').checked) row.hidden = true;
+    });
+    if (!visibleRows().length) addRow();
+    refresh();
+    return { list, addRow, visibleRows };
+  }
+
+  const ingredients = setupList('ingredients', 'ingredient-rows', 'ingredient-template', 'add-ingredient', 'input[name$="-quantity"]');
+  const steps = setupList('instructions', 'step-rows', 'step-template', 'add-step', 'textarea');
+
+  // Enter in an ingredient field adds the next row instead of submitting the form.
+  ingredients.list.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' || e.target.tagName !== 'INPUT') return;
+    e.preventDefault();
+    const row = e.target.closest('[data-row]');
+    const rows = ingredients.visibleRows();
+    const next = rows[rows.indexOf(row) + 1] || ingredients.addRow();
+    next.querySelector('input[name$="-quantity"]').focus();
+  });
+
+  // Step textareas grow with their content.
+  function autosize(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 2 + 'px'; }
+  steps.list.addEventListener('input', e => { if (e.target.tagName === 'TEXTAREA') autosize(e.target); });
+  steps.list.querySelectorAll('textarea').forEach(autosize);
+
+  // ---------- Photo ----------
+  const fileInput = document.getElementById('{{ form.image.id_for_label }}');
+  const drop = document.getElementById('photo-drop');
+  const preview = document.getElementById('photo-preview');
+  const clear = document.getElementById('photo-clear');
+
+  function showFile(file) {
+    if (!file) return;
+    preview.src = URL.createObjectURL(file);
+    drop.classList.add('has-image');
+    if (clear) clear.checked = false;
+  }
+  fileInput.addEventListener('change', () => showFile(fileInput.files[0]));
+  ['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('dragging'); }));
+  ['dragleave', 'drop'].forEach(t => drop.addEventListener(t, () => drop.classList.remove('dragging')));
+  drop.addEventListener('drop', e => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (!file || !file.type.startsWith('image/')) return;
+    const dt = new DataTransfer(); dt.items.add(file); fileInput.files = dt.files;
+    showFile(file);
+  });
+  if (clear) clear.addEventListener('change', () => {
+    drop.classList.toggle('photo-cleared', clear.checked);
+  });
+
+  // ---------- Submit ----------
+  const submit = document.getElementById('recipe-submit');
+  form.addEventListener('submit', () => {
+    // Number steps in on-screen order; blank new steps get no order so they're ignored.
+    let n = 0;
+    steps.visibleRows().forEach(row => {
+      const text = row.querySelector('textarea').value.trim();
+      const isExisting = row.querySelector('input[name$="-id"]').value;
+      row.querySelector('.step-order').value = (text || isExisting) ? ++n : '';
+    });
+    submit.disabled = true;
+  });
+  window.addEventListener('pageshow', () => { submit.disabled = false; });
+})();
+</script>
+{% endblock %}
