@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth import views as auth_views
 from django.conf import settings
 from .models import Recipe, Ingredient, Instruction
+from orders.models import Product
 from .forms import RecipeForm, CustomUserCreationForm, IngredientForm, InstructionForm
 from django.db import transaction
 from django.http import HttpResponse
@@ -64,7 +65,12 @@ def staff_or_superuser(user):
 def home(request):
     # Get all recipes that are marked as featured
     featured_recipes = Recipe.objects.filter(featured=True)
-    return render(request, 'index.html', {'featured_recipes': featured_recipes})
+    # A short preview of what's currently orderable, to point visitors at the order page.
+    order_preview = Product.objects.filter(is_available=True).prefetch_related('images')[:3]
+    return render(request, 'index.html', {
+        'featured_recipes': featured_recipes,
+        'order_preview': order_preview,
+    })
 
 
 def signup(request):
